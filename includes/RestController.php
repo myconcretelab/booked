@@ -20,7 +20,7 @@ class Booked_RestController
 
     public function register_routes(): void
     {
-        register_rest_route('booked/v1', '/gites/(?P<id>[A-Za-z0-9_-]+)/config', [
+        register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/config', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_config'],
             'permission_callback' => '__return_true',
@@ -32,13 +32,13 @@ class Booked_RestController
             'permission_callback' => [$this, 'can_edit_posts'],
         ]);
 
-        register_rest_route('booked/v1', '/gites/(?P<id>[A-Za-z0-9_-]+)/availability', [
+        register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/availability', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_availability'],
             'permission_callback' => '__return_true',
         ]);
 
-        register_rest_route('booked/v1', '/gites/(?P<id>[A-Za-z0-9_-]+)/quote', [
+        register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/quote', [
             'methods' => WP_REST_Server::CREATABLE,
             'callback' => [$this, 'post_quote'],
             'permission_callback' => '__return_true',
