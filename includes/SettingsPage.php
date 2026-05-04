@@ -53,7 +53,10 @@ class Booked_SettingsPage
                     </tr>
                     <tr>
                         <th scope="row"><label for="booked-integration-token">Token d'intégration</label></th>
-                        <td><input id="booked-integration-token" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[integration_token]" type="text" class="regular-text" value="<?php echo esc_attr($settings['integration_token'] ?? ''); ?>" /></td>
+                        <td>
+                            <input id="booked-integration-token" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[integration_token]" type="password" class="regular-text" value="<?php echo esc_attr($settings['integration_token'] ?? ''); ?>" autocomplete="off" />
+                            <button type="button" class="button" id="booked-toggle-token">Révéler</button>
+                        </td>
                     </tr>
                     <tr>
                         <th scope="row"><label for="booked-timeout-ms">Timeout API (ms)</label></th>
@@ -68,10 +71,67 @@ class Booked_SettingsPage
                             </label>
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row">Connexion API</th>
+                        <td>
+                            <button type="button" class="button" id="booked-test-api">Tester la connexion</button>
+                            <span id="booked-test-api-result" style="display:inline-block;margin-left:10px;"></span>
+                        </td>
+                    </tr>
                 </table>
                 <?php submit_button(); ?>
             </form>
         </div>
+        <script>
+            (function () {
+                var button = document.getElementById('booked-test-api');
+                var result = document.getElementById('booked-test-api-result');
+                var tokenInput = document.getElementById('booked-integration-token');
+                var tokenToggle = document.getElementById('booked-toggle-token');
+
+                if (tokenInput && tokenToggle) {
+                    tokenToggle.addEventListener('click', function () {
+                        var isHidden = tokenInput.type === 'password';
+                        tokenInput.type = isHidden ? 'text' : 'password';
+                        tokenToggle.textContent = isHidden ? 'Masquer' : 'Révéler';
+                    });
+                }
+
+                if (!button || !result) {
+                    return;
+                }
+
+                button.addEventListener('click', function () {
+                    button.disabled = true;
+                    result.textContent = 'Test en cours...';
+
+                    window.fetch('<?php echo esc_url_raw(rest_url('booked/v1/settings/test')); ?>', {
+                        headers: {
+                            'X-WP-Nonce': '<?php echo esc_js(wp_create_nonce('wp_rest')); ?>'
+                        }
+                    })
+                        .then(function (response) {
+                            return response.json().then(function (payload) {
+                                if (!response.ok) {
+                                    throw new Error(payload.error || 'Connexion impossible.');
+                                }
+                                return payload;
+                            });
+                        })
+                        .then(function (payload) {
+                            result.textContent = payload.message || 'Connexion API valide.';
+                            result.style.color = '#166534';
+                        })
+                        .catch(function (error) {
+                            result.textContent = error.message || 'Connexion impossible.';
+                            result.style.color = '#991b1b';
+                        })
+                        .finally(function () {
+                            button.disabled = false;
+                        });
+                });
+            })();
+        </script>
         <?php
     }
 }

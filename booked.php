@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Booked
  * Description: Widget de demande de réservation pour gîtes, relié à l'application contrats.
- * Version: 0.1.0
+ * Version: 0.3.0
  * Author: Sebsoaz
  */
 
@@ -19,10 +19,12 @@ require_once BOOKED_PLUGIN_DIR . 'includes/ApiClient.php';
 require_once BOOKED_PLUGIN_DIR . 'includes/SettingsPage.php';
 require_once BOOKED_PLUGIN_DIR . 'includes/RestController.php';
 require_once BOOKED_PLUGIN_DIR . 'includes/Shortcode.php';
+require_once BOOKED_PLUGIN_DIR . 'includes/Block.php';
 
 add_action('plugins_loaded', static function () {
     $api_client = new Booked_ApiClient();
     (new Booked_SettingsPage())->register();
     (new Booked_RestController($api_client))->register();
     (new Booked_Shortcode())->register();
+    (new Booked_Block())->register();
 });

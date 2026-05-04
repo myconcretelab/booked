@@ -1,0 +1,11 @@
+.booked-block {
+  min-height: 120px;
+}
+
+.booked-block-placeholder {
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  color: #475569;
+  padding: 18px;
+  text-align: center;
+}

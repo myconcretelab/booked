@@ -26,6 +26,12 @@ class Booked_RestController
             'permission_callback' => '__return_true',
         ]);
 
+        register_rest_route('booked/v1', '/gites', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_gites'],
+            'permission_callback' => [$this, 'can_edit_posts'],
+        ]);
+
         register_rest_route('booked/v1', '/gites/(?P<id>[A-Za-z0-9_-]+)/availability', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_availability'],
@@ -43,6 +49,22 @@ class Booked_RestController
             'callback' => [$this, 'post_request'],
             'permission_callback' => '__return_true',
         ]);
+
+        register_rest_route('booked/v1', '/settings/test', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'test_settings'],
+            'permission_callback' => [$this, 'can_manage_options'],
+        ]);
+    }
+
+    public function can_manage_options(): bool
+    {
+        return current_user_can('manage_options');
+    }
+
+    public function can_edit_posts(): bool
+    {
+        return current_user_can('edit_posts');
     }
 
     private function maybe_error($result)
@@ -66,6 +88,38 @@ class Booked_RestController
             return $error;
         }
         return new WP_REST_Response($result, 200);
+    }
+
+    public function get_gites(WP_REST_Request $request)
+    {
+        $result = $this->api_client->request('GET', '/booked/gites');
+        if ($error = $this->maybe_error($result)) {
+            return $error;
+        }
+
+        $items = $result['data'] ?? $result['gites'] ?? $result;
+        if (!is_array($items)) {
+            $items = [];
+        }
+
+        $gites = array_values(array_filter(array_map(static function ($item) {
+            if (!is_array($item)) {
+                return null;
+            }
+
+            $id = (string) ($item['id'] ?? $item['gite_id'] ?? $item['slug'] ?? '');
+            if ($id === '') {
+                return null;
+            }
+
+            return [
+                'id' => $id,
+                'name' => (string) ($item['nom'] ?? $item['name'] ?? $item['title'] ?? $id),
+                'capacity' => isset($item['capacite_max']) ? (int) $item['capacite_max'] : (isset($item['capacity']) ? (int) $item['capacity'] : null),
+            ];
+        }, $items)));
+
+        return new WP_REST_Response(['gites' => $gites], 200);
     }
 
     public function get_availability(WP_REST_Request $request)
@@ -108,5 +162,21 @@ class Booked_RestController
             return $error;
         }
         return new WP_REST_Response($result, 201);
+    }
+
+    public function test_settings(WP_REST_Request $request)
+    {
+        $result = $this->api_client->request('GET', '/booked/gites');
+        if ($error = $this->maybe_error($result)) {
+            return $error;
+        }
+
+        $items = $result['data'] ?? $result['gites'] ?? $result;
+        $count = is_array($items) ? count($items) : 0;
+
+        return new WP_REST_Response([
+            'ok' => true,
+            'message' => sprintf('Connexion API valide. %d gîte(s) détecté(s).', $count),
+        ], 200);
     }
 }

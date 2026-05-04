@@ -4,6 +4,34 @@
   const formatPrice = (value) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(value || 0));
 
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseDate = (value) => {
+    if (!value) return null;
+    const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  const addDays = (date, days) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+  };
+
+  const addMonths = (date, months) => {
+    const next = new Date(date);
+    next.setMonth(next.getMonth() + months, 1);
+    return next;
+  };
+
+  const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
+  const endOfMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
   const createElement = (tag, className, text) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -57,43 +85,153 @@
     };
   };
 
-  const renderBlockedRanges = (target, availability) => {
-    target.innerHTML = "";
-    if (!availability.blocked_ranges || availability.blocked_ranges.length === 0) {
-      target.appendChild(createElement("div", "booked-widget__empty", "Aucune indisponibilité connue sur la période chargée."));
-      return;
+  const getBlockedDays = (availability) => {
+    const blockedDays = new Map();
+    (availability.blocked_ranges || []).forEach((item) => {
+      const start = parseDate(item.date_entree);
+      const end = parseDate(item.date_sortie);
+      if (!start || !end) return;
+
+      for (let day = start; day < end; day = addDays(day, 1)) {
+        blockedDays.set(formatDate(day), item.type === "booking_request" ? "option" : "booked");
+      }
+    });
+    return blockedDays;
+  };
+
+  const getDayStatus = (day, blockedDays) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (day < today) return "past";
+    return blockedDays.get(formatDate(day)) || "free";
+  };
+
+  const renderMonth = (monthDate, blockedDays, selectedStart, selectedEnd, onDayClick) => {
+    const month = startOfMonth(monthDate);
+    const monthEnd = endOfMonth(month);
+    const firstWeekday = (month.getDay() + 6) % 7;
+    const monthElement = createElement("section", "booked-widget__month");
+    const title = createElement(
+      "h5",
+      "booked-widget__month-title",
+      new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(month)
+    );
+    monthElement.appendChild(title);
+
+    const grid = createElement("div", "booked-widget__calendar-grid");
+    ["L", "M", "M", "J", "V", "S", "D"].forEach((label) => {
+      grid.appendChild(createElement("div", "booked-widget__weekday", label));
+    });
+
+    for (let i = 0; i < firstWeekday; i += 1) {
+      grid.appendChild(createElement("div", "booked-widget__day booked-widget__day--empty"));
     }
 
-    availability.blocked_ranges.forEach((item) => {
-      const row = createElement("div", "booked-widget__range");
-      row.appendChild(createElement("strong", "", item.type === "booking_request" ? "Option temporaire" : "Réservé"));
-      row.appendChild(createElement("span", "", `${item.date_entree.slice(0, 10)} → ${item.date_sortie.slice(0, 10)}`));
-      target.appendChild(row);
+    for (let day = month; day <= monthEnd; day = addDays(day, 1)) {
+      const status = getDayStatus(day, blockedDays);
+      const dateValue = formatDate(day);
+      const selectionClass =
+        dateValue === selectedStart || dateValue === selectedEnd
+          ? " booked-widget__day--selected"
+          : selectedStart && selectedEnd && dateValue > selectedStart && dateValue < selectedEnd
+            ? " booked-widget__day--in-range"
+            : "";
+      const button = createElement(
+        "button",
+        `booked-widget__day booked-widget__day--${status}${selectionClass}`,
+        String(day.getDate())
+      );
+      button.type = "button";
+      button.dataset.date = dateValue;
+      button.disabled = status !== "free" || !onDayClick;
+      button.setAttribute(
+        "aria-label",
+        `${dateValue} ${status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}`
+      );
+      if (status === "free" && onDayClick) {
+        button.addEventListener("click", () => onDayClick(dateValue));
+      }
+      grid.appendChild(button);
+    }
+
+    monthElement.appendChild(grid);
+    return monthElement;
+  };
+
+  const renderAvailabilityCalendar = (target, availability, monthCursor, monthsCount, selectedStart, selectedEnd, onNavigate, onDayClick) => {
+    const blockedDays = getBlockedDays(availability);
+    target.innerHTML = "";
+
+    const toolbar = createElement("div", "booked-widget__calendar-toolbar");
+    const previous = createElement("button", "booked-widget__calendar-nav", "‹");
+    previous.type = "button";
+    previous.setAttribute("aria-label", "Mois précédent");
+    previous.addEventListener("click", () => onNavigate(-1));
+    const next = createElement("button", "booked-widget__calendar-nav", "›");
+    next.type = "button";
+    next.setAttribute("aria-label", "Mois suivant");
+    next.addEventListener("click", () => onNavigate(1));
+    const label = createElement("div", "booked-widget__calendar-heading", "Calendrier des disponibilités");
+    toolbar.append(previous, label, next);
+    target.appendChild(toolbar);
+
+    const months = createElement("div", "booked-widget__months");
+    months.style.setProperty("--booked-month-count", String(Math.min(monthsCount, 3)));
+    for (let index = 0; index < monthsCount; index += 1) {
+      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, selectedStart, selectedEnd, onDayClick));
+    }
+    target.appendChild(months);
+
+    const legend = createElement("div", "booked-widget__legend");
+    [
+      ["free", "Disponible"],
+      ["booked", "Réservé"],
+      ["option", "Option"],
+    ].forEach(([status, labelText]) => {
+      const item = createElement("span", "booked-widget__legend-item");
+      item.appendChild(createElement("span", `booked-widget__legend-dot booked-widget__legend-dot--${status}`));
+      item.appendChild(createElement("span", "", labelText));
+      legend.appendChild(item);
     });
+    target.appendChild(legend);
   };
 
   const renderWidget = async (root) => {
     const giteId = root.dataset.giteId;
+    const mode = root.dataset.mode === "calendar" ? "calendar" : "booking";
+    const monthsCount = Math.max(1, Math.min(12, Number(root.dataset.months || 2)));
+    const showTitle = root.dataset.showTitle !== "0";
+    const showCapacity = root.dataset.showCapacity !== "0";
+    const selectedStart = root.dataset.selectedStart || "";
+    const selectedEnd = root.dataset.selectedEnd || "";
+    const initialMonth = root.dataset.monthCursor ? parseDate(root.dataset.monthCursor) : startOfMonth(new Date());
+    const monthCursor = initialMonth || startOfMonth(new Date());
     root.innerHTML = "";
     root.appendChild(createElement("div", "booked-widget__loading", "Chargement des disponibilités…"));
 
     try {
+      const availabilityFrom = formatDate(monthCursor);
+      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(monthCursor, monthsCount - 1)), 1));
       const [giteConfig, availability] = await Promise.all([
         apiFetch(`/gites/${encodeURIComponent(giteId)}/config`),
-        apiFetch(`/gites/${encodeURIComponent(giteId)}/availability`),
+        apiFetch(`/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`),
       ]);
 
       const shell = createElement("div", "booked-widget__shell");
-      const header = createElement("div", "booked-widget__header");
-      header.appendChild(createElement("h3", "booked-widget__title", giteConfig.nom));
-      header.appendChild(createElement("p", "booked-widget__subtitle", `Capacité max ${giteConfig.capacite_max} personnes`));
-      shell.appendChild(header);
+      if (showTitle || showCapacity) {
+        const header = createElement("div", "booked-widget__header");
+        if (showTitle) {
+          header.appendChild(createElement("h3", "booked-widget__title", giteConfig.nom));
+        }
+        if (showCapacity) {
+          header.appendChild(createElement("p", "booked-widget__subtitle", `Capacité max ${giteConfig.capacite_max} personnes`));
+        }
+        shell.appendChild(header);
+      }
 
       const availabilityCard = createElement("div", "booked-widget__card");
-      availabilityCard.appendChild(createElement("h4", "", "Disponibilités connues"));
-      const blockedRanges = createElement("div", "booked-widget__ranges");
-      renderBlockedRanges(blockedRanges, availability);
-      availabilityCard.appendChild(blockedRanges);
+      const calendar = createElement("div", "booked-widget__calendar");
+      availabilityCard.appendChild(calendar);
       shell.appendChild(availabilityCard);
 
       const form = createElement("form", "booked-widget__form");
@@ -122,16 +260,27 @@
         <div class="booked-widget__feedback"></div>
         <button type="submit" class="booked-widget__submit">Envoyer la demande</button>
       `;
-      shell.appendChild(form);
+      if (mode === "booking") {
+        shell.appendChild(form);
+      }
       root.innerHTML = "";
       root.appendChild(shell);
 
       const quoteBox = form.querySelector(".booked-widget__quote");
       const feedbackBox = form.querySelector(".booked-widget__feedback");
+      const dateEntreeInput = form.querySelector("[name=date_entree]");
+      const dateSortieInput = form.querySelector("[name=date_sortie]");
+
+      if (selectedStart) {
+        dateEntreeInput.value = selectedStart;
+      }
+      if (selectedEnd) {
+        dateSortieInput.value = selectedEnd;
+      }
 
       const updateQuote = async () => {
-        const dateEntree = form.querySelector("[name=date_entree]").value;
-        const dateSortie = form.querySelector("[name=date_sortie]").value;
+        const dateEntree = dateEntreeInput.value;
+        const dateSortie = dateSortieInput.value;
         if (!dateEntree || !dateSortie) {
           quoteBox.innerHTML = "";
           return;
@@ -166,8 +315,55 @@
       };
 
       form.addEventListener("change", () => {
+        root.dataset.selectedStart = dateEntreeInput.value;
+        root.dataset.selectedEnd = dateSortieInput.value;
         void updateQuote();
       });
+
+      const navigateCalendar = async (direction) => {
+        root.dataset.monthCursor = formatDate(addMonths(monthCursor, direction));
+        await renderWidget(root);
+      };
+
+      const handleCalendarDayClick = (date) => {
+        if (!dateEntreeInput.value || dateSortieInput.value) {
+          dateEntreeInput.value = date;
+          dateSortieInput.value = "";
+        } else if (date > dateEntreeInput.value) {
+          dateSortieInput.value = date;
+        } else {
+          dateEntreeInput.value = date;
+          dateSortieInput.value = "";
+        }
+        root.dataset.selectedStart = dateEntreeInput.value;
+        root.dataset.selectedEnd = dateSortieInput.value;
+        form.dispatchEvent(new Event("change", { bubbles: true }));
+        renderAvailabilityCalendar(
+          calendar,
+          availability,
+          monthCursor,
+          monthsCount,
+          dateEntreeInput.value,
+          dateSortieInput.value,
+          navigateCalendar,
+          handleCalendarDayClick
+        );
+      };
+
+      renderAvailabilityCalendar(
+        calendar,
+        availability,
+        monthCursor,
+        monthsCount,
+        selectedStart,
+        selectedEnd,
+        navigateCalendar,
+        mode === "booking" ? handleCalendarDayClick : null
+      );
+
+      if (mode !== "booking") {
+        return;
+      }
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -211,8 +407,21 @@
     }
   };
 
+  window.BookedWidget = {
+    render: renderWidget,
+    initAll() {
+      document.querySelectorAll(".booked-widget[data-gite-id]").forEach((root) => {
+        if (root.dataset.bookedInitialized === "1") return;
+        root.dataset.bookedInitialized = "1";
+        renderWidget(root);
+      });
+    },
+  };
+
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".booked-widget[data-gite-id]").forEach((root) => {
+      if (root.dataset.bookedInitialized === "1") return;
+      root.dataset.bookedInitialized = "1";
       renderWidget(root);
     });
   });
