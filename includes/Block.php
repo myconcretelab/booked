@@ -55,10 +55,10 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-element', 'wp-i18n', 'booked-widget'],
-            '0.3.1',
+            '0.3.2',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.1');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.2');
     }
 
     public function render_block(array $attributes): string

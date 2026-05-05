@@ -45,8 +45,33 @@
     }
   };
 
+  const buildApiUrl = (path) => {
+    const pathValue = String(path || "");
+    const queryIndex = pathValue.indexOf("?");
+    const routePath = queryIndex === -1 ? pathValue : pathValue.slice(0, queryIndex);
+    const queryString = queryIndex === -1 ? "" : pathValue.slice(queryIndex + 1);
+    const url = new URL(config.restUrl || "", window.location.href);
+    const normalizedPath = routePath.startsWith("/") ? routePath : `/${routePath}`;
+    const restRoute = url.searchParams.get("rest_route");
+
+    if (restRoute !== null) {
+      url.searchParams.set("rest_route", `${restRoute.replace(/\/$/, "")}${normalizedPath}`);
+    } else {
+      url.pathname = `${url.pathname.replace(/\/$/, "")}${normalizedPath}`;
+    }
+
+    if (queryString) {
+      const queryParams = new URLSearchParams(queryString);
+      queryParams.forEach((value, key) => {
+        url.searchParams.append(key, value);
+      });
+    }
+
+    return url.toString();
+  };
+
   const apiFetch = async (path, options) => {
-    const response = await fetch(config.restUrl.replace(/\/$/, "") + path, {
+    const response = await fetch(buildApiUrl(path), {
       method: options?.method || "GET",
       headers: {
         "Content-Type": "application/json",
