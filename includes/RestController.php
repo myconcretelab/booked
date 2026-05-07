@@ -26,6 +26,12 @@ class Booked_RestController
             'permission_callback' => '__return_true',
         ]);
 
+        register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/content', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_content'],
+            'permission_callback' => '__return_true',
+        ]);
+
         register_rest_route('booked/v1', '/gites', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_gites'],
@@ -84,6 +90,15 @@ class Booked_RestController
     public function get_config(WP_REST_Request $request)
     {
         $result = $this->api_client->request('GET', '/booked/gites/' . rawurlencode((string) $request['id']) . '/config');
+        if ($error = $this->maybe_error($result)) {
+            return $error;
+        }
+        return new WP_REST_Response($result, 200);
+    }
+
+    public function get_content(WP_REST_Request $request)
+    {
+        $result = $this->api_client->request('GET', '/booked/gites/' . rawurlencode((string) $request['id']) . '/content');
         if ($error = $this->maybe_error($result)) {
             return $error;
         }

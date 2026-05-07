@@ -1,7 +1,7 @@
 (function (wp) {
   const { registerBlockType } = wp.blocks;
   const { InspectorControls, useBlockProps } = wp.blockEditor;
-  const { Button, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl } = wp.components;
+  const { Button, CheckboxControl, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl } = wp.components;
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
   const { __ } = wp.i18n;
   const apiFetch = wp.apiFetch;
@@ -15,7 +15,49 @@
     })).filter((item) => item.id);
   };
 
-  const Preview = ({ attributes }) => {
+  const useGites = () => {
+    const [gites, setGites] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    const loadGites = () => {
+      setIsLoading(true);
+      setError("");
+      apiFetch({ path: "/booked/v1/gites" })
+        .then((payload) => {
+          setGites(normalizeGites(payload));
+          setIsLoading(false);
+        })
+        .catch((apiError) => {
+          setError(apiError.message || __("Impossible de charger les gîtes.", "booked"));
+          setIsLoading(false);
+        });
+    };
+
+    useEffect(loadGites, []);
+
+    return { gites, isLoading, error, loadGites };
+  };
+
+  const getGiteOptions = (gites) => [
+    { label: __("Sélectionner un gîte", "booked"), value: "" },
+    ...gites.map((gite) => ({
+      label: gite.capacity ? `${gite.name} (${gite.capacity} pers.)` : gite.name,
+      value: gite.id,
+    })),
+  ];
+
+  const normalizeIdList = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
+
+  const toggleSelectedId = (currentValue, id, allIds) => {
+    const current = normalizeIdList(currentValue);
+    const all = normalizeIdList(allIds);
+    const effective = current.length === 0 ? all : current;
+    const next = effective.includes(id) ? effective.filter((item) => item !== id) : [...effective, id];
+    return next.length === all.length ? [] : next;
+  };
+
+  const WidgetPreview = ({ attributes }) => {
     const ref = useRef(null);
 
     useEffect(() => {
@@ -39,36 +81,44 @@
     });
   };
 
+  const GiteInfoPreview = ({ attributes }) => {
+    const ref = useRef(null);
+
+    useEffect(() => {
+      if (!ref.current || !attributes.giteId || !window.BookedGiteInfo) return;
+      ref.current.dataset.bookedInfoInitialized = "0";
+      window.BookedGiteInfo.render(ref.current);
+    }, [
+      attributes.giteId,
+      attributes.layout,
+      JSON.stringify(attributes.selectedSectionIds || []),
+      JSON.stringify(attributes.selectedGroupIds || []),
+      attributes.showTitle,
+      attributes.showSectionTitles,
+      attributes.showNotes,
+    ]);
+
+    if (!attributes.giteId) {
+      return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
+    }
+
+    return el("div", {
+      ref,
+      className: "booked-gite-info",
+      "data-gite-id": attributes.giteId,
+      "data-layout": attributes.layout || "list",
+      "data-selected-section-ids": JSON.stringify(attributes.selectedSectionIds || []),
+      "data-selected-group-ids": JSON.stringify(attributes.selectedGroupIds || []),
+      "data-show-title": attributes.showTitle === false ? "0" : "1",
+      "data-show-section-titles": attributes.showSectionTitles === false ? "0" : "1",
+      "data-show-notes": attributes.showNotes === false ? "0" : "1",
+    });
+  };
+
   registerBlockType("booked/widget", {
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block" });
-      const [gites, setGites] = useState([]);
-      const [isLoading, setIsLoading] = useState(true);
-      const [error, setError] = useState("");
-
-      const loadGites = () => {
-        setIsLoading(true);
-        setError("");
-        apiFetch({ path: "/booked/v1/gites" })
-          .then((payload) => {
-            setGites(normalizeGites(payload));
-            setIsLoading(false);
-          })
-          .catch((apiError) => {
-            setError(apiError.message || __("Impossible de charger les gîtes.", "booked"));
-            setIsLoading(false);
-          });
-      };
-
-      useEffect(loadGites, []);
-
-      const giteOptions = [
-        { label: __("Sélectionner un gîte", "booked"), value: "" },
-        ...gites.map((gite) => ({
-          label: gite.capacity ? `${gite.name} (${gite.capacity} pers.)` : gite.name,
-          value: gite.id,
-        })),
-      ];
+      const { gites, isLoading, error, loadGites } = useGites();
 
       return el(
         Fragment,
@@ -84,7 +134,7 @@
             el(SelectControl, {
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
-              options: giteOptions,
+              options: getGiteOptions(gites),
               onChange: (value) => setAttributes({ giteId: value }),
             }),
             error
@@ -124,7 +174,141 @@
             el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
           )
         ),
-        el("div", blockProps, el(Preview, { attributes }))
+        el("div", blockProps, el(WidgetPreview, { attributes }))
+      );
+    },
+
+    save() {
+      return null;
+    },
+  });
+
+  registerBlockType("booked/gite-info", {
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-block booked-block--gite-info" });
+      const { gites, isLoading, error, loadGites } = useGites();
+      const [content, setContent] = useState(null);
+      const [contentError, setContentError] = useState("");
+      const [isContentLoading, setIsContentLoading] = useState(false);
+
+      useEffect(() => {
+        if (!attributes.giteId) {
+          setContent(null);
+          setContentError("");
+          return;
+        }
+
+        setIsContentLoading(true);
+        setContentError("");
+        apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(attributes.giteId)}/content` })
+          .then((payload) => {
+            setContent(payload);
+            setIsContentLoading(false);
+          })
+          .catch((apiError) => {
+            setContent(null);
+            setContentError(apiError.message || __("Impossible de charger les infos du gîte.", "booked"));
+            setIsContentLoading(false);
+          });
+      }, [attributes.giteId]);
+
+      const sections = content && Array.isArray(content.sections) ? content.sections : [];
+      const sectionIds = sections.map((section) => String(section.id || "")).filter(Boolean);
+      const groupIds = sections.flatMap((section) =>
+        (Array.isArray(section.groupes) ? section.groupes : []).map((group) => String(group.id || "")).filter(Boolean)
+      );
+      const selectedSectionIds = normalizeIdList(attributes.selectedSectionIds);
+      const selectedGroupIds = normalizeIdList(attributes.selectedGroupIds);
+
+      return el(
+        Fragment,
+        null,
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Réglages Booked Infos", "booked"), initialOpen: true },
+            isLoading ? el(Spinner) : null,
+            error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
+            el(SelectControl, {
+              label: __("Gîte", "booked"),
+              value: attributes.giteId || "",
+              options: getGiteOptions(gites),
+              onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [], selectedGroupIds: [] }),
+            }),
+            error
+              ? el(TextControl, {
+                  label: __("ID du gîte", "booked"),
+                  value: attributes.giteId || "",
+                  help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
+                  onChange: (value) => setAttributes({ giteId: value }),
+                })
+              : null,
+            el(SelectControl, {
+              label: __("Affichage", "booked"),
+              value: attributes.layout || "list",
+              options: [
+                { label: __("Liste", "booked"), value: "list" },
+                { label: __("Accordéons", "booked"), value: "accordion" },
+                { label: __("Cards", "booked"), value: "cards" },
+              ],
+              onChange: (value) => setAttributes({ layout: value }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher le titre", "booked"),
+              checked: attributes.showTitle !== false,
+              onChange: (value) => setAttributes({ showTitle: value }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les titres de sections", "booked"),
+              checked: attributes.showSectionTitles !== false,
+              onChange: (value) => setAttributes({ showSectionTitles: value }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les notes", "booked"),
+              checked: attributes.showNotes !== false,
+              onChange: (value) => setAttributes({ showNotes: value }),
+            }),
+            el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
+          ),
+          el(
+            PanelBody,
+            { title: __("Sections et rubriques", "booked"), initialOpen: false },
+            isContentLoading ? el(Spinner) : null,
+            contentError ? el(Notice, { status: "error", isDismissible: false }, contentError) : null,
+            !isContentLoading && !contentError && sections.length === 0
+              ? el("p", { className: "booked-block-help" }, __("Aucune information disponible pour ce gîte.", "booked"))
+              : null,
+            sections.map((section) =>
+              el(
+                "div",
+                { key: section.id, className: "booked-block-selection" },
+                el(CheckboxControl, {
+                  label: section.titre || section.id,
+                  checked: selectedSectionIds.length === 0 || selectedSectionIds.includes(String(section.id)),
+                  onChange: () =>
+                    setAttributes({
+                      selectedSectionIds: toggleSelectedId(selectedSectionIds, String(section.id), sectionIds),
+                    }),
+                }),
+                (Array.isArray(section.groupes) ? section.groupes : []).map((group) =>
+                  el(CheckboxControl, {
+                    key: group.id,
+                    className: "booked-block-selection__group",
+                    label: group.titre || group.id,
+                    checked: selectedGroupIds.length === 0 || selectedGroupIds.includes(String(group.id)),
+                    onChange: () =>
+                      setAttributes({
+                        selectedGroupIds: toggleSelectedId(selectedGroupIds, String(group.id), groupIds),
+                      }),
+                  })
+                )
+              )
+            )
+          )
+        ),
+        el("div", blockProps, el(GiteInfoPreview, { attributes }))
       );
     },
 

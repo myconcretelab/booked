@@ -144,12 +144,14 @@
     monthElement.appendChild(title);
 
     const grid = createElement("div", "booked-widget__calendar-grid");
+    let dateCells = 0;
     ["L", "M", "M", "J", "V", "S", "D"].forEach((label) => {
       grid.appendChild(createElement("div", "booked-widget__weekday", label));
     });
 
     for (let i = 0; i < firstWeekday; i += 1) {
       grid.appendChild(createElement("div", "booked-widget__day booked-widget__day--empty"));
+      dateCells += 1;
     }
 
     for (let day = month; day <= monthEnd; day = addDays(day, 1)) {
@@ -177,6 +179,12 @@
         button.addEventListener("click", () => onDayClick(dateValue));
       }
       grid.appendChild(button);
+      dateCells += 1;
+    }
+
+    while (dateCells < 42) {
+      grid.appendChild(createElement("div", "booked-widget__day booked-widget__day--empty"));
+      dateCells += 1;
     }
 
     monthElement.appendChild(grid);
@@ -345,9 +353,42 @@
         void updateQuote();
       });
 
+      let currentAvailability = availability;
+      let currentMonthCursor = monthCursor;
+      let isNavigating = false;
+
       const navigateCalendar = async (direction) => {
-        root.dataset.monthCursor = formatDate(addMonths(monthCursor, direction));
-        await renderWidget(root);
+        if (isNavigating) return;
+
+        isNavigating = true;
+        const nextMonthCursor = addMonths(currentMonthCursor, direction);
+        const availabilityFrom = formatDate(nextMonthCursor);
+        const availabilityTo = formatDate(addDays(endOfMonth(addMonths(nextMonthCursor, monthsCount - 1)), 1));
+        calendar.setAttribute("aria-busy", "true");
+
+        try {
+          currentAvailability = await apiFetch(
+            `/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`
+          );
+          currentMonthCursor = nextMonthCursor;
+          root.dataset.monthCursor = formatDate(currentMonthCursor);
+          renderAvailabilityCalendar(
+            calendar,
+            currentAvailability,
+            currentMonthCursor,
+            monthsCount,
+            dateEntreeInput.value,
+            dateSortieInput.value,
+            navigateCalendar,
+            mode === "booking" ? handleCalendarDayClick : null
+          );
+        } catch (error) {
+          log("calendar navigation error", error);
+          feedbackBox.textContent = error.message || "Navigation impossible.";
+        } finally {
+          calendar.removeAttribute("aria-busy");
+          isNavigating = false;
+        }
       };
 
       const handleCalendarDayClick = (date) => {
@@ -365,8 +406,8 @@
         form.dispatchEvent(new Event("change", { bubbles: true }));
         renderAvailabilityCalendar(
           calendar,
-          availability,
-          monthCursor,
+          currentAvailability,
+          currentMonthCursor,
           monthsCount,
           dateEntreeInput.value,
           dateSortieInput.value,
@@ -377,8 +418,8 @@
 
       renderAvailabilityCalendar(
         calendar,
-        availability,
-        monthCursor,
+        currentAvailability,
+        currentMonthCursor,
         monthsCount,
         selectedStart,
         selectedEnd,
