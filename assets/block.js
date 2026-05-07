@@ -5,6 +5,7 @@
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
   const { __ } = wp.i18n;
   const apiFetch = wp.apiFetch;
+  const NO_SELECTION_ID = "__booked_no_selection__";
 
   const normalizeGites = (payload) => {
     const items = payload && Array.isArray(payload.gites) ? payload.gites : [];
@@ -48,13 +49,42 @@
   ];
 
   const normalizeIdList = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
+  const isNoSelection = (value) => normalizeIdList(value).includes(NO_SELECTION_ID);
+  const withoutNoSelection = (value) => normalizeIdList(value).filter((id) => id !== NO_SELECTION_ID);
 
   const toggleSelectedId = (currentValue, id, allIds) => {
-    const current = normalizeIdList(currentValue);
+    const current = withoutNoSelection(currentValue);
     const all = normalizeIdList(allIds);
-    const effective = current.length === 0 ? all : current;
+    const effective = isNoSelection(currentValue) ? [] : current.length === 0 ? all : current;
     const next = effective.includes(id) ? effective.filter((item) => item !== id) : [...effective, id];
+    if (next.length === 0) {
+      return [NO_SELECTION_ID];
+    }
     return next.length === all.length ? [] : next;
+  };
+
+  const getSectionGroupIds = (section) =>
+    (Array.isArray(section.groupes) ? section.groupes : []).map((group) => String(group.id || "")).filter(Boolean);
+
+  const toggleSelectedSection = (selectedSectionIds, selectedGroupIds, section, sectionIds, groupIds) => {
+    const sectionId = String(section.id || "");
+    const sectionGroupIds = getSectionGroupIds(section);
+    const currentSectionIds = withoutNoSelection(selectedSectionIds);
+    const currentGroupIds = withoutNoSelection(selectedGroupIds);
+    const effectiveSectionIds = isNoSelection(selectedSectionIds) ? [] : currentSectionIds.length === 0 ? sectionIds : currentSectionIds;
+    const effectiveGroupIds = isNoSelection(selectedGroupIds) ? [] : currentGroupIds.length === 0 ? groupIds : currentGroupIds;
+    const isSelected = effectiveSectionIds.includes(sectionId);
+    const nextSectionIds = isSelected
+      ? effectiveSectionIds.filter((id) => id !== sectionId)
+      : [...effectiveSectionIds, sectionId];
+    const nextGroupIds = isSelected
+      ? effectiveGroupIds.filter((id) => !sectionGroupIds.includes(id))
+      : Array.from(new Set([...effectiveGroupIds, ...sectionGroupIds]));
+
+    return {
+      selectedSectionIds: nextSectionIds.length === 0 ? [NO_SELECTION_ID] : nextSectionIds.length === sectionIds.length ? [] : nextSectionIds,
+      selectedGroupIds: nextGroupIds.length === 0 ? [NO_SELECTION_ID] : nextGroupIds.length === groupIds.length ? [] : nextGroupIds,
+    };
   };
 
   const WidgetPreview = ({ attributes }) => {
@@ -235,14 +265,14 @@
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
               options: getGiteOptions(gites),
-              onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [], selectedGroupIds: [] }),
+              onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID] }),
             }),
             error
               ? el(TextControl, {
                   label: __("ID du gîte", "booked"),
                   value: attributes.giteId || "",
                   help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
-                  onChange: (value) => setAttributes({ giteId: value }),
+                  onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID] }),
                 })
               : null,
             el(SelectControl, {
@@ -281,30 +311,34 @@
               ? el("p", { className: "booked-block-help" }, __("Aucune information disponible pour ce gîte.", "booked"))
               : null,
             sections.map((section) =>
-              el(
-                "div",
-                { key: section.id, className: "booked-block-selection" },
-                el(CheckboxControl, {
-                  label: section.titre || section.id,
-                  checked: selectedSectionIds.length === 0 || selectedSectionIds.includes(String(section.id)),
-                  onChange: () =>
-                    setAttributes({
-                      selectedSectionIds: toggleSelectedId(selectedSectionIds, String(section.id), sectionIds),
-                    }),
-                }),
-                (Array.isArray(section.groupes) ? section.groupes : []).map((group) =>
+              {
+                const hasNoSelection = isNoSelection(selectedSectionIds);
+                const isSectionSelected = !hasNoSelection && (selectedSectionIds.length === 0 || selectedSectionIds.includes(String(section.id)));
+
+                return el(
+                  "div",
+                  { key: section.id, className: "booked-block-selection" },
                   el(CheckboxControl, {
-                    key: group.id,
-                    className: "booked-block-selection__group",
-                    label: group.titre || group.id,
-                    checked: selectedGroupIds.length === 0 || selectedGroupIds.includes(String(group.id)),
+                    label: section.titre || section.id,
+                    checked: isSectionSelected,
                     onChange: () =>
-                      setAttributes({
-                        selectedGroupIds: toggleSelectedId(selectedGroupIds, String(group.id), groupIds),
-                      }),
-                  })
-                )
-              )
+                      setAttributes(toggleSelectedSection(selectedSectionIds, selectedGroupIds, section, sectionIds, groupIds)),
+                  }),
+                  (Array.isArray(section.groupes) ? section.groupes : []).map((group) =>
+                    el(CheckboxControl, {
+                      key: group.id,
+                      className: "booked-block-selection__group",
+                      label: group.titre || group.id,
+                      checked: isSectionSelected && (selectedGroupIds.length === 0 || selectedGroupIds.includes(String(group.id))),
+                      disabled: !isSectionSelected,
+                      onChange: () =>
+                        setAttributes({
+                          selectedGroupIds: toggleSelectedId(selectedGroupIds, String(group.id), groupIds),
+                        }),
+                    })
+                  )
+                );
+              }
             )
           )
         ),

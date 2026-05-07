@@ -323,12 +323,47 @@
 .booked-gite-info__items {
   display: grid;
   gap: 8px;
+  list-style: none;
   margin: 0;
-  padding-left: 20px;
+  padding-left: 0;
 }
 
 .booked-gite-info__item {
+  align-items: center;
   color: #334155;
+  display: flex;
+  gap: 8px;
+  line-height: 1.45;
+}
+
+.booked-gite-info__item::before {
+  background: currentColor;
+  border-radius: 999px;
+  content: "";
+  flex: 0 0 auto;
+  height: 5px;
+  margin-left: 5px;
+  width: 5px;
+}
+
+.booked-gite-info__item--bed::before {
+  content: none;
+}
+
+.booked-gite-info__bed-icon {
+  flex: 0 0 auto;
+  height: 22px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+  width: 22px;
+}
+
+.booked-gite-info__item-dimensions {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .booked-gite-info__note {

@@ -1,5 +1,6 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
+  const contentRequests = new Map();
 
   const BED_LABELS = {
     single: "Lit 90",
@@ -11,11 +12,31 @@
     baby: "Lit bébé",
   };
 
+  const BED_DIMENSIONS = {
+    single: "90 x 190 cm",
+    double: "140 x 190 cm",
+    queen: "160 x 200 cm",
+    king: "180 x 200 cm",
+    bunk: "90 x 190 cm",
+    sofa_bed: "140 x 190 cm",
+    baby: "60 x 120 cm",
+  };
+
   const createElement = (tag, className, text) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
     if (text !== undefined) element.textContent = text;
     return element;
+  };
+
+  const createSvgElement = (tag, attributes = {}) => {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+    return element;
+  };
+
+  const appendSvgShape = (svg, tag, attributes) => {
+    svg.appendChild(createSvgElement(tag, attributes));
   };
 
   const parseList = (value) => {
@@ -62,13 +83,50 @@
     return payload;
   };
 
+  const fetchGiteContent = (giteId) => {
+    const normalizedGiteId = String(giteId || "");
+    if (!contentRequests.has(normalizedGiteId)) {
+      contentRequests.set(normalizedGiteId, apiFetch(`/gites/${encodeURIComponent(normalizedGiteId)}/content`));
+    }
+    return contentRequests.get(normalizedGiteId);
+  };
+
   const formatItem = (item) => {
     if (!item || typeof item !== "object" || Array.isArray(item) || item.kind !== "bed") {
-      return String(item || "").trim();
+      const label = String(item || "").trim();
+      return label ? { label, type: "" } : null;
     }
     const count = Number.isFinite(Number(item.count)) ? Math.max(1, Math.round(Number(item.count))) : 1;
     const label = BED_LABELS[item.type] || "Lit";
-    return count > 1 ? `${count} x ${label}` : label;
+    return {
+      label: count > 1 ? `${count} x ${label}` : label,
+      dimensions: BED_DIMENSIONS[item.type] || "",
+      type: String(item.type || "bed"),
+    };
+  };
+
+  const createBedIcon = (type) => {
+    const iconType = ["single", "double", "queen", "king", "bunk", "sofa_bed", "baby"].includes(type) ? type : "bed";
+    const svg = createSvgElement("svg", {
+      class: `booked-gite-info__bed-icon booked-gite-info__bed-icon--${iconType}`,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      "aria-hidden": "true",
+      focusable: "false",
+    });
+
+    if (iconType === "bunk") {
+      appendSvgShape(svg, "path", { d: "M5 4v16M19 4v16M7 6h10v4H7zM7 14h10v4H7zM5 11h14M5 19h14" });
+    } else if (iconType === "sofa_bed") {
+      appendSvgShape(svg, "path", { d: "M6 10V8a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2M5 11h14a2 2 0 0 1 2 2v5H3v-5a2 2 0 0 1 2-2zM7 18v2M17 18v2" });
+    } else if (iconType === "baby") {
+      appendSvgShape(svg, "path", { d: "M5 8h14v8H5zM5 8V6M19 8V6M8 16v3M16 16v3M8 11h8M11 8v8" });
+    } else {
+      appendSvgShape(svg, "path", { d: "M4 11V7a2 2 0 0 1 2-2h5v6M4 11h16a2 2 0 0 1 2 2v5H4zM4 18v2M20 18v2" });
+      appendSvgShape(svg, "path", { d: iconType === "single" ? "M7 8h3v3H7z" : "M7 8h3v3H7zM12 8h5v3h-5z" });
+    }
+
+    return svg;
   };
 
   const getFilteredSections = (payload, selectedSectionIds, selectedGroupIds) => {
@@ -92,7 +150,15 @@
   const renderItems = (items) => {
     const list = createElement("ul", "booked-gite-info__items");
     (Array.isArray(items) ? items : []).map(formatItem).filter(Boolean).forEach((item) => {
-      list.appendChild(createElement("li", "booked-gite-info__item", item));
+      const itemElement = createElement("li", `booked-gite-info__item${item.type ? " booked-gite-info__item--bed" : ""}`);
+      if (item.type) {
+        itemElement.appendChild(createBedIcon(item.type));
+      }
+      itemElement.appendChild(createElement("span", "booked-gite-info__item-label", item.label));
+      if (item.dimensions) {
+        itemElement.appendChild(createElement("span", "booked-gite-info__item-dimensions", `(${item.dimensions})`));
+      }
+      list.appendChild(itemElement);
     });
     return list;
   };
@@ -193,7 +259,7 @@
     root.innerHTML = "";
     root.appendChild(createElement("div", "booked-gite-info__loading", "Chargement..."));
     try {
-      const payload = await apiFetch(`/gites/${encodeURIComponent(giteId)}/content`);
+      const payload = await fetchGiteContent(giteId);
       renderContent(root, payload);
     } catch (error) {
       root.innerHTML = "";
