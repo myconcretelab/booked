@@ -192,15 +192,81 @@
 
   const renderAccordion = (sections, options) => {
     const wrapper = createElement("div", "booked-gite-info__layout booked-gite-info__layout--accordion");
+    let isFirstGroup = true;
+
+    const openDetails = (details) => {
+      const panel = details.querySelector(".booked-gite-info__panel");
+      if (!panel || details.classList.contains("booked-gite-info__details--open")) return;
+
+      details.open = true;
+      details.classList.remove("booked-gite-info__details--closing");
+      details.classList.add("booked-gite-info__details--open");
+      panel.style.maxHeight = "0px";
+      panel.style.opacity = "0";
+      panel.offsetHeight;
+      panel.style.maxHeight = `${panel.scrollHeight}px`;
+      panel.style.opacity = "1";
+
+      const finishOpening = (transitionEvent) => {
+        if (transitionEvent.propertyName !== "max-height") return;
+        panel.style.maxHeight = "";
+        panel.style.opacity = "";
+        panel.removeEventListener("transitionend", finishOpening);
+      };
+      panel.addEventListener("transitionend", finishOpening);
+    };
+
+    const closeDetails = (details) => {
+      const panel = details.querySelector(".booked-gite-info__panel");
+      if (!panel || !details.open || details.classList.contains("booked-gite-info__details--closing")) return;
+
+      panel.style.maxHeight = `${panel.scrollHeight}px`;
+      panel.style.opacity = "1";
+      details.classList.remove("booked-gite-info__details--open");
+      details.classList.add("booked-gite-info__details--closing");
+      panel.offsetHeight;
+      panel.style.maxHeight = "0px";
+      panel.style.opacity = "0";
+
+      const finishClosing = (transitionEvent) => {
+        if (transitionEvent.propertyName !== "max-height") return;
+        if (details.classList.contains("booked-gite-info__details--open")) {
+          details.classList.remove("booked-gite-info__details--closing");
+          panel.removeEventListener("transitionend", finishClosing);
+          return;
+        }
+        details.open = false;
+        details.classList.remove("booked-gite-info__details--closing");
+        panel.removeEventListener("transitionend", finishClosing);
+      };
+      panel.addEventListener("transitionend", finishClosing);
+    };
+
     sections.forEach((section) => {
       if (options.showSectionTitles) {
         wrapper.appendChild(createElement("h3", "booked-gite-info__section-title", section.titre || "Infos"));
       }
-      section.groupes.forEach((group, index) => {
+      section.groupes.forEach((group) => {
         const details = createElement("details", "booked-gite-info__details");
-        if (index === 0) details.open = true;
-        details.appendChild(createElement("summary", "booked-gite-info__summary", group.titre || "Rubrique"));
-        details.appendChild(renderGroupContent(group, options.showNotes));
+        const panel = createElement("div", "booked-gite-info__panel");
+        const summary = createElement("summary", "booked-gite-info__summary", group.titre || "Rubrique");
+
+        panel.appendChild(renderGroupContent(group, options.showNotes));
+        details.appendChild(summary);
+        details.appendChild(panel);
+        if (isFirstGroup) {
+          details.open = true;
+          details.classList.add("booked-gite-info__details--open");
+          isFirstGroup = false;
+        }
+        summary.addEventListener("click", (event) => {
+          event.preventDefault();
+          if (details.classList.contains("booked-gite-info__details--open")) return;
+          wrapper.querySelectorAll(".booked-gite-info__details").forEach((item) => {
+            if (item !== details) closeDetails(item);
+          });
+          openDetails(details);
+        });
         wrapper.appendChild(details);
       });
     });
@@ -209,6 +275,7 @@
 
   const renderCards = (sections, options) => {
     const wrapper = createElement("div", "booked-gite-info__layout booked-gite-info__layout--cards");
+    wrapper.style.setProperty("--booked-card-columns", String(options.cardColumns));
     sections.forEach((section) => {
       if (options.showSectionTitles) {
         const title = createElement("h3", "booked-gite-info__section-title booked-gite-info__section-title--cards", section.titre || "Infos");
@@ -230,10 +297,12 @@
     const selectedSectionIds = parseList(root.dataset.selectedSectionIds);
     const selectedGroupIds = parseList(root.dataset.selectedGroupIds);
     const layout = ["list", "accordion", "cards"].includes(root.dataset.layout) ? root.dataset.layout : "list";
+    const cardColumns = Number.parseInt(root.dataset.cardColumns || "3", 10);
     const options = {
       showTitle: root.dataset.showTitle !== "0",
       showSectionTitles: root.dataset.showSectionTitles !== "0",
       showNotes: root.dataset.showNotes !== "0",
+      cardColumns: Number.isFinite(cardColumns) ? Math.max(1, Math.min(4, cardColumns)) : 3,
     };
     const sections = getFilteredSections(payload, selectedSectionIds, selectedGroupIds);
 

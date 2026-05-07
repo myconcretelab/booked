@@ -121,6 +121,7 @@
     }, [
       attributes.giteId,
       attributes.layout,
+      attributes.cardColumns,
       JSON.stringify(attributes.selectedSectionIds || []),
       JSON.stringify(attributes.selectedGroupIds || []),
       attributes.showTitle,
@@ -137,6 +138,7 @@
       className: "booked-gite-info",
       "data-gite-id": attributes.giteId,
       "data-layout": attributes.layout || "list",
+      "data-card-columns": String(attributes.cardColumns || 3),
       "data-selected-section-ids": JSON.stringify(attributes.selectedSectionIds || []),
       "data-selected-group-ids": JSON.stringify(attributes.selectedGroupIds || []),
       "data-show-title": attributes.showTitle === false ? "0" : "1",
@@ -285,6 +287,22 @@
               ],
               onChange: (value) => setAttributes({ layout: value }),
             }),
+            (attributes.layout || "list") === "cards"
+              ? el(RangeControl, {
+                  label: __("Nombre de colonnes", "booked"),
+                  value: attributes.cardColumns || 3,
+                  min: 1,
+                  max: 4,
+                  step: 1,
+                  marks: [
+                    { value: 1, label: "1" },
+                    { value: 2, label: "2" },
+                    { value: 3, label: "3" },
+                    { value: 4, label: "4" },
+                  ],
+                  onChange: (value) => setAttributes({ cardColumns: value || 3 }),
+                })
+              : null,
             el(ToggleControl, {
               label: __("Afficher le titre", "booked"),
               checked: attributes.showTitle !== false,
