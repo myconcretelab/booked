@@ -7,10 +7,12 @@ if (!defined('ABSPATH')) {
 class Booked_RestController
 {
     private Booked_ApiClient $api_client;
+    private Booked_Variables $variables;
 
-    public function __construct(Booked_ApiClient $api_client)
+    public function __construct(Booked_ApiClient $api_client, Booked_Variables $variables)
     {
         $this->api_client = $api_client;
+        $this->variables = $variables;
     }
 
     public function register(): void
@@ -30,6 +32,12 @@ class Booked_RestController
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_content'],
             'permission_callback' => '__return_true',
+        ]);
+
+        register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/variables', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_variables'],
+            'permission_callback' => [$this, 'can_edit_posts'],
         ]);
 
         register_rest_route('booked/v1', '/gites', [
@@ -131,10 +139,18 @@ class Booked_RestController
                 'id' => $id,
                 'name' => (string) ($item['nom'] ?? $item['name'] ?? $item['title'] ?? $id),
                 'capacity' => isset($item['capacite_max']) ? (int) $item['capacite_max'] : (isset($item['capacity']) ? (int) $item['capacity'] : null),
+                'prefix' => (string) ($item['prefixe'] ?? $item['prefix'] ?? $item['variable_prefix'] ?? ''),
             ];
         }, $items)));
 
         return new WP_REST_Response(['gites' => $gites], 200);
+    }
+
+    public function get_variables(WP_REST_Request $request)
+    {
+        return new WP_REST_Response([
+            'variables' => $this->variables->get_variable_items((string) $request['id']),
+        ], 200);
     }
 
     public function get_availability(WP_REST_Request $request)

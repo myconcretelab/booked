@@ -27,3 +27,36 @@
 .booked-block-selection__group {
   margin-left: 18px;
 }
+
+.booked-block--text {
+  min-height: 54px;
+}
+
+.booked-text__editor {
+  margin: 0;
+}
+
+.booked-block-variable {
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+}
+
+.booked-block-variable code {
+  background: #f1f5f9;
+  border-radius: 4px;
+  color: #334155;
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 5px;
+}
+
+.booked-block-variable__preview {
+  color: #64748b;
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

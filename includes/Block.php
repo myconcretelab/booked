@@ -6,6 +6,13 @@ if (!defined('ABSPATH')) {
 
 class Booked_Block
 {
+    private Booked_Variables $variables;
+
+    public function __construct(Booked_Variables $variables)
+    {
+        $this->variables = $variables;
+    }
+
     public function register(): void
     {
         add_action('init', [$this, 'register_block']);
@@ -89,6 +96,47 @@ class Booked_Block
             ],
             'render_callback' => [$this, 'render_gite_info_block'],
         ]);
+
+        register_block_type('booked/text', [
+            'api_version' => 2,
+            'title' => 'Booked Texte',
+            'category' => 'text',
+            'icon' => 'editor-paragraph',
+            'description' => 'Texte Gutenberg enrichi avec les variables publiques d’un gîte.',
+            'attributes' => [
+                'giteId' => [
+                    'type' => 'string',
+                    'default' => '',
+                ],
+                'content' => [
+                    'type' => 'string',
+                    'default' => '',
+                ],
+                'placeholder' => [
+                    'type' => 'string',
+                    'default' => 'Rédigez votre texte Booked...',
+                ],
+            ],
+            'supports' => [
+                'align' => true,
+                'anchor' => true,
+                'className' => true,
+                'color' => [
+                    'background' => true,
+                    'gradients' => true,
+                    'text' => true,
+                ],
+                'spacing' => [
+                    'margin' => true,
+                    'padding' => true,
+                ],
+                'typography' => [
+                    'fontSize' => true,
+                    'lineHeight' => true,
+                ],
+            ],
+            'render_callback' => [$this, 'render_text_block'],
+        ]);
     }
 
     public function enqueue_editor_assets(): void
@@ -101,10 +149,10 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-element', 'wp-i18n', 'booked-widget', 'booked-gite-info'],
-            '0.3.5',
+            '0.3.8',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.5');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.8');
     }
 
     public function render_block(array $attributes): string
@@ -164,6 +212,23 @@ class Booked_Block
             $show_title ? '1' : '0',
             $show_section_titles ? '1' : '0',
             $show_notes ? '1' : '0'
+        );
+    }
+
+    public function render_text_block(array $attributes): string
+    {
+        $gite_id = sanitize_text_field((string) ($attributes['giteId'] ?? ''));
+        $content = (string) ($attributes['content'] ?? '');
+        if (trim(wp_strip_all_tags($content)) === '') {
+            return '';
+        }
+
+        $rendered = $gite_id === '' ? wp_kses_post($content) : $this->variables->render_text($content, $gite_id);
+
+        return sprintf(
+            '<p %s>%s</p>',
+            get_block_wrapper_attributes(['class' => 'booked-text']),
+            $rendered
         );
     }
 }

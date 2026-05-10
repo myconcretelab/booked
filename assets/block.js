@@ -1,7 +1,7 @@
 (function (wp) {
-  const { registerBlockType } = wp.blocks;
-  const { InspectorControls, useBlockProps } = wp.blockEditor;
-  const { Button, CheckboxControl, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl } = wp.components;
+  const { createBlock, registerBlockType } = wp.blocks;
+  const { BlockControls, InspectorControls, RichText, useBlockProps } = wp.blockEditor;
+  const { Button, CheckboxControl, DropdownMenu, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl, ToolbarGroup } = wp.components;
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
   const { __ } = wp.i18n;
   const apiFetch = wp.apiFetch;
@@ -13,6 +13,7 @@
       id: String(item.id || ""),
       name: item.name || item.nom || item.id,
       capacity: item.capacity || item.capacite_max || null,
+      prefix: item.prefix || item.prefixe || "",
     })).filter((item) => item.id);
   };
 
@@ -47,6 +48,50 @@
       value: gite.id,
     })),
   ];
+
+  const useGiteVariables = (giteId) => {
+    const [variables, setVariables] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const loadVariables = () => {
+      if (!giteId) {
+        setVariables([]);
+        setError("");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError("");
+      apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(giteId)}/variables` })
+        .then((payload) => {
+          setVariables(payload && Array.isArray(payload.variables) ? payload.variables : []);
+          setIsLoading(false);
+        })
+        .catch((apiError) => {
+          setVariables([]);
+          setError(apiError.message || __("Impossible de charger les variables du gîte.", "booked"));
+          setIsLoading(false);
+        });
+    };
+
+    useEffect(loadVariables, [giteId]);
+
+    return { variables, isLoading, error, loadVariables };
+  };
+
+  const appendToken = (content, token) => {
+    const value = content || "";
+    const separator = value && !/\s$/.test(value) ? " " : "";
+    return `${value}${separator}${token}`;
+  };
+
+  const getVariableControls = (variables, insertVariable) =>
+    variables.slice(0, 30).map((variable) => ({
+      title: variable.label || variable.token,
+      onClick: () => insertVariable(variable.token),
+    }));
 
   const normalizeIdList = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
   const isNoSelection = (value) => normalizeIdList(value).includes(NO_SELECTION_ID);
@@ -146,6 +191,130 @@
       "data-show-notes": attributes.showNotes === false ? "0" : "1",
     });
   };
+
+  registerBlockType("booked/text", {
+    transforms: {
+      from: [
+        {
+          type: "block",
+          blocks: ["core/paragraph"],
+          transform: ({ content }) => createBlock("booked/text", { content }),
+        },
+      ],
+      to: [
+        {
+          type: "block",
+          blocks: ["core/paragraph"],
+          transform: ({ content }) => createBlock("core/paragraph", { content }),
+        },
+      ],
+    },
+
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-block booked-block--text" });
+      const { gites, isLoading, error, loadGites } = useGites();
+      const { variables, isLoading: isVariablesLoading, error: variablesError, loadVariables } = useGiteVariables(attributes.giteId || "");
+
+      const insertVariable = (token) => {
+        setAttributes({ content: appendToken(attributes.content, token) });
+      };
+
+      const variableControls = getVariableControls(variables, insertVariable);
+
+      return el(
+        Fragment,
+        null,
+        el(
+          BlockControls,
+          null,
+          el(
+            ToolbarGroup,
+            null,
+            el(DropdownMenu, {
+              icon: "database",
+              label: __("Insérer une variable Booked", "booked"),
+              controls: variableControls.length > 0 ? variableControls : [
+                {
+                  title: attributes.giteId
+                    ? __("Aucune variable disponible", "booked")
+                    : __("Sélectionnez un gîte", "booked"),
+                  isDisabled: true,
+                },
+              ],
+            })
+          )
+        ),
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Réglages Booked Texte", "booked"), initialOpen: true },
+            isLoading ? el(Spinner) : null,
+            error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
+            el(SelectControl, {
+              label: __("Gîte", "booked"),
+              value: attributes.giteId || "",
+              options: getGiteOptions(gites),
+              onChange: (value) => setAttributes({ giteId: value }),
+            }),
+            error
+              ? el(TextControl, {
+                  label: __("ID du gîte", "booked"),
+                  value: attributes.giteId || "",
+                  help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
+                  onChange: (value) => setAttributes({ giteId: value }),
+                })
+              : null,
+            el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
+          ),
+          el(
+            PanelBody,
+            { title: __("Variables", "booked"), initialOpen: true },
+            !attributes.giteId
+              ? el("p", { className: "booked-block-help" }, __("Sélectionnez un gîte pour afficher ses variables.", "booked"))
+              : null,
+            isVariablesLoading ? el(Spinner) : null,
+            variablesError ? el(Notice, { status: "error", isDismissible: false }, variablesError) : null,
+            attributes.giteId && !isVariablesLoading && !variablesError && variables.length === 0
+              ? el("p", { className: "booked-block-help" }, __("Aucune variable disponible pour ce gîte.", "booked"))
+              : null,
+            variables.map((variable) =>
+              el(
+                "div",
+                { key: variable.token, className: "booked-block-variable" },
+                el(
+                  Button,
+                  { variant: "secondary", onClick: () => insertVariable(variable.token) },
+                  variable.label || variable.token
+                ),
+                el("code", null, variable.token),
+                variable.preview ? el("span", { className: "booked-block-variable__preview" }, variable.preview) : null
+              )
+            ),
+            attributes.giteId
+              ? el(Button, { variant: "secondary", onClick: loadVariables, disabled: isVariablesLoading }, __("Recharger les variables", "booked"))
+              : null
+          )
+        ),
+        el(
+          "div",
+          blockProps,
+          el(RichText, {
+            tagName: "p",
+            className: "booked-text__editor",
+            value: attributes.content || "",
+            placeholder: attributes.placeholder || __("Rédigez votre texte Booked...", "booked"),
+            onChange: (content) => setAttributes({ content }),
+          })
+        )
+      );
+    },
+
+    save() {
+      return null;
+    },
+  });
 
   registerBlockType("booked/widget", {
     edit({ attributes, setAttributes }) {
