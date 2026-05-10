@@ -139,7 +139,7 @@ class Booked_RestController
                 'id' => $id,
                 'name' => (string) ($item['nom'] ?? $item['name'] ?? $item['title'] ?? $id),
                 'capacity' => isset($item['capacite_max']) ? (int) $item['capacite_max'] : (isset($item['capacity']) ? (int) $item['capacity'] : null),
-                'prefix' => (string) ($item['prefixe'] ?? $item['prefix'] ?? $item['variable_prefix'] ?? ''),
+                'prefix' => (string) ($item['prefixe_contrat'] ?? $item['prefixe'] ?? $item['prefix'] ?? $item['variable_prefix'] ?? ''),
             ];
         }, $items)));
 
@@ -149,7 +149,10 @@ class Booked_RestController
     public function get_variables(WP_REST_Request $request)
     {
         return new WP_REST_Response([
-            'variables' => $this->variables->get_variable_items((string) $request['id']),
+            'variables' => $this->variables->get_variable_items(
+                (string) $request['id'],
+                filter_var($request->get_param('refresh'), FILTER_VALIDATE_BOOLEAN)
+            ),
         ], 200);
     }
 

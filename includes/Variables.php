@@ -6,6 +6,19 @@ if (!defined('ABSPATH')) {
 
 class Booked_Variables
 {
+    private const VARIABLE_LABELS = [
+        'adresse_complete' => 'Adresse complète',
+        'horaire_arrivee' => 'Horaire d’arrivée',
+        'horaire_depart' => 'Horaire de départ',
+        'prix_nuit_basse_saison' => 'Prix/nuit basse saison',
+        'prix_nuit_haute_saison' => 'Prix/nuit haute saison',
+        'service_chiens_par_nuit' => 'Chiens / nuit',
+        'service_depart_tardif_forfait' => 'Départ tardif forfait',
+        'service_draps_par_lit' => 'Draps / lit',
+        'service_linge_toilette_par_personne' => 'Linge toilette / personne',
+        'service_menage_forfait' => 'Ménage forfait',
+    ];
+
     private Booked_ApiClient $api_client;
 
     public function __construct(Booked_ApiClient $api_client)
@@ -13,7 +26,7 @@ class Booked_Variables
         $this->api_client = $api_client;
     }
 
-    public function get_gite_content(string $gite_id)
+    public function get_gite_content(string $gite_id, bool $force_refresh = false)
     {
         $gite_id = sanitize_text_field($gite_id);
         if ($gite_id === '') {
@@ -21,7 +34,7 @@ class Booked_Variables
         }
 
         $cache_key = 'booked_gite_content_' . md5($gite_id);
-        $cached = get_transient($cache_key);
+        $cached = $force_refresh ? false : get_transient($cache_key);
         if (is_array($cached)) {
             return $cached;
         }
@@ -59,9 +72,9 @@ class Booked_Variables
         return wp_kses_post((string) $rendered);
     }
 
-    public function get_variable_items(string $gite_id): array
+    public function get_variable_items(string $gite_id, bool $force_refresh = false): array
     {
-        $content = $this->get_gite_content($gite_id);
+        $content = $this->get_gite_content($gite_id, $force_refresh);
         if (is_wp_error($content)) {
             return [];
         }
@@ -110,15 +123,28 @@ class Booked_Variables
             $normalized_path = strtolower($path);
             $formatted = $this->format_value($value);
 
-            $map[$normalized_path] = $formatted;
-            $map['gite.' . $normalized_path] = $formatted;
+            $this->add_token_aliases($map, $normalized_path, $formatted, $prefix);
+        }
 
-            if ($prefix !== '') {
-                $map[$prefix . '.' . $normalized_path] = $formatted;
+        if (!empty($content['variables']) && is_array($content['variables'])) {
+            $variable_flat = [];
+            $this->flatten_scalars($content['variables'], '', $variable_flat);
+            foreach ($variable_flat as $path => $value) {
+                $this->add_token_aliases($map, strtolower($path), $this->format_value($value), $prefix);
             }
         }
 
         return $map;
+    }
+
+    private function add_token_aliases(array &$map, string $path, string $value, string $prefix): void
+    {
+        $map[$path] = $value;
+        $map['gite.' . $path] = $value;
+
+        if ($prefix !== '') {
+            $map[$prefix . '.' . $path] = $value;
+        }
     }
 
     private function flatten_scalars(array $value, string $prefix, array &$output): void
@@ -169,7 +195,7 @@ class Booked_Variables
     {
         $root = explode('.', $path)[0] ?? '';
 
-        return in_array($root, ['sections', 'groupes'], true);
+        return in_array($root, ['sections', 'groupes', 'variables'], true);
     }
 
     private function normalize_key(string $key): string
@@ -183,7 +209,7 @@ class Booked_Variables
 
     private function find_prefix(array $content): string
     {
-        foreach (['prefixe', 'prefix', 'variable_prefix', 'variables_prefix'] as $key) {
+        foreach (['prefixe_contrat', 'prefixe', 'prefix', 'variable_prefix', 'variables_prefix'] as $key) {
             if (!empty($content[$key]) && is_scalar($content[$key])) {
                 return $this->normalize_key((string) $content[$key]);
             }
@@ -207,7 +233,11 @@ class Booked_Variables
 
     private function label_from_token(string $token): string
     {
-        $label = preg_replace('/^gite\./', '', $token);
+        $label = preg_replace('/^(gite|[a-z0-9_-]+)\./', '', $token);
+        if (isset(self::VARIABLE_LABELS[$label])) {
+            return self::VARIABLE_LABELS[$label];
+        }
+
         $label = str_replace(['.', '_', '-'], ' ', (string) $label);
 
         return ucfirst($label);

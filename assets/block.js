@@ -64,7 +64,7 @@
 
       setIsLoading(true);
       setError("");
-      apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(giteId)}/variables` })
+      apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(giteId)}/variables?refresh=1` })
         .then((payload) => {
           setVariables(payload && Array.isArray(payload.variables) ? payload.variables : []);
           setIsLoading(false);
