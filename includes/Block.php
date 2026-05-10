@@ -114,6 +114,10 @@ class Booked_Block
                     'type' => 'boolean',
                     'default' => false,
                 ],
+                'icon' => [
+                    'type' => 'string',
+                    'default' => '',
+                ],
             ],
             'supports' => [
                 'anchor' => true,

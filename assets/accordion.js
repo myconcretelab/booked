@@ -2,6 +2,23 @@
   const DETAILS_SELECTOR = ".booked-accordion__details";
   const PANEL_SELECTOR = ".booked-accordion__panel";
   const SUMMARY_SELECTOR = ".booked-accordion__summary";
+  const ACCORDION_SELECTOR = ".booked-accordion";
+
+  const closeAccordionDetails = (accordion, currentDetails) => {
+    accordion.querySelectorAll(DETAILS_SELECTOR).forEach((item) => {
+      if (item !== currentDetails) closeDetails(item);
+    });
+  };
+
+  const closeAdjacentAccordions = (accordion, currentDetails) => {
+    ["previousElementSibling", "nextElementSibling"].forEach((direction) => {
+      let sibling = accordion[direction];
+      while (sibling && sibling.matches && sibling.matches(ACCORDION_SELECTOR)) {
+        closeAccordionDetails(sibling, currentDetails);
+        sibling = sibling[direction];
+      }
+    });
+  };
 
   const openDetails = (details) => {
     const panel = details.querySelector(PANEL_SELECTOR);
@@ -9,9 +26,9 @@
 
     const accordion = details.closest(".booked-accordion");
     if (accordion && accordion.dataset.bookedAccordionSingle === "1") {
-      accordion.querySelectorAll(DETAILS_SELECTOR).forEach((item) => {
-        if (item !== details) closeDetails(item);
-      });
+      closeAccordionDetails(accordion, details);
+    } else if (accordion) {
+      closeAdjacentAccordions(accordion, details);
     }
 
     details.open = true;

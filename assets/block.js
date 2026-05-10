@@ -204,6 +204,10 @@
         type: "boolean",
         default: false,
       },
+      icon: {
+        type: "string",
+        default: "",
+      },
     },
     supports: {
       anchor: true,
@@ -214,7 +218,7 @@
       },
     },
     edit({ attributes, setAttributes }) {
-      const blockProps = useBlockProps({ className: "booked-accordion booked-block--accordion" });
+      const blockProps = useBlockProps({ className: "booked-accordion booked-accordion--block booked-block--accordion" });
 
       return el(
         Fragment,
@@ -229,6 +233,12 @@
               label: __("Ouvert par défaut", "booked"),
               checked: !!attributes.open,
               onChange: (value) => setAttributes({ open: value }),
+            }),
+            el(TextControl, {
+              label: __("Picto avant le titre", "booked"),
+              value: attributes.icon || "",
+              placeholder: __("Ex. +, ?, ★", "booked"),
+              onChange: (icon) => setAttributes({ icon }),
             })
           )
         ),
@@ -238,14 +248,21 @@
           el(
             "details",
             { className: "booked-accordion__details booked-accordion__details--open", open: true },
-            el(RichText, {
-              tagName: "summary",
-              className: "booked-accordion__summary",
-              value: attributes.summary || "",
-              placeholder: __("Titre de l’accordéon", "booked"),
-              allowedFormats: [],
-              onChange: (summary) => setAttributes({ summary }),
-            }),
+            el(
+              "summary",
+              { className: "booked-accordion__summary" },
+              attributes.icon
+                ? el("span", { className: "booked-accordion__icon", "aria-hidden": "true" }, attributes.icon)
+                : null,
+              el(RichText, {
+                tagName: "span",
+                className: "booked-accordion__title",
+                value: attributes.summary || "",
+                placeholder: __("Titre de l’accordéon", "booked"),
+                allowedFormats: [],
+                onChange: (summary) => setAttributes({ summary }),
+              })
+            ),
             el(
               "div",
               { className: "booked-accordion__panel" },
@@ -264,7 +281,7 @@
     },
 
     save({ attributes }) {
-      const blockProps = useBlockProps.save({ className: "booked-accordion" });
+      const blockProps = useBlockProps.save({ className: "booked-accordion booked-accordion--block" });
       return el(
         "div",
         blockProps,
@@ -274,11 +291,18 @@
             className: `booked-accordion__details${attributes.open ? " booked-accordion__details--open" : ""}`,
             open: attributes.open ? true : undefined,
           },
-          el(RichText.Content, {
-            tagName: "summary",
-            className: "booked-accordion__summary",
-            value: attributes.summary || __("Titre de l’accordéon", "booked"),
-          }),
+          el(
+            "summary",
+            { className: "booked-accordion__summary" },
+            attributes.icon
+              ? el("span", { className: "booked-accordion__icon", "aria-hidden": "true" }, attributes.icon)
+              : null,
+            el(RichText.Content, {
+              tagName: "span",
+              className: "booked-accordion__title",
+              value: attributes.summary || __("Titre de l’accordéon", "booked"),
+            })
+          ),
           el(
             "div",
             { className: "booked-accordion__panel" },
