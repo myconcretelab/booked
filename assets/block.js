@@ -6,6 +6,7 @@
   const { __ } = wp.i18n;
   const apiFetch = wp.apiFetch;
   const NO_SELECTION_ID = "__booked_no_selection__";
+  const DEFAULT_GITE_META_KEY = "_booked_default_gite_id";
 
   const normalizeGites = (payload) => {
     const items = payload && Array.isArray(payload.gites) ? payload.gites : [];
@@ -92,6 +93,61 @@
       title: variable.label || variable.token,
       onClick: () => insertVariable(variable.token),
     }));
+
+  const BookedDefaultGitePanel = () => {
+    const { gites, isLoading, error, loadGites } = useGites();
+    const meta = wp.data.useSelect(
+      (select) => select("core/editor").getEditedPostAttribute("meta") || {},
+      []
+    );
+    const { editPost } = wp.data.useDispatch("core/editor");
+    const selectedGiteId = meta[DEFAULT_GITE_META_KEY] || "";
+
+    return el(
+      wp.editPost.PluginDocumentSettingPanel,
+      {
+        name: "booked-default-gite",
+        title: __("Booked", "booked"),
+        className: "booked-default-gite-panel",
+      },
+      isLoading ? el(Spinner) : null,
+      error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
+      el(SelectControl, {
+        label: __("Gîte par défaut de la page", "booked"),
+        value: selectedGiteId,
+        options: getGiteOptions(gites),
+        onChange: (value) =>
+          editPost({
+            meta: {
+              ...meta,
+              [DEFAULT_GITE_META_KEY]: value,
+            },
+          }),
+        help: __("Les blocs Gutenberg natifs peuvent utiliser les variables {{gite...}} de ce gîte.", "booked"),
+      }),
+      error
+        ? el(TextControl, {
+            label: __("ID du gîte", "booked"),
+            value: selectedGiteId,
+            help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
+            onChange: (value) =>
+              editPost({
+                meta: {
+                  ...meta,
+                  [DEFAULT_GITE_META_KEY]: value,
+                },
+              }),
+          })
+        : null,
+      el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
+    );
+  };
+
+  if (wp.plugins && wp.editPost && wp.data) {
+    wp.plugins.registerPlugin("booked-default-gite", {
+      render: BookedDefaultGitePanel,
+    });
+  }
 
   const normalizeIdList = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
   const isNoSelection = (value) => normalizeIdList(value).includes(NO_SELECTION_ID);

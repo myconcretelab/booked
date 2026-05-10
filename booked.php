@@ -17,6 +17,7 @@ define('BOOKED_OPTION_KEY', 'booked_settings');
 
 require_once BOOKED_PLUGIN_DIR . 'includes/ApiClient.php';
 require_once BOOKED_PLUGIN_DIR . 'includes/Variables.php';
+require_once BOOKED_PLUGIN_DIR . 'includes/PageVariables.php';
 require_once BOOKED_PLUGIN_DIR . 'includes/SettingsPage.php';
 require_once BOOKED_PLUGIN_DIR . 'includes/RestController.php';
 require_once BOOKED_PLUGIN_DIR . 'includes/Shortcode.php';
@@ -26,6 +27,7 @@ add_action('plugins_loaded', static function () {
     $api_client = new Booked_ApiClient();
     $variables = new Booked_Variables($api_client);
     (new Booked_SettingsPage())->register();
+    (new Booked_PageVariables($variables))->register();
     (new Booked_RestController($api_client, $variables))->register();
     (new Booked_Shortcode())->register();
     (new Booked_Block($variables))->register();
