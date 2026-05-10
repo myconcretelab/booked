@@ -1,6 +1,6 @@
 (function (wp) {
   const { createBlock, registerBlockType } = wp.blocks;
-  const { BlockControls, InspectorControls, RichText, useBlockProps } = wp.blockEditor;
+  const { BlockControls, InnerBlocks, InspectorControls, RichText, useBlockProps } = wp.blockEditor;
   const { Button, CheckboxControl, DropdownMenu, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl, ToolbarGroup } = wp.components;
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
   const { __ } = wp.i18n;
@@ -191,6 +191,103 @@
       "data-show-notes": attributes.showNotes === false ? "0" : "1",
     });
   };
+
+  registerBlockType("booked/accordion", {
+    attributes: {
+      summary: {
+        type: "string",
+        source: "html",
+        selector: "summary",
+        default: __("Titre de l’accordéon", "booked"),
+      },
+      open: {
+        type: "boolean",
+        default: false,
+      },
+    },
+    supports: {
+      anchor: true,
+      className: true,
+      align: true,
+      spacing: {
+        margin: true,
+      },
+    },
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-accordion booked-block--accordion" });
+
+      return el(
+        Fragment,
+        null,
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Réglages de l’accordéon", "booked"), initialOpen: true },
+            el(ToggleControl, {
+              label: __("Ouvert par défaut", "booked"),
+              checked: !!attributes.open,
+              onChange: (value) => setAttributes({ open: value }),
+            })
+          )
+        ),
+        el(
+          "div",
+          blockProps,
+          el(
+            "details",
+            { className: "booked-accordion__details booked-accordion__details--open", open: true },
+            el(RichText, {
+              tagName: "summary",
+              className: "booked-accordion__summary",
+              value: attributes.summary || "",
+              placeholder: __("Titre de l’accordéon", "booked"),
+              allowedFormats: [],
+              onChange: (summary) => setAttributes({ summary }),
+            }),
+            el(
+              "div",
+              { className: "booked-accordion__panel" },
+              el(
+                "div",
+                { className: "booked-accordion__content" },
+                el(InnerBlocks, {
+                  template: [["core/paragraph", { placeholder: __("Ajoutez le contenu de l’accordéon...", "booked") }]],
+                  templateLock: false,
+                })
+              )
+            )
+          )
+        )
+      );
+    },
+
+    save({ attributes }) {
+      const blockProps = useBlockProps.save({ className: "booked-accordion" });
+      return el(
+        "div",
+        blockProps,
+        el(
+          "details",
+          {
+            className: `booked-accordion__details${attributes.open ? " booked-accordion__details--open" : ""}`,
+            open: attributes.open ? true : undefined,
+          },
+          el(RichText.Content, {
+            tagName: "summary",
+            className: "booked-accordion__summary",
+            value: attributes.summary || __("Titre de l’accordéon", "booked"),
+          }),
+          el(
+            "div",
+            { className: "booked-accordion__panel" },
+            el("div", { className: "booked-accordion__content" }, el(InnerBlocks.Content))
+          )
+        )
+      );
+    },
+  });
 
   registerBlockType("booked/text", {
     transforms: {

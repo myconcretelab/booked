@@ -80,29 +80,24 @@ class Booked_Variables
         }
 
         $variables = $this->get_replacement_map($content);
-        $prefix = $this->find_prefix($content);
         $items = [];
+        $seen = [];
         foreach ($variables as $token => $value) {
             if (substr($token, 0, 5) !== 'gite.') {
                 continue;
             }
+
+            $canonical_token = substr($token, 5);
+            if (isset($seen[$canonical_token])) {
+                continue;
+            }
+            $seen[$canonical_token] = true;
 
             $items[] = [
                 'token' => '{{' . $token . '}}',
                 'label' => $this->label_from_token($token),
                 'preview' => wp_strip_all_tags($value),
             ];
-
-            if ($prefix !== '') {
-                $prefixed_token = $prefix . '.' . substr($token, 5);
-                if (isset($variables[$prefixed_token])) {
-                    $items[] = [
-                        'token' => '{{' . $prefixed_token . '}}',
-                        'label' => $this->label_from_token($prefixed_token),
-                        'preview' => wp_strip_all_tags($value),
-                    ];
-                }
-            }
         }
 
         usort($items, static function (array $a, array $b): int {

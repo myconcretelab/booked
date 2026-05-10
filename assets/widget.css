@@ -372,12 +372,12 @@
   line-height: 1.5;
 }
 
-.booked-gite-info__details {
+.booked-accordion__details {
   border-bottom: 1px solid #e5e7eb;
   color: #263238;
 }
 
-.booked-gite-info__summary {
+.booked-accordion__summary {
   align-items: center;
   background: #fff;
   color: #27272a;
@@ -392,15 +392,15 @@
   padding: 10px 24px 10px 26px;
 }
 
-.booked-gite-info__summary::-webkit-details-marker {
+.booked-accordion__summary::-webkit-details-marker {
   display: none;
 }
 
-.booked-gite-info__summary::marker {
+.booked-accordion__summary::marker {
   content: "";
 }
 
-.booked-gite-info__summary::after {
+.booked-accordion__summary::after {
   border-color: #a9adb1;
   border-style: solid;
   border-width: 0 4px 4px 0;
@@ -413,14 +413,15 @@
   width: 11px;
 }
 
-.booked-gite-info__details--open > .booked-gite-info__summary::after,
-.booked-gite-info__details--closing > .booked-gite-info__summary::after {
+.booked-accordion__details--open > .booked-accordion__summary::after,
+.booked-accordion__details--closing > .booked-accordion__summary::after {
   transform: rotate(45deg);
 }
 
-.booked-gite-info__layout--accordion {
+.booked-accordion {
   background: #fff;
   border: 1px solid #e5e7eb;
+  display: grid;
   gap: 0;
 }
 
@@ -428,33 +429,42 @@
   padding: 18px 30px 0;
 }
 
-.booked-gite-info__layout--accordion .booked-gite-info__details:last-child {
+.booked-accordion .booked-accordion__details:last-child {
   border-bottom: 0;
 }
 
-.booked-gite-info__panel {
+.booked-accordion__panel {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
   transition: max-height 280ms ease, opacity 180ms ease;
 }
 
-.booked-gite-info__details--open > .booked-gite-info__panel {
+.booked-accordion__details--open > .booked-accordion__panel {
   max-height: none;
   opacity: 1;
 }
 
-.booked-gite-info__details--closing > .booked-gite-info__panel {
+.booked-accordion__details--closing > .booked-accordion__panel {
   max-height: 0;
   opacity: 0;
 }
 
+.booked-accordion__content,
 .booked-gite-info__panel .booked-gite-info__group-content {
   color: #6b4747;
   font-size: 21px;
   gap: 18px;
   line-height: 1.6;
   padding: 28px 40px 52px;
+}
+
+.booked-accordion__content > :first-child {
+  margin-top: 0;
+}
+
+.booked-accordion__content > :last-child {
+  margin-bottom: 0;
 }
 
 .booked-gite-info__panel .booked-gite-info__items {

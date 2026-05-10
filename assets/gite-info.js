@@ -191,85 +191,31 @@
   };
 
   const renderAccordion = (sections, options) => {
-    const wrapper = createElement("div", "booked-gite-info__layout booked-gite-info__layout--accordion");
+    const wrapper = createElement("div", "booked-gite-info__layout booked-gite-info__layout--accordion booked-accordion booked-accordion--gite-info");
+    wrapper.dataset.bookedAccordionSingle = "1";
     let isFirstGroup = true;
-
-    const openDetails = (details) => {
-      const panel = details.querySelector(".booked-gite-info__panel");
-      if (!panel || details.classList.contains("booked-gite-info__details--open")) return;
-
-      details.open = true;
-      details.classList.remove("booked-gite-info__details--closing");
-      details.classList.add("booked-gite-info__details--open");
-      panel.style.maxHeight = "0px";
-      panel.style.opacity = "0";
-      panel.offsetHeight;
-      panel.style.maxHeight = `${panel.scrollHeight}px`;
-      panel.style.opacity = "1";
-
-      const finishOpening = (transitionEvent) => {
-        if (transitionEvent.propertyName !== "max-height") return;
-        panel.style.maxHeight = "";
-        panel.style.opacity = "";
-        panel.removeEventListener("transitionend", finishOpening);
-      };
-      panel.addEventListener("transitionend", finishOpening);
-    };
-
-    const closeDetails = (details) => {
-      const panel = details.querySelector(".booked-gite-info__panel");
-      if (!panel || !details.open || details.classList.contains("booked-gite-info__details--closing")) return;
-
-      panel.style.maxHeight = `${panel.scrollHeight}px`;
-      panel.style.opacity = "1";
-      details.classList.remove("booked-gite-info__details--open");
-      details.classList.add("booked-gite-info__details--closing");
-      panel.offsetHeight;
-      panel.style.maxHeight = "0px";
-      panel.style.opacity = "0";
-
-      const finishClosing = (transitionEvent) => {
-        if (transitionEvent.propertyName !== "max-height") return;
-        if (details.classList.contains("booked-gite-info__details--open")) {
-          details.classList.remove("booked-gite-info__details--closing");
-          panel.removeEventListener("transitionend", finishClosing);
-          return;
-        }
-        details.open = false;
-        details.classList.remove("booked-gite-info__details--closing");
-        panel.removeEventListener("transitionend", finishClosing);
-      };
-      panel.addEventListener("transitionend", finishClosing);
-    };
 
     sections.forEach((section) => {
       if (options.showSectionTitles) {
         wrapper.appendChild(createElement("h3", "booked-gite-info__section-title", section.titre || "Infos"));
       }
       section.groupes.forEach((group) => {
-        const details = createElement("details", "booked-gite-info__details");
-        const panel = createElement("div", "booked-gite-info__panel");
-        const summary = createElement("summary", "booked-gite-info__summary", group.titre || "Rubrique");
+        const details = createElement("details", "booked-gite-info__details booked-accordion__details");
+        const panel = createElement("div", "booked-gite-info__panel booked-accordion__panel");
+        const summary = createElement("summary", "booked-gite-info__summary booked-accordion__summary", group.titre || "Rubrique");
 
         panel.appendChild(renderGroupContent(group, options.showNotes));
         details.appendChild(summary);
         details.appendChild(panel);
         if (isFirstGroup) {
           details.open = true;
-          details.classList.add("booked-gite-info__details--open");
+          details.classList.add("booked-gite-info__details--open", "booked-accordion__details--open");
           isFirstGroup = false;
         }
-        summary.addEventListener("click", (event) => {
-          event.preventDefault();
-          if (details.classList.contains("booked-gite-info__details--open")) return;
-          wrapper.querySelectorAll(".booked-gite-info__details").forEach((item) => {
-            if (item !== details) closeDetails(item);
-          });
-          openDetails(details);
-        });
         wrapper.appendChild(details);
       });
     });
+    if (window.BookedAccordion) window.BookedAccordion.init(wrapper);
     return wrapper;
   };
 

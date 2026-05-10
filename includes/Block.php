@@ -97,6 +97,36 @@ class Booked_Block
             'render_callback' => [$this, 'render_gite_info_block'],
         ]);
 
+        register_block_type('booked/accordion', [
+            'api_version' => 2,
+            'title' => 'Booked Accordéon',
+            'category' => 'text',
+            'icon' => 'menu-alt3',
+            'description' => 'Accordéon animé avec le design Booked.',
+            'attributes' => [
+                'summary' => [
+                    'type' => 'string',
+                    'source' => 'html',
+                    'selector' => 'summary',
+                    'default' => 'Titre de l’accordéon',
+                ],
+                'open' => [
+                    'type' => 'boolean',
+                    'default' => false,
+                ],
+            ],
+            'supports' => [
+                'anchor' => true,
+                'className' => true,
+                'align' => true,
+                'spacing' => [
+                    'margin' => true,
+                ],
+            ],
+            'style' => 'booked-widget',
+            'script' => 'booked-accordion',
+        ]);
+
         register_block_type('booked/text', [
             'api_version' => 2,
             'title' => 'Booked Texte',
@@ -143,12 +173,13 @@ class Booked_Block
     {
         wp_enqueue_style('booked-widget');
         wp_enqueue_script('booked-widget');
+        wp_enqueue_script('booked-accordion');
         wp_enqueue_script('booked-gite-info');
 
         wp_enqueue_script(
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
-            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-element', 'wp-i18n', 'booked-widget', 'booked-gite-info'],
+            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-element', 'wp-i18n', 'booked-widget', 'booked-accordion', 'booked-gite-info'],
             '0.3.8',
             true
         );
