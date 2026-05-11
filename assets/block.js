@@ -253,7 +253,7 @@
       summary: {
         type: "string",
         source: "html",
-        selector: "summary",
+        selector: ".booked-accordion__title",
         default: __("Titre de l’accordéon", "booked"),
       },
       open: {
