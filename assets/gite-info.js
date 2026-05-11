@@ -29,6 +29,8 @@
     return element;
   };
 
+  const getText = (value) => String(value || "").trim();
+
   const createSvgElement = (tag, attributes = {}) => {
     const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
@@ -239,6 +241,17 @@
     return wrapper;
   };
 
+  const renderTechnicalDescription = (payload) => {
+    const text = getText(payload.public_technical_description || payload.description_technique);
+    if (!text) return null;
+
+    const wrapper = createElement("div", "booked-gite-info__technical-description");
+    text.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean).forEach((paragraph) => {
+      wrapper.appendChild(createElement("p", "", paragraph.replace(/\s*\n\s*/g, " ")));
+    });
+    return wrapper;
+  };
+
   const renderContent = (root, payload) => {
     const selectedSectionIds = parseList(root.dataset.selectedSectionIds);
     const selectedGroupIds = parseList(root.dataset.selectedGroupIds);
@@ -256,11 +269,17 @@
     if (options.showTitle) {
       root.appendChild(createElement("h2", "booked-gite-info__title", payload.public_title || payload.nom || "Infos du gîte"));
     }
-    if (sections.length === 0) {
+    const technicalDescription = renderTechnicalDescription(payload);
+    if (technicalDescription) {
+      root.appendChild(technicalDescription);
+    }
+    if (sections.length === 0 && !technicalDescription) {
       root.appendChild(createElement("div", "booked-gite-info__empty", "Aucune information disponible."));
       return;
     }
-    root.appendChild(layout === "accordion" ? renderAccordion(sections, options) : layout === "cards" ? renderCards(sections, options) : renderList(sections, options));
+    if (sections.length > 0) {
+      root.appendChild(layout === "accordion" ? renderAccordion(sections, options) : layout === "cards" ? renderCards(sections, options) : renderList(sections, options));
+    }
   };
 
   const renderGiteInfo = async (root) => {

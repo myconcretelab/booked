@@ -14,10 +14,10 @@ class Booked_Shortcode
 
     public function register_assets(): void
     {
-        wp_register_style('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.css', [], '0.3.8');
+        wp_register_style('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.css', [], '0.3.9');
         wp_register_script('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.js', [], '0.3.7', true);
         wp_register_script('booked-accordion', BOOKED_PLUGIN_URL . 'assets/accordion.js', [], '0.3.8', true);
-        wp_register_script('booked-gite-info', BOOKED_PLUGIN_URL . 'assets/gite-info.js', ['booked-widget', 'booked-accordion'], '0.3.8', true);
+        wp_register_script('booked-gite-info', BOOKED_PLUGIN_URL . 'assets/gite-info.js', ['booked-widget', 'booked-accordion'], '0.3.9', true);
         wp_localize_script('booked-widget', 'BookedWidgetConfig', [
             'restUrl' => esc_url_raw(rest_url('booked/v1')),
             'debug' => !empty(get_option(BOOKED_OPTION_KEY, [])['debug_mode']),

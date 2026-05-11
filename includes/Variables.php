@@ -10,6 +10,14 @@ class Booked_Variables
         'adresse_complete' => 'Adresse complète',
         'horaire_arrivee' => 'Horaire d’arrivée',
         'horaire_depart' => 'Horaire de départ',
+        'description_technique' => 'Description technique',
+        'public_technical_description' => 'Description technique',
+        'min_nuits_toute_annee' => 'Minimum de nuits toute l’année',
+        'min_nuits_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
+        'min_nuits_juillet_aout' => 'Minimum de nuits juillet-août',
+        'nb_nuits_minimum_toute_annee' => 'Minimum de nuits toute l’année',
+        'nb_nuits_minimum_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
+        'nb_nuits_minimum_juillet_aout' => 'Minimum de nuits juillet-août',
         'prix_nuit_basse_saison' => 'Prix/nuit basse saison',
         'prix_nuit_haute_saison' => 'Prix/nuit haute saison',
         'service_chiens_par_nuit' => 'Chiens / nuit',
@@ -88,6 +96,10 @@ class Booked_Variables
             }
 
             $canonical_token = substr($token, 5);
+            if ($this->should_hide_variable_item($canonical_token)) {
+                continue;
+            }
+
             if (isset($seen[$canonical_token])) {
                 continue;
             }
@@ -140,6 +152,37 @@ class Booked_Variables
         if ($prefix !== '') {
             $map[$prefix . '.' . $path] = $value;
         }
+
+        foreach ($this->get_semantic_aliases($path) as $alias) {
+            $map[$alias] = $value;
+            $map['gite.' . $alias] = $value;
+
+            if ($prefix !== '') {
+                $map[$prefix . '.' . $alias] = $value;
+            }
+        }
+    }
+
+    private function get_semantic_aliases(string $path): array
+    {
+        $aliases = [
+            'public_technical_description' => ['description_technique'],
+            'min_nuits_toute_annee' => ['nb_nuits_minimum_toute_annee'],
+            'min_nuits_vacances_scolaires' => ['nb_nuits_minimum_vacances_scolaires'],
+            'min_nuits_juillet_aout' => ['nb_nuits_minimum_juillet_aout'],
+        ];
+
+        return $aliases[$path] ?? [];
+    }
+
+    private function should_hide_variable_item(string $token): bool
+    {
+        return in_array($token, [
+            'public_technical_description',
+            'nb_nuits_minimum_toute_annee',
+            'nb_nuits_minimum_vacances_scolaires',
+            'nb_nuits_minimum_juillet_aout',
+        ], true);
     }
 
     private function flatten_scalars(array $value, string $prefix, array &$output): void

@@ -336,12 +336,28 @@ Arrivée : {{gite.horaire_arrivee}}</code></pre>
                             <td>Horaire de départ.</td>
                         </tr>
                         <tr>
+                            <th scope="row"><code>{{gite.description_technique}}</code></th>
+                            <td>Description technique publique du gîte.</td>
+                        </tr>
+                        <tr>
                             <th scope="row"><code>{{gite.prix_nuit_basse_saison}}</code></th>
                             <td>Prix par nuit en basse saison.</td>
                         </tr>
                         <tr>
                             <th scope="row"><code>{{gite.prix_nuit_haute_saison}}</code></th>
                             <td>Prix par nuit en haute saison.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>{{gite.min_nuits_toute_annee}}</code></th>
+                            <td>Nombre minimum de nuits toute l’année.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>{{gite.min_nuits_vacances_scolaires}}</code></th>
+                            <td>Nombre minimum de nuits pendant les vacances scolaires.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>{{gite.min_nuits_juillet_aout}}</code></th>
+                            <td>Nombre minimum de nuits en juillet-août.</td>
                         </tr>
                         <tr>
                             <th scope="row"><code>{{gite.service_menage_forfait}}</code></th>

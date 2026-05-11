@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Booked
  * Description: Widget de demande de réservation pour gîtes, relié à l'application contrats.
- * Version: 0.3.2
+ * Version: 0.3.3
  * Author: Sebsoaz
  */
 
