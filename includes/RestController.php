@@ -46,6 +46,12 @@ class Booked_RestController
             'permission_callback' => [$this, 'can_edit_posts'],
         ]);
 
+        register_rest_route('booked/v1', '/dynamic-phrases', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_dynamic_phrases'],
+            'permission_callback' => [$this, 'can_edit_posts'],
+        ]);
+
         register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/availability', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_availability'],
@@ -154,6 +160,35 @@ class Booked_RestController
                 filter_var($request->get_param('refresh'), FILTER_VALIDATE_BOOLEAN)
             ),
         ], 200);
+    }
+
+    public function get_dynamic_phrases(WP_REST_Request $request)
+    {
+        $settings = get_option(BOOKED_OPTION_KEY, []);
+        $phrases = is_array($settings['dynamic_phrases'] ?? null) ? $settings['dynamic_phrases'] : [];
+
+        $items = array_values(array_filter(array_map(static function ($phrase) {
+            if (!is_array($phrase)) {
+                return null;
+            }
+
+            $token = str_replace(['{{', '}}'], '', (string) ($phrase['token'] ?? ''));
+            $token = remove_accents($token);
+            $token = strtolower($token);
+            $token = trim((string) preg_replace('/[^a-z0-9_.-]+/', '_', $token), '_.-');
+            $value = (string) ($phrase['value'] ?? '');
+            if ($token === '' || $value === '') {
+                return null;
+            }
+
+            return [
+                'title' => sanitize_text_field((string) ($phrase['title'] ?? $token)),
+                'token' => '{{' . $token . '}}',
+                'value' => wp_kses_post($value),
+            ];
+        }, $phrases)));
+
+        return new WP_REST_Response(['phrases' => $items], 200);
     }
 
     public function get_availability(WP_REST_Request $request)

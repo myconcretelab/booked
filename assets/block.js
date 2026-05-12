@@ -82,6 +82,31 @@
     return { variables, isLoading, error, loadVariables };
   };
 
+  const useDynamicPhrases = () => {
+    const [phrases, setPhrases] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const loadPhrases = () => {
+      setIsLoading(true);
+      setError("");
+      apiFetch({ path: "/booked/v1/dynamic-phrases" })
+        .then((payload) => {
+          setPhrases(payload && Array.isArray(payload.phrases) ? payload.phrases : []);
+          setIsLoading(false);
+        })
+        .catch((apiError) => {
+          setPhrases([]);
+          setError(apiError.message || __("Impossible de charger les phrases dynamiques.", "booked"));
+          setIsLoading(false);
+        });
+    };
+
+    useEffect(loadPhrases, []);
+
+    return { phrases, isLoading, error, loadPhrases };
+  };
+
   const appendToken = (content, token) => {
     const value = content || "";
     const separator = value && !/\s$/.test(value) ? " " : "";
@@ -93,6 +118,59 @@
       title: variable.label || variable.token,
       onClick: () => insertVariable(variable.token),
     }));
+
+  const getDynamicPhraseControls = (phrases, insertPhrase) =>
+    phrases.map((phrase) => ({
+      title: phrase.title || phrase.token,
+      onClick: () => insertPhrase(phrase.token),
+    }));
+
+  const escapeHtml = (value) =>
+    String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const stripTokenBraces = (token) => String(token || "").replace(/^\{\{\s*|\s*\}\}$/g, "").toLowerCase();
+
+  const renderBookedTextPreview = (content, phrases, variables) => {
+    const phraseMap = {};
+    phrases.forEach((phrase) => {
+      const token = stripTokenBraces(phrase.token);
+      if (token) {
+        phraseMap[token] = phrase.value || "";
+      }
+    });
+
+    const variableMap = {};
+    variables.forEach((variable) => {
+      const token = stripTokenBraces(variable.token);
+      if (token) {
+        variableMap[token] = variable.preview || "";
+      }
+    });
+
+    let rendered = content || "";
+    for (let i = 0; i < 5; i++) {
+      const next = rendered.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (match, token) => {
+        const normalized = token.toLowerCase();
+        return Object.prototype.hasOwnProperty.call(phraseMap, normalized) ? phraseMap[normalized] : match;
+      });
+      if (next === rendered) break;
+      rendered = next;
+    }
+
+    rendered = rendered.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (match, token) => {
+      const normalized = token.toLowerCase();
+      return Object.prototype.hasOwnProperty.call(variableMap, normalized)
+        ? escapeHtml(variableMap[normalized])
+        : `<span class="booked-text__preview-token">${escapeHtml(match)}</span>`;
+    });
+
+    return rendered;
+  };
 
   const BookedDefaultGitePanel = () => {
     const { gites, isLoading, error, loadGites } = useGites();
@@ -387,16 +465,23 @@
       ],
     },
 
-    edit({ attributes, setAttributes }) {
+    edit({ attributes, setAttributes, isSelected }) {
       const blockProps = useBlockProps({ className: "booked-block booked-block--text" });
       const { gites, isLoading, error, loadGites } = useGites();
       const { variables, isLoading: isVariablesLoading, error: variablesError, loadVariables } = useGiteVariables(attributes.giteId || "");
+      const { phrases, isLoading: isPhrasesLoading, error: phrasesError, loadPhrases } = useDynamicPhrases();
 
       const insertVariable = (token) => {
         setAttributes({ content: appendToken(attributes.content, token) });
       };
 
+      const insertPhrase = (token) => {
+        setAttributes({ content: appendToken(attributes.content, token) });
+      };
+
       const variableControls = getVariableControls(variables, insertVariable);
+      const dynamicPhraseControls = getDynamicPhraseControls(phrases, insertPhrase);
+      const previewHtml = renderBookedTextPreview(attributes.content || "", phrases, variables);
 
       return el(
         Fragment,
@@ -415,6 +500,18 @@
                   title: attributes.giteId
                     ? __("Aucune variable disponible", "booked")
                     : __("Sélectionnez un gîte", "booked"),
+                  isDisabled: true,
+                },
+              ],
+            }),
+            el(DropdownMenu, {
+              icon: "editor-paste-text",
+              label: __("Insérer une phrase dynamique", "booked"),
+              controls: dynamicPhraseControls.length > 0 ? dynamicPhraseControls : [
+                {
+                  title: isPhrasesLoading
+                    ? __("Chargement des phrases...", "booked")
+                    : __("Aucune phrase dynamique", "booked"),
                   isDisabled: true,
                 },
               ],
@@ -472,18 +569,47 @@
             attributes.giteId
               ? el(Button, { variant: "secondary", onClick: loadVariables, disabled: isVariablesLoading }, __("Recharger les variables", "booked"))
               : null
+          ),
+          el(
+            PanelBody,
+            { title: __("Phrases dynamiques", "booked"), initialOpen: false },
+            isPhrasesLoading ? el(Spinner) : null,
+            phrasesError ? el(Notice, { status: "error", isDismissible: false }, phrasesError) : null,
+            !isPhrasesLoading && !phrasesError && phrases.length === 0
+              ? el("p", { className: "booked-block-help" }, __("Aucune phrase dynamique configurée.", "booked"))
+              : null,
+            phrases.map((phrase) =>
+              el(
+                "div",
+                { key: phrase.token, className: "booked-block-variable" },
+                el(
+                  Button,
+                  { variant: "secondary", onClick: () => insertPhrase(phrase.token) },
+                  phrase.title || phrase.token
+                ),
+                el("code", null, phrase.token)
+              )
+            ),
+            el(Button, { variant: "secondary", onClick: loadPhrases, disabled: isPhrasesLoading }, __("Recharger les phrases", "booked"))
           )
         ),
         el(
           "div",
           blockProps,
-          el(RichText, {
-            tagName: "p",
-            className: "booked-text__editor",
-            value: attributes.content || "",
-            placeholder: attributes.placeholder || __("Rédigez votre texte Booked...", "booked"),
-            onChange: (content) => setAttributes({ content }),
-          })
+          isSelected
+            ? el(RichText, {
+                tagName: "p",
+                className: "booked-text__editor",
+                value: attributes.content || "",
+                placeholder: attributes.placeholder || __("Rédigez votre texte Booked...", "booked"),
+                onChange: (content) => setAttributes({ content }),
+              })
+            : el("p", {
+                className: "booked-text__editor booked-text__preview",
+                dangerouslySetInnerHTML: {
+                  __html: previewHtml || escapeHtml(attributes.placeholder || __("Rédigez votre texte Booked...", "booked")),
+                },
+              })
         )
       );
     },

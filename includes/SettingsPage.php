@@ -30,22 +30,82 @@ class Booked_SettingsPage
 
     public function sanitize_settings(array $input): array
     {
+        $existing = get_option(BOOKED_OPTION_KEY, []);
+        if (!is_array($existing)) {
+            $existing = [];
+        }
+
         return [
-            'api_base_url' => esc_url_raw((string) ($input['api_base_url'] ?? '')),
-            'integration_token' => sanitize_text_field((string) ($input['integration_token'] ?? '')),
-            'timeout_ms' => max(1000, (int) ($input['timeout_ms'] ?? 10000)),
-            'debug_mode' => !empty($input['debug_mode']) ? 1 : 0,
+            'api_base_url' => array_key_exists('api_base_url', $input) ? esc_url_raw((string) $input['api_base_url']) : (string) ($existing['api_base_url'] ?? ''),
+            'integration_token' => array_key_exists('integration_token', $input) ? sanitize_text_field((string) $input['integration_token']) : (string) ($existing['integration_token'] ?? ''),
+            'timeout_ms' => array_key_exists('timeout_ms', $input) ? max(1000, (int) $input['timeout_ms']) : max(1000, (int) ($existing['timeout_ms'] ?? 10000)),
+            'debug_mode' => array_key_exists('debug_mode', $input) ? (!empty($input['debug_mode']) ? 1 : 0) : (!empty($existing['debug_mode']) ? 1 : 0),
+            'dynamic_phrases' => array_key_exists('dynamic_phrases', $input) ? $this->sanitize_dynamic_phrases($input['dynamic_phrases']) : $this->sanitize_dynamic_phrases($existing['dynamic_phrases'] ?? []),
         ];
+    }
+
+    private function sanitize_dynamic_phrases($input): array
+    {
+        if (!is_array($input)) {
+            return [];
+        }
+
+        $phrases = [];
+        $seen = [];
+        foreach ($input as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $title = sanitize_text_field((string) ($item['title'] ?? ''));
+            $token = $this->sanitize_phrase_token((string) ($item['token'] ?? ''));
+            if ($token === '' && $title !== '') {
+                $token = $this->sanitize_phrase_token($title);
+            }
+
+            $value = wp_kses_post((string) ($item['value'] ?? ''));
+            if ($token === '' || $value === '' || substr($token, 0, 5) === 'gite.' || isset($seen[$token])) {
+                continue;
+            }
+
+            $seen[$token] = true;
+            $phrases[] = [
+                'title' => $title !== '' ? $title : $this->label_from_phrase_token($token),
+                'token' => $token,
+                'value' => $value,
+            ];
+        }
+
+        return $phrases;
+    }
+
+    private function sanitize_phrase_token(string $token): string
+    {
+        $token = str_replace(['{{', '}}'], '', $token);
+        $token = remove_accents($token);
+        $token = strtolower($token);
+        $token = preg_replace('/[^a-z0-9_.-]+/', '_', $token);
+
+        return trim((string) $token, '_.-');
+    }
+
+    private function label_from_phrase_token(string $token): string
+    {
+        $label = str_replace(['_', '-', '.'], ' ', $token);
+        $label = trim($label);
+
+        return $label === '' ? '' : ucfirst($label);
     }
 
     public function render_page(): void
     {
         $active_tab = isset($_GET['tab']) ? sanitize_key((string) wp_unslash($_GET['tab'])) : 'settings';
-        if (!in_array($active_tab, ['settings', 'documentation'], true)) {
+        if (!in_array($active_tab, ['settings', 'dynamic_phrases', 'documentation'], true)) {
             $active_tab = 'settings';
         }
 
         $settings_url = admin_url('options-general.php?page=booked');
+        $dynamic_phrases_url = add_query_arg('tab', 'dynamic_phrases', $settings_url);
         $documentation_url = add_query_arg('tab', 'documentation', $settings_url);
         ?>
         <div class="wrap">
@@ -53,11 +113,14 @@ class Booked_SettingsPage
 
             <nav class="nav-tab-wrapper" aria-label="Onglets Booked">
                 <a href="<?php echo esc_url($settings_url); ?>" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">Configuration</a>
+                <a href="<?php echo esc_url($dynamic_phrases_url); ?>" class="nav-tab <?php echo $active_tab === 'dynamic_phrases' ? 'nav-tab-active' : ''; ?>">Phrases dynamiques</a>
                 <a href="<?php echo esc_url($documentation_url); ?>" class="nav-tab <?php echo $active_tab === 'documentation' ? 'nav-tab-active' : ''; ?>">Documentation</a>
             </nav>
 
             <?php if ($active_tab === 'documentation') : ?>
                 <?php $this->render_documentation_tab(); ?>
+            <?php elseif ($active_tab === 'dynamic_phrases') : ?>
+                <?php $this->render_dynamic_phrases_tab(); ?>
             <?php else : ?>
                 <?php $this->render_settings_tab(); ?>
             <?php endif; ?>
@@ -91,6 +154,7 @@ class Booked_SettingsPage
                         <th scope="row">Debug</th>
                         <td>
                             <label>
+                                <input name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[debug_mode]" type="hidden" value="0" />
                                 <input name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[debug_mode]" type="checkbox" value="1" <?php checked(!empty($settings['debug_mode'])); ?> />
                                 Activer les logs de débogage côté JS
                             </label>
@@ -157,6 +221,529 @@ class Booked_SettingsPage
             })();
         </script>
         <?php
+    }
+
+    private function render_dynamic_phrases_tab(): void
+    {
+        $settings = get_option(BOOKED_OPTION_KEY, []);
+        $phrases = is_array($settings['dynamic_phrases'] ?? null) ? $settings['dynamic_phrases'] : [];
+        $variable_suggestions = $this->get_variable_suggestions();
+        ?>
+        <style>
+            .booked-phrases { max-width: 1180px; margin-top: 20px; }
+            .booked-phrases table { table-layout: fixed; }
+            .booked-phrases th:first-child { width: 190px; }
+            .booked-phrases th:nth-child(2) { width: 250px; }
+            .booked-phrases th:last-child { width: 105px; }
+            .booked-phrases input[type="text"],
+            .booked-phrases textarea { width: 100%; }
+            .booked-phrases textarea { min-height: 76px; }
+            .booked-phrases__help { color: #646970; margin: 6px 0 0; }
+            .booked-phrases__slug-wrap { align-items: center; display: flex; gap: 6px; }
+            .booked-phrases__slug { background: #f6f7f7; cursor: pointer; font-family: Consolas, Monaco, monospace; }
+            .booked-phrases__copy-state { color: #166534; display: block; font-size: 12px; min-height: 18px; padding-top: 4px; }
+            .booked-phrases__editor { position: relative; }
+            .booked-phrases__textarea-wrap { position: relative; }
+            .booked-phrases__textarea-highlight,
+            .booked-phrases__textarea { box-sizing: border-box; font: inherit; line-height: 1.4; min-height: 76px; padding: 6px 8px; white-space: pre-wrap; word-break: break-word; }
+            .booked-phrases__textarea-highlight { border: 1px solid transparent; color: #1d2327; left: 0; overflow: hidden; pointer-events: none; position: absolute; right: 0; top: 0; z-index: 1; }
+            .booked-phrases__textarea-token { color: #a7aaad; font-family: Consolas, Monaco, monospace; }
+            .booked-phrases__textarea { background: transparent; caret-color: #1d2327; color: transparent; position: relative; resize: vertical; z-index: 2; -webkit-text-fill-color: transparent; }
+            .booked-phrases__textarea.booked-phrases__textarea--empty { color: inherit; -webkit-text-fill-color: initial; }
+            .booked-phrases__preview { background: #fff; border: 1px solid #dcdcde; margin-top: 8px; min-height: 38px; padding: 8px 10px; }
+            .booked-phrases__preview-token { background: #f0f6fc; border-radius: 3px; color: #0969da; font-family: Consolas, Monaco, monospace; padding: 1px 4px; }
+            .booked-phrases__menu { background: #fff; border: 1px solid #8c8f94; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14); display: none; left: 0; max-height: 230px; min-width: 310px; overflow: auto; position: absolute; top: 82px; z-index: 20; }
+            .booked-phrases__menu button { background: transparent; border: 0; cursor: pointer; display: block; padding: 8px 10px; text-align: left; width: 100%; }
+            .booked-phrases__menu button:hover,
+            .booked-phrases__menu button:focus { background: #f0f6fc; outline: none; }
+            .booked-phrases__menu-token { display: block; font-family: Consolas, Monaco, monospace; }
+            .booked-phrases__menu-label { color: #646970; display: block; font-size: 12px; }
+            .booked-phrases__preview-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 16px; }
+            .booked-phrases__preview-controls select { min-width: 280px; }
+            .booked-phrases__preview-status { color: #646970; }
+        </style>
+
+        <div class="booked-phrases">
+            <form method="post" action="options.php">
+                <?php settings_fields(BOOKED_OPTION_KEY); ?>
+                <p>Saisissez un libellé lisible, par exemple <code>Phrase prix</code>. Le slug <code>{{phrase_prix}}</code> est généré automatiquement et peut être copié en cliquant dessus.</p>
+                <div class="booked-phrases__preview-controls">
+                    <label for="booked-preview-gite"><strong>Gîte de prévisualisation</strong></label>
+                    <select id="booked-preview-gite">
+                        <option value="">Chargement des gîtes...</option>
+                    </select>
+                    <span class="booked-phrases__preview-status" id="booked-preview-status" aria-live="polite"></span>
+                </div>
+                <table class="widefat striped" id="booked-dynamic-phrases">
+                    <thead>
+                        <tr>
+                            <th scope="col">Libellé</th>
+                            <th scope="col">Slug</th>
+                            <th scope="col">Phrase</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($phrases)) : ?>
+                            <?php $this->render_dynamic_phrase_row(0, ['title' => '', 'token' => '', 'value' => '']); ?>
+                        <?php else : ?>
+                            <?php foreach ($phrases as $index => $phrase) : ?>
+                                <?php $this->render_dynamic_phrase_row((int) $index, is_array($phrase) ? $phrase : []); ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+                <p><button type="button" class="button" id="booked-add-dynamic-phrase">Ajouter une phrase</button></p>
+                <?php submit_button('Enregistrer les phrases'); ?>
+            </form>
+        </div>
+
+        <script>
+            (function () {
+                var suggestions = <?php echo wp_json_encode($variable_suggestions); ?>;
+                var restBase = '<?php echo esc_url_raw(rest_url('booked/v1')); ?>';
+                var restNonce = '<?php echo esc_js(wp_create_nonce('wp_rest')); ?>';
+                var table = document.getElementById('booked-dynamic-phrases');
+                var addButton = document.getElementById('booked-add-dynamic-phrase');
+                var previewSelect = document.getElementById('booked-preview-gite');
+                var previewStatus = document.getElementById('booked-preview-status');
+                if (!table || !addButton || !previewSelect || !previewStatus) return;
+
+                var body = table.querySelector('tbody');
+                var nextIndex = body.querySelectorAll('tr').length;
+                var previewVariables = {};
+
+                function slugify(value) {
+                    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9_.-]+/g, '_').replace(/^[_.-]+|[_.-]+$/g, '');
+                }
+
+                function escapeHtml(value) {
+                    return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+                }
+
+                function formatPreview(value) {
+                    return escapeHtml(value || '').replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, function (match, token) {
+                        var normalized = token.toLowerCase();
+                        if (Object.prototype.hasOwnProperty.call(previewVariables, normalized)) {
+                            return escapeHtml(previewVariables[normalized]);
+                        }
+
+                        return '<span class="booked-phrases__preview-token">{{' + escapeHtml(token) + '}}</span>';
+                    }).replace(/\n/g, '<br>');
+                }
+
+                function formatTextareaHighlight(value) {
+                    var html = escapeHtml(value || '').replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, function (match, token) {
+                        return '<span class="booked-phrases__textarea-token">{{' + escapeHtml(token) + '}}</span>';
+                    });
+
+                    return (html || ' ') + '\n';
+                }
+
+                function getCurrentTokenStart(textarea) {
+                    var beforeCursor = textarea.value.slice(0, textarea.selectionStart || 0);
+                    var start = beforeCursor.lastIndexOf('{{');
+                    if (start === -1) return -1;
+
+                    var partial = beforeCursor.slice(start + 2);
+                    if (partial.indexOf('}}') !== -1 || /\s/.test(partial)) return -1;
+
+                    return start;
+                }
+
+                function buildMenu(row, textarea) {
+                    var menu = row.querySelector('.booked-phrases__menu');
+                    var start = getCurrentTokenStart(textarea);
+                    if (start === -1) {
+                        menu.style.display = 'none';
+                        return;
+                    }
+
+                    var search = textarea.value.slice(start + 2, textarea.selectionStart || 0).toLowerCase();
+                    var matches = suggestions.filter(function (item) {
+                        return item.token.indexOf(search) !== -1 || item.label.toLowerCase().indexOf(search) !== -1;
+                    }).slice(0, 18);
+
+                    if (!matches.length) {
+                        menu.style.display = 'none';
+                        return;
+                    }
+
+                    menu.innerHTML = matches.map(function (item) {
+                        return '<button type="button" data-token="' + escapeHtml(item.token) + '"><span class="booked-phrases__menu-token">{{' + escapeHtml(item.token) + '}}</span><span class="booked-phrases__menu-label">' + escapeHtml(item.label) + '</span></button>';
+                    }).join('');
+                    menu.style.display = 'block';
+                }
+
+                function insertVariable(textarea, token) {
+                    var start = getCurrentTokenStart(textarea);
+                    if (start === -1) return;
+
+                    var end = textarea.selectionStart || 0;
+                    var replacement = '{{' + token + '}}';
+                    textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
+                    textarea.focus();
+                    textarea.selectionStart = textarea.selectionEnd = start + replacement.length;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                function copyText(value, state) {
+                    function done() {
+                        state.textContent = 'Copié';
+                        window.setTimeout(function () { state.textContent = ''; }, 1400);
+                    }
+
+                    if (window.navigator.clipboard && window.navigator.clipboard.writeText) {
+                        window.navigator.clipboard.writeText(value).then(done);
+                        return;
+                    }
+
+                    var temp = document.createElement('textarea');
+                    temp.value = value;
+                    document.body.appendChild(temp);
+                    temp.select();
+                    document.execCommand('copy');
+                    temp.remove();
+                    done();
+                }
+
+                function normalizeKey(key) {
+                    return String(key || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+                }
+
+                function formatValue(value) {
+                    if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
+                    if (value === null || typeof value === 'undefined') return '';
+                    return String(value);
+                }
+
+                function isScalar(value) {
+                    return value === null || ['string', 'number', 'boolean'].indexOf(typeof value) !== -1;
+                }
+
+                function isListOfScalars(value) {
+                    return Array.isArray(value) && value.length > 0 && value.every(isScalar);
+                }
+
+                function shouldSkipPath(path) {
+                    var root = String(path || '').split('.')[0];
+                    return ['sections', 'groupes', 'variables'].indexOf(root) !== -1;
+                }
+
+                function flattenScalars(value, prefix, output) {
+                    if (!value || typeof value !== 'object') return;
+
+                    Object.keys(value).forEach(function (rawKey) {
+                        var key = normalizeKey(rawKey);
+                        if (!key) return;
+
+                        var path = prefix ? prefix + '.' + key : key;
+                        if (shouldSkipPath(path)) return;
+
+                        var item = value[rawKey];
+                        if (Array.isArray(item)) {
+                            if (isListOfScalars(item)) {
+                                output[path] = item.map(formatValue).join(', ');
+                            }
+                            return;
+                        }
+
+                        if (item && typeof item === 'object') {
+                            flattenScalars(item, path, output);
+                            return;
+                        }
+
+                        if (isScalar(item)) {
+                            output[path] = item;
+                        }
+                    });
+                }
+
+                function findPrefix(content) {
+                    var keys = ['prefixe_contrat', 'prefixe', 'prefix', 'variable_prefix', 'variables_prefix'];
+                    for (var i = 0; i < keys.length; i++) {
+                        if (content && isScalar(content[keys[i]]) && String(content[keys[i]]) !== '') {
+                            return normalizeKey(content[keys[i]]);
+                        }
+                    }
+
+                    return '';
+                }
+
+                function semanticAliases(path) {
+                    var aliases = {
+                        public_technical_description: ['description_technique'],
+                        min_nuits_toute_annee: ['nb_nuits_minimum_toute_annee'],
+                        min_nuits_vacances_scolaires: ['nb_nuits_minimum_vacances_scolaires'],
+                        min_nuits_juillet_aout: ['nb_nuits_minimum_juillet_aout']
+                    };
+
+                    return aliases[path] || [];
+                }
+
+                function addTokenAliases(map, path, value, prefix) {
+                    map[path] = value;
+                    map['gite.' + path] = value;
+                    if (prefix) {
+                        map[prefix + '.' + path] = value;
+                    }
+
+                    semanticAliases(path).forEach(function (alias) {
+                        map[alias] = value;
+                        map['gite.' + alias] = value;
+                        if (prefix) {
+                            map[prefix + '.' + alias] = value;
+                        }
+                    });
+                }
+
+                function contentToVariableMap(content) {
+                    var flat = {};
+                    var map = {};
+                    var prefix = findPrefix(content);
+
+                    flattenScalars(content, '', flat);
+                    Object.keys(flat).forEach(function (path) {
+                        addTokenAliases(map, path.toLowerCase(), formatValue(flat[path]), prefix);
+                    });
+
+                    if (content && content.variables && typeof content.variables === 'object') {
+                        var variableFlat = {};
+                        flattenScalars(content.variables, '', variableFlat);
+                        Object.keys(variableFlat).forEach(function (path) {
+                            addTokenAliases(map, path.toLowerCase(), formatValue(variableFlat[path]), prefix);
+                        });
+                    }
+
+                    return map;
+                }
+
+                function bindRow(row) {
+                    var titleInput = row.querySelector('.booked-phrases__title');
+                    var tokenInput = row.querySelector('.booked-phrases__slug');
+                    var textarea = row.querySelector('textarea');
+                    var highlight = row.querySelector('.booked-phrases__textarea-highlight');
+                    var preview = row.querySelector('.booked-phrases__preview');
+                    var menu = row.querySelector('.booked-phrases__menu');
+                    var state = row.querySelector('.booked-phrases__copy-state');
+                    var removeButton = row.querySelector('.booked-remove-dynamic-phrase');
+
+                    function syncSlug() {
+                        tokenInput.value = '{{' + slugify(titleInput.value) + '}}';
+                    }
+
+                    function syncPreview() {
+                        preview.innerHTML = formatPreview(textarea.value) || '<span class="booked-phrases__help">La phrase propre s’affichera ici.</span>';
+                    }
+
+                    function syncHighlight() {
+                        highlight.innerHTML = formatTextareaHighlight(textarea.value);
+                        highlight.scrollTop = textarea.scrollTop;
+                        textarea.classList.toggle('booked-phrases__textarea--empty', textarea.value === '');
+                    }
+
+                    titleInput.addEventListener('input', syncSlug);
+                    tokenInput.addEventListener('click', function () {
+                        if (tokenInput.value !== '{{}}') copyText(tokenInput.value, state);
+                    });
+                    textarea.addEventListener('input', function () {
+                        syncHighlight();
+                        syncPreview();
+                        buildMenu(row, textarea);
+                    });
+                    textarea.addEventListener('scroll', function () {
+                        highlight.scrollTop = textarea.scrollTop;
+                    });
+                    textarea.addEventListener('keyup', function () { buildMenu(row, textarea); });
+                    textarea.addEventListener('click', function () { buildMenu(row, textarea); });
+                    textarea.addEventListener('blur', function () {
+                        window.setTimeout(function () { menu.style.display = 'none'; }, 150);
+                    });
+                    menu.addEventListener('mousedown', function (event) {
+                        var button = event.target.closest('button[data-token]');
+                        if (!button) return;
+
+                        event.preventDefault();
+                        insertVariable(textarea, button.getAttribute('data-token'));
+                        menu.style.display = 'none';
+                    });
+                    removeButton.addEventListener('click', function () {
+                        var rows = body.querySelectorAll('tr');
+                        if (rows.length === 1) {
+                            titleInput.value = '';
+                            textarea.value = '';
+                            syncSlug();
+                            syncHighlight();
+                            syncPreview();
+                            return;
+                        }
+
+                        row.remove();
+                    });
+
+                    syncSlug();
+                    syncHighlight();
+                    syncPreview();
+                }
+
+                function refreshAllPreviews() {
+                    body.querySelectorAll('tr').forEach(function (row) {
+                        var textarea = row.querySelector('textarea');
+                        var preview = row.querySelector('.booked-phrases__preview');
+                        if (textarea && preview) {
+                            preview.innerHTML = formatPreview(textarea.value) || '<span class="booked-phrases__help">La phrase propre s’affichera ici.</span>';
+                        }
+                    });
+                }
+
+                function apiFetch(path) {
+                    return window.fetch(restBase + path, {
+                        headers: {
+                            'X-WP-Nonce': restNonce
+                        }
+                    }).then(function (response) {
+                        return response.json().then(function (payload) {
+                            if (!response.ok) {
+                                throw new Error(payload.error || 'Chargement impossible.');
+                            }
+                            return payload;
+                        });
+                    });
+                }
+
+                function loadPreviewVariables(giteId) {
+                    previewVariables = {};
+                    refreshAllPreviews();
+
+                    if (!giteId) {
+                        previewStatus.textContent = 'Choisissez un gîte pour voir les vraies valeurs.';
+                        return;
+                    }
+
+                    previewStatus.textContent = 'Chargement des valeurs...';
+                    apiFetch('/gites/' + encodeURIComponent(giteId) + '/content')
+                        .then(function (payload) {
+                            var content = payload && typeof payload === 'object' ? (payload.data || payload.content || payload) : {};
+                            previewVariables = contentToVariableMap(content);
+                            previewStatus.textContent = Object.keys(previewVariables).length ? 'Aperçu avec les valeurs du gîte sélectionné.' : 'Aucune variable trouvée pour ce gîte.';
+                            refreshAllPreviews();
+                        })
+                        .catch(function (error) {
+                            previewVariables = {};
+                            previewStatus.textContent = error.message || 'Chargement impossible.';
+                            refreshAllPreviews();
+                        });
+                }
+
+                function loadPreviewGites() {
+                    apiFetch('/gites')
+                        .then(function (payload) {
+                            var gites = payload.gites || [];
+                            if (!gites.length) {
+                                previewSelect.innerHTML = '<option value="">Aucun gîte disponible</option>';
+                                previewStatus.textContent = 'Aucun gîte disponible pour la prévisualisation.';
+                                return;
+                            }
+
+                            previewSelect.innerHTML = gites.map(function (gite) {
+                                var label = gite.capacity ? gite.name + ' (' + gite.capacity + ' pers.)' : gite.name;
+                                return '<option value="' + escapeHtml(gite.id) + '">' + escapeHtml(label) + '</option>';
+                            }).join('');
+                            loadPreviewVariables(previewSelect.value);
+                        })
+                        .catch(function (error) {
+                            previewSelect.innerHTML = '<option value="">Chargement impossible</option>';
+                            previewStatus.textContent = error.message || 'Chargement impossible.';
+                        });
+                }
+
+                function rowHtml(index) {
+                    return '<td><input class="booked-phrases__title" type="text" name="<?php echo esc_js(BOOKED_OPTION_KEY); ?>[dynamic_phrases][' + index + '][title]" placeholder="Phrase prix" /></td>'
+                        + '<td><div class="booked-phrases__slug-wrap"><input class="booked-phrases__slug" type="text" name="<?php echo esc_js(BOOKED_OPTION_KEY); ?>[dynamic_phrases][' + index + '][token]" value="{{}}" readonly aria-label="Slug copiable" /></div><span class="booked-phrases__copy-state" aria-live="polite"></span></td>'
+                        + '<td><div class="booked-phrases__editor"><div class="booked-phrases__textarea-wrap"><div class="booked-phrases__textarea-highlight" aria-hidden="true"></div><textarea class="booked-phrases__textarea booked-phrases__textarea--empty" name="<?php echo esc_js(BOOKED_OPTION_KEY); ?>[dynamic_phrases][' + index + '][value]" rows="3" placeholder="Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.min_nuits_toute_annee}}."></textarea></div><div class="booked-phrases__menu"></div></div><p class="booked-phrases__help">Tapez {{ pour insérer une variable existante.</p><div class="booked-phrases__preview" aria-live="polite"></div></td>'
+                        + '<td><button type="button" class="button booked-remove-dynamic-phrase">Supprimer</button></td>';
+                }
+
+                body.querySelectorAll('tr').forEach(bindRow);
+                addButton.addEventListener('click', function () {
+                    var row = document.createElement('tr');
+                    row.innerHTML = rowHtml(nextIndex);
+                    body.appendChild(row);
+                    bindRow(row);
+                    nextIndex++;
+                });
+                previewSelect.addEventListener('change', function () {
+                    loadPreviewVariables(previewSelect.value);
+                });
+                loadPreviewGites();
+            })();
+        </script>
+        <?php
+    }
+
+    private function render_dynamic_phrase_row(int $index, array $phrase): void
+    {
+        $token = $this->sanitize_phrase_token((string) ($phrase['token'] ?? ''));
+        $title = (string) ($phrase['title'] ?? $this->label_from_phrase_token($token));
+        $value = (string) ($phrase['value'] ?? '');
+        ?>
+        <tr>
+            <td>
+                <input class="booked-phrases__title" type="text" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[dynamic_phrases][<?php echo esc_attr((string) $index); ?>][title]" value="<?php echo esc_attr($title); ?>" placeholder="Phrase prix" />
+            </td>
+            <td>
+                <div class="booked-phrases__slug-wrap">
+                    <input class="booked-phrases__slug" type="text" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[dynamic_phrases][<?php echo esc_attr((string) $index); ?>][token]" value="<?php echo esc_attr('{{' . $token . '}}'); ?>" readonly aria-label="Slug copiable" />
+                </div>
+                <span class="booked-phrases__copy-state" aria-live="polite"></span>
+            </td>
+            <td>
+                <div class="booked-phrases__editor">
+                    <div class="booked-phrases__textarea-wrap">
+                        <div class="booked-phrases__textarea-highlight" aria-hidden="true"></div>
+                        <textarea class="booked-phrases__textarea <?php echo $value === '' ? 'booked-phrases__textarea--empty' : ''; ?>" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[dynamic_phrases][<?php echo esc_attr((string) $index); ?>][value]" rows="3" placeholder="Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.min_nuits_toute_annee}}."><?php echo esc_textarea($value); ?></textarea>
+                    </div>
+                    <div class="booked-phrases__menu"></div>
+                </div>
+                <p class="booked-phrases__help">Tapez {{ pour insérer une variable existante.</p>
+                <div class="booked-phrases__preview" aria-live="polite"></div>
+            </td>
+            <td>
+                <button type="button" class="button booked-remove-dynamic-phrase">Supprimer</button>
+            </td>
+        </tr>
+        <?php
+    }
+
+    private function get_variable_suggestions(): array
+    {
+        $variables = [
+            'gite.nom' => 'Nom du gîte',
+            'gite.adresse_complete' => 'Adresse complète',
+            'gite.horaire_arrivee' => 'Horaire d’arrivée',
+            'gite.horaire_depart' => 'Horaire de départ',
+            'gite.description_technique' => 'Description technique',
+            'gite.prix_nuit_basse_saison' => 'Prix/nuit basse saison',
+            'gite.prix_nuit_haute_saison' => 'Prix/nuit haute saison',
+            'gite.min_nuits_toute_annee' => 'Minimum de nuits toute l’année',
+            'gite.min_nuits_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
+            'gite.min_nuits_juillet_aout' => 'Minimum de nuits juillet-août',
+            'gite.service_menage_forfait' => 'Ménage forfait',
+            'gite.service_draps_par_lit' => 'Draps / lit',
+            'gite.service_linge_toilette_par_personne' => 'Linge toilette / personne',
+            'gite.service_chiens_par_nuit' => 'Chiens / nuit',
+            'gite.service_depart_tardif_forfait' => 'Départ tardif forfait',
+        ];
+
+        $suggestions = [];
+        foreach ($variables as $token => $label) {
+            $suggestions[] = [
+                'token' => $token,
+                'label' => $label,
+            ];
+        }
+
+        return $suggestions;
     }
 
     private function render_documentation_tab(): void
@@ -319,6 +906,13 @@ Arrivée : {{gite.horaire_arrivee}}</code></pre>
 
                 <h3>Gîte par défaut d’une page</h3>
                 <p>Dans l’éditeur Gutenberg, ouvrez les réglages de la page ou de l’article, puis le panneau <strong>Booked</strong>. Sélectionnez un gîte. Les blocs natifs de cette page pourront alors utiliser les variables <code>{{gite...}}</code>.</p>
+
+                <h3>Phrases dynamiques</h3>
+                <p>L’onglet <strong>Phrases dynamiques</strong> permet de créer des variables personnalisées. Saisissez un libellé, par exemple <code>Phrase prix</code>, puis la phrase complète. Le slug <code>{{phrase_prix}}</code> est généré automatiquement et copiable. Le sélecteur de gîte affiche l’aperçu avec les vraies valeurs du gîte choisi.</p>
+                <pre><code>Libellé : Phrase prix
+Phrase : Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.min_nuits_toute_annee}}.
+
+Utilisation dans le contenu : {{phrase_prix}}</code></pre>
 
                 <h3>Exemples de variables courantes</h3>
                 <table>

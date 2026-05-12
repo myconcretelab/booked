@@ -36,6 +36,15 @@
   margin: 0;
 }
 
+.booked-text__preview {
+  cursor: text;
+}
+
+.booked-text__preview-token {
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
 .booked-block-variable {
   border-top: 1px solid #e2e8f0;
   display: grid;

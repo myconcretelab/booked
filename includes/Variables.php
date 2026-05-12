@@ -70,12 +70,22 @@ class Booked_Variables
     public function replace_tokens(string $html, array $content): string
     {
         $map = $this->get_replacement_map($content);
+        $previous = $html;
 
-        $rendered = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/', static function (array $matches) use ($map): string {
-            $token = strtolower($matches[1]);
+        for ($i = 0; $i < 5; $i++) {
+            $rendered = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/', static function (array $matches) use ($map): string {
+                $token = strtolower($matches[1]);
 
-            return array_key_exists($token, $map) ? $map[$token] : $matches[0];
-        }, $html);
+                return array_key_exists($token, $map) ? $map[$token] : $matches[0];
+            }, $previous);
+
+            $rendered = (string) $rendered;
+            if ($rendered === $previous || strpos($rendered, '{{') === false) {
+                break;
+            }
+
+            $previous = $rendered;
+        }
 
         return wp_kses_post((string) $rendered);
     }
@@ -91,11 +101,11 @@ class Booked_Variables
         $items = [];
         $seen = [];
         foreach ($variables as $token => $value) {
-            if (substr($token, 0, 5) !== 'gite.') {
+            if (substr($token, 0, 5) !== 'gite.' && !$this->is_dynamic_phrase_token($token)) {
                 continue;
             }
 
-            $canonical_token = substr($token, 5);
+            $canonical_token = substr($token, 0, 5) === 'gite.' ? substr($token, 5) : $token;
             if ($this->should_hide_variable_item($canonical_token)) {
                 continue;
             }
@@ -141,7 +151,53 @@ class Booked_Variables
             }
         }
 
+        foreach ($this->get_dynamic_phrases() as $token => $phrase) {
+            $map[$token] = $phrase;
+        }
+
         return $map;
+    }
+
+    private function get_dynamic_phrases(): array
+    {
+        $settings = get_option(BOOKED_OPTION_KEY, []);
+        $phrases = is_array($settings['dynamic_phrases'] ?? null) ? $settings['dynamic_phrases'] : [];
+
+        $map = [];
+        foreach ($phrases as $phrase) {
+            if (!is_array($phrase)) {
+                continue;
+            }
+
+            $token = $this->normalize_phrase_token((string) ($phrase['token'] ?? ''));
+            if ($token === '' || substr($token, 0, 5) === 'gite.') {
+                continue;
+            }
+
+            $value = (string) ($phrase['value'] ?? '');
+            if ($value === '') {
+                continue;
+            }
+
+            $map[$token] = $value;
+        }
+
+        return $map;
+    }
+
+    private function is_dynamic_phrase_token(string $token): bool
+    {
+        return array_key_exists($token, $this->get_dynamic_phrases());
+    }
+
+    private function normalize_phrase_token(string $token): string
+    {
+        $token = str_replace(['{{', '}}'], '', $token);
+        $token = remove_accents($token);
+        $token = strtolower($token);
+        $token = preg_replace('/[^a-z0-9_.-]+/', '_', $token);
+
+        return trim((string) $token, '_.-');
     }
 
     private function add_token_aliases(array &$map, string $path, string $value, string $prefix): void
