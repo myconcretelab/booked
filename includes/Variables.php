@@ -12,9 +12,6 @@ class Booked_Variables
         'horaire_depart' => 'Horaire de départ',
         'description_technique' => 'Description technique',
         'public_technical_description' => 'Description technique',
-        'min_nuits_toute_annee' => 'Minimum de nuits toute l’année',
-        'min_nuits_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
-        'min_nuits_juillet_aout' => 'Minimum de nuits juillet-août',
         'nb_nuits_minimum_toute_annee' => 'Minimum de nuits toute l’année',
         'nb_nuits_minimum_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
         'nb_nuits_minimum_juillet_aout' => 'Minimum de nuits juillet-août',
@@ -174,7 +171,7 @@ class Booked_Variables
                 continue;
             }
 
-            $value = (string) ($phrase['value'] ?? '');
+            $value = $this->normalize_variable_tokens((string) ($phrase['value'] ?? ''));
             if ($value === '') {
                 continue;
             }
@@ -198,6 +195,21 @@ class Booked_Variables
         $token = preg_replace('/[^a-z0-9_.-]+/', '_', $token);
 
         return trim((string) $token, '_.-');
+    }
+
+    private function normalize_variable_tokens(string $value): string
+    {
+        $aliases = [
+            'gite.min_nuits_toute_annee' => 'gite.nb_nuits_minimum_toute_annee',
+            'gite.min_nuits_vacances_scolaires' => 'gite.nb_nuits_minimum_vacances_scolaires',
+            'gite.min_nuits_juillet_aout' => 'gite.nb_nuits_minimum_juillet_aout',
+        ];
+
+        return (string) preg_replace_callback('/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/', static function (array $matches) use ($aliases): string {
+            $token = strtolower($matches[1]);
+
+            return isset($aliases[$token]) ? '{{' . $aliases[$token] . '}}' : $matches[0];
+        }, $value);
     }
 
     private function add_token_aliases(array &$map, string $path, string $value, string $prefix): void
@@ -226,6 +238,9 @@ class Booked_Variables
             'min_nuits_toute_annee' => ['nb_nuits_minimum_toute_annee'],
             'min_nuits_vacances_scolaires' => ['nb_nuits_minimum_vacances_scolaires'],
             'min_nuits_juillet_aout' => ['nb_nuits_minimum_juillet_aout'],
+            'nb_nuits_minimum_toute_annee' => ['min_nuits_toute_annee'],
+            'nb_nuits_minimum_vacances_scolaires' => ['min_nuits_vacances_scolaires'],
+            'nb_nuits_minimum_juillet_aout' => ['min_nuits_juillet_aout'],
         ];
 
         return $aliases[$path] ?? [];
@@ -235,9 +250,9 @@ class Booked_Variables
     {
         return in_array($token, [
             'public_technical_description',
-            'nb_nuits_minimum_toute_annee',
-            'nb_nuits_minimum_vacances_scolaires',
-            'nb_nuits_minimum_juillet_aout',
+            'min_nuits_toute_annee',
+            'min_nuits_vacances_scolaires',
+            'min_nuits_juillet_aout',
         ], true);
     }
 

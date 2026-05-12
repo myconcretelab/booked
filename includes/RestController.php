@@ -176,7 +176,16 @@ class Booked_RestController
             $token = remove_accents($token);
             $token = strtolower($token);
             $token = trim((string) preg_replace('/[^a-z0-9_.-]+/', '_', $token), '_.-');
-            $value = (string) ($phrase['value'] ?? '');
+            $value = (string) preg_replace_callback('/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/', static function (array $matches): string {
+                $aliases = [
+                    'gite.min_nuits_toute_annee' => 'gite.nb_nuits_minimum_toute_annee',
+                    'gite.min_nuits_vacances_scolaires' => 'gite.nb_nuits_minimum_vacances_scolaires',
+                    'gite.min_nuits_juillet_aout' => 'gite.nb_nuits_minimum_juillet_aout',
+                ];
+                $token = strtolower($matches[1]);
+
+                return isset($aliases[$token]) ? '{{' . $aliases[$token] . '}}' : $matches[0];
+            }, (string) ($phrase['value'] ?? ''));
             if ($token === '' || $value === '') {
                 return null;
             }

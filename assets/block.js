@@ -135,6 +135,19 @@
 
   const stripTokenBraces = (token) => String(token || "").replace(/^\{\{\s*|\s*\}\}$/g, "").toLowerCase();
 
+  const normalizeBookedTextTokens = (content) => {
+    const aliases = {
+      "gite.min_nuits_toute_annee": "gite.nb_nuits_minimum_toute_annee",
+      "gite.min_nuits_vacances_scolaires": "gite.nb_nuits_minimum_vacances_scolaires",
+      "gite.min_nuits_juillet_aout": "gite.nb_nuits_minimum_juillet_aout",
+    };
+
+    return String(content || "").replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (match, token) => {
+      const normalized = token.toLowerCase();
+      return Object.prototype.hasOwnProperty.call(aliases, normalized) ? `{{${aliases[normalized]}}}` : match;
+    });
+  };
+
   const renderBookedTextPreview = (content, phrases, variables) => {
     const phraseMap = {};
     phrases.forEach((phrase) => {
@@ -470,6 +483,13 @@
       const { gites, isLoading, error, loadGites } = useGites();
       const { variables, isLoading: isVariablesLoading, error: variablesError, loadVariables } = useGiteVariables(attributes.giteId || "");
       const { phrases, isLoading: isPhrasesLoading, error: phrasesError, loadPhrases } = useDynamicPhrases();
+
+      useEffect(() => {
+        const normalizedContent = normalizeBookedTextTokens(attributes.content || "");
+        if (normalizedContent !== (attributes.content || "")) {
+          setAttributes({ content: normalizedContent });
+        }
+      }, [attributes.content]);
 
       const insertVariable = (token) => {
         setAttributes({ content: appendToken(attributes.content, token) });

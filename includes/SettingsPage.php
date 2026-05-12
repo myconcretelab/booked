@@ -63,7 +63,7 @@ class Booked_SettingsPage
                 $token = $this->sanitize_phrase_token($title);
             }
 
-            $value = wp_kses_post((string) ($item['value'] ?? ''));
+            $value = wp_kses_post($this->normalize_variable_tokens((string) ($item['value'] ?? '')));
             if ($token === '' || $value === '' || substr($token, 0, 5) === 'gite.' || isset($seen[$token])) {
                 continue;
             }
@@ -95,6 +95,21 @@ class Booked_SettingsPage
         $label = trim($label);
 
         return $label === '' ? '' : ucfirst($label);
+    }
+
+    private function normalize_variable_tokens(string $value): string
+    {
+        $aliases = [
+            'gite.min_nuits_toute_annee' => 'gite.nb_nuits_minimum_toute_annee',
+            'gite.min_nuits_vacances_scolaires' => 'gite.nb_nuits_minimum_vacances_scolaires',
+            'gite.min_nuits_juillet_aout' => 'gite.nb_nuits_minimum_juillet_aout',
+        ];
+
+        return (string) preg_replace_callback('/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/', static function (array $matches) use ($aliases): string {
+            $token = strtolower($matches[1]);
+
+            return isset($aliases[$token]) ? '{{' . $aliases[$token] . '}}' : $matches[0];
+        }, $value);
     }
 
     public function render_page(): void
@@ -332,6 +347,19 @@ class Booked_SettingsPage
                     }).replace(/\n/g, '<br>');
                 }
 
+                function normalizeVariableTokens(value) {
+                    var aliases = {
+                        'gite.min_nuits_toute_annee': 'gite.nb_nuits_minimum_toute_annee',
+                        'gite.min_nuits_vacances_scolaires': 'gite.nb_nuits_minimum_vacances_scolaires',
+                        'gite.min_nuits_juillet_aout': 'gite.nb_nuits_minimum_juillet_aout'
+                    };
+
+                    return String(value || '').replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, function (match, token) {
+                        var normalized = token.toLowerCase();
+                        return Object.prototype.hasOwnProperty.call(aliases, normalized) ? '{{' + aliases[normalized] + '}}' : match;
+                    });
+                }
+
                 function formatTextareaHighlight(value) {
                     var html = escapeHtml(value || '').replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, function (match, token) {
                         return '<span class="booked-phrases__textarea-token">{{' + escapeHtml(token) + '}}</span>';
@@ -475,7 +503,10 @@ class Booked_SettingsPage
                         public_technical_description: ['description_technique'],
                         min_nuits_toute_annee: ['nb_nuits_minimum_toute_annee'],
                         min_nuits_vacances_scolaires: ['nb_nuits_minimum_vacances_scolaires'],
-                        min_nuits_juillet_aout: ['nb_nuits_minimum_juillet_aout']
+                        min_nuits_juillet_aout: ['nb_nuits_minimum_juillet_aout'],
+                        nb_nuits_minimum_toute_annee: ['min_nuits_toute_annee'],
+                        nb_nuits_minimum_vacances_scolaires: ['min_nuits_vacances_scolaires'],
+                        nb_nuits_minimum_juillet_aout: ['min_nuits_juillet_aout']
                     };
 
                     return aliases[path] || [];
@@ -536,6 +567,13 @@ class Booked_SettingsPage
                         preview.innerHTML = formatPreview(textarea.value) || '<span class="booked-phrases__help">La phrase propre s’affichera ici.</span>';
                     }
 
+                    function normalizeTextarea() {
+                        var normalizedValue = normalizeVariableTokens(textarea.value);
+                        if (normalizedValue !== textarea.value) {
+                            textarea.value = normalizedValue;
+                        }
+                    }
+
                     function syncHighlight() {
                         highlight.innerHTML = formatTextareaHighlight(textarea.value);
                         highlight.scrollTop = textarea.scrollTop;
@@ -547,6 +585,7 @@ class Booked_SettingsPage
                         if (tokenInput.value !== '{{}}') copyText(tokenInput.value, state);
                     });
                     textarea.addEventListener('input', function () {
+                        normalizeTextarea();
                         syncHighlight();
                         syncPreview();
                         buildMenu(row, textarea);
@@ -582,6 +621,7 @@ class Booked_SettingsPage
                     });
 
                     syncSlug();
+                    normalizeTextarea();
                     syncHighlight();
                     syncPreview();
                 }
@@ -660,7 +700,7 @@ class Booked_SettingsPage
                 function rowHtml(index) {
                     return '<td><input class="booked-phrases__title" type="text" name="<?php echo esc_js(BOOKED_OPTION_KEY); ?>[dynamic_phrases][' + index + '][title]" placeholder="Phrase prix" /></td>'
                         + '<td><div class="booked-phrases__slug-wrap"><input class="booked-phrases__slug" type="text" name="<?php echo esc_js(BOOKED_OPTION_KEY); ?>[dynamic_phrases][' + index + '][token]" value="{{}}" readonly aria-label="Slug copiable" /></div><span class="booked-phrases__copy-state" aria-live="polite"></span></td>'
-                        + '<td><div class="booked-phrases__editor"><div class="booked-phrases__textarea-wrap"><div class="booked-phrases__textarea-highlight" aria-hidden="true"></div><textarea class="booked-phrases__textarea booked-phrases__textarea--empty" name="<?php echo esc_js(BOOKED_OPTION_KEY); ?>[dynamic_phrases][' + index + '][value]" rows="3" placeholder="Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.min_nuits_toute_annee}}."></textarea></div><div class="booked-phrases__menu"></div></div><p class="booked-phrases__help">Tapez {{ pour insérer une variable existante.</p><div class="booked-phrases__preview" aria-live="polite"></div></td>'
+                        + '<td><div class="booked-phrases__editor"><div class="booked-phrases__textarea-wrap"><div class="booked-phrases__textarea-highlight" aria-hidden="true"></div><textarea class="booked-phrases__textarea booked-phrases__textarea--empty" name="<?php echo esc_js(BOOKED_OPTION_KEY); ?>[dynamic_phrases][' + index + '][value]" rows="3" placeholder="Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.nb_nuits_minimum_toute_annee}}."></textarea></div><div class="booked-phrases__menu"></div></div><p class="booked-phrases__help">Tapez {{ pour insérer une variable existante.</p><div class="booked-phrases__preview" aria-live="polite"></div></td>'
                         + '<td><button type="button" class="button booked-remove-dynamic-phrase">Supprimer</button></td>';
                 }
 
@@ -685,7 +725,7 @@ class Booked_SettingsPage
     {
         $token = $this->sanitize_phrase_token((string) ($phrase['token'] ?? ''));
         $title = (string) ($phrase['title'] ?? $this->label_from_phrase_token($token));
-        $value = (string) ($phrase['value'] ?? '');
+        $value = $this->normalize_variable_tokens((string) ($phrase['value'] ?? ''));
         ?>
         <tr>
             <td>
@@ -701,7 +741,7 @@ class Booked_SettingsPage
                 <div class="booked-phrases__editor">
                     <div class="booked-phrases__textarea-wrap">
                         <div class="booked-phrases__textarea-highlight" aria-hidden="true"></div>
-                        <textarea class="booked-phrases__textarea <?php echo $value === '' ? 'booked-phrases__textarea--empty' : ''; ?>" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[dynamic_phrases][<?php echo esc_attr((string) $index); ?>][value]" rows="3" placeholder="Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.min_nuits_toute_annee}}."><?php echo esc_textarea($value); ?></textarea>
+                        <textarea class="booked-phrases__textarea <?php echo $value === '' ? 'booked-phrases__textarea--empty' : ''; ?>" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[dynamic_phrases][<?php echo esc_attr((string) $index); ?>][value]" rows="3" placeholder="Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.nb_nuits_minimum_toute_annee}}."><?php echo esc_textarea($value); ?></textarea>
                     </div>
                     <div class="booked-phrases__menu"></div>
                 </div>
@@ -725,9 +765,9 @@ class Booked_SettingsPage
             'gite.description_technique' => 'Description technique',
             'gite.prix_nuit_basse_saison' => 'Prix/nuit basse saison',
             'gite.prix_nuit_haute_saison' => 'Prix/nuit haute saison',
-            'gite.min_nuits_toute_annee' => 'Minimum de nuits toute l’année',
-            'gite.min_nuits_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
-            'gite.min_nuits_juillet_aout' => 'Minimum de nuits juillet-août',
+            'gite.nb_nuits_minimum_toute_annee' => 'Minimum de nuits toute l’année',
+            'gite.nb_nuits_minimum_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
+            'gite.nb_nuits_minimum_juillet_aout' => 'Minimum de nuits juillet-août',
             'gite.service_menage_forfait' => 'Ménage forfait',
             'gite.service_draps_par_lit' => 'Draps / lit',
             'gite.service_linge_toilette_par_personne' => 'Linge toilette / personne',
@@ -910,7 +950,7 @@ Arrivée : {{gite.horaire_arrivee}}</code></pre>
                 <h3>Phrases dynamiques</h3>
                 <p>L’onglet <strong>Phrases dynamiques</strong> permet de créer des variables personnalisées. Saisissez un libellé, par exemple <code>Phrase prix</code>, puis la phrase complète. Le slug <code>{{phrase_prix}}</code> est généré automatiquement et copiable. Le sélecteur de gîte affiche l’aperçu avec les vraies valeurs du gîte choisi.</p>
                 <pre><code>Libellé : Phrase prix
-Phrase : Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.min_nuits_toute_annee}}.
+Phrase : Les prix sont de {{gite.prix_nuit_basse_saison}} pour un nombre de nuits de {{gite.nb_nuits_minimum_toute_annee}}.
 
 Utilisation dans le contenu : {{phrase_prix}}</code></pre>
 
@@ -942,15 +982,15 @@ Utilisation dans le contenu : {{phrase_prix}}</code></pre>
                             <td>Prix par nuit en haute saison.</td>
                         </tr>
                         <tr>
-                            <th scope="row"><code>{{gite.min_nuits_toute_annee}}</code></th>
+                            <th scope="row"><code>{{gite.nb_nuits_minimum_toute_annee}}</code></th>
                             <td>Nombre minimum de nuits toute l’année.</td>
                         </tr>
                         <tr>
-                            <th scope="row"><code>{{gite.min_nuits_vacances_scolaires}}</code></th>
+                            <th scope="row"><code>{{gite.nb_nuits_minimum_vacances_scolaires}}</code></th>
                             <td>Nombre minimum de nuits pendant les vacances scolaires.</td>
                         </tr>
                         <tr>
-                            <th scope="row"><code>{{gite.min_nuits_juillet_aout}}</code></th>
+                            <th scope="row"><code>{{gite.nb_nuits_minimum_juillet_aout}}</code></th>
                             <td>Nombre minimum de nuits en juillet-août.</td>
                         </tr>
                         <tr>
