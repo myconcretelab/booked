@@ -1,5 +1,6 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
+  const SELECTION_EVENT = "booked:selection-change";
 
   const formatPrice = (value) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(value || 0));
@@ -9,6 +10,21 @@
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  const formatDisplayDate = (value) => {
+    const date = parseDate(value);
+    return date ? new Intl.DateTimeFormat("fr-FR").format(date) : "";
+  };
+
+  const formatTotalPrice = (value) => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+      maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    }).format(amount);
   };
 
   const parseDate = (value) => {
@@ -37,6 +53,40 @@
     if (className) element.className = className;
     if (text !== undefined) element.textContent = text;
     return element;
+  };
+
+  const escapeHtml = (value) =>
+    String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const getQuoteTotal = (quote) => {
+    if (!quote) return 0;
+    const totalKey = ["total_global", "total", "montant_total", "montant"].find((key) => quote[key] !== undefined);
+    return Number(totalKey ? quote[totalKey] : 0);
+  };
+
+  const getDefaultOptionsPayload = (travelers = 0) => ({
+    draps: { enabled: false, nb_lits: 0 },
+    linge_toilette: { enabled: false, nb_personnes: Number(travelers || 0) },
+    menage: { enabled: false },
+    depart_tardif: { enabled: false },
+    chiens: { enabled: false, nb: 0 },
+  });
+
+  const publishSelection = (source, giteId, selectedStart, selectedEnd, travelers) => {
+    document.dispatchEvent(new CustomEvent(SELECTION_EVENT, {
+      detail: {
+        source,
+        giteId: String(giteId || ""),
+        selectedStart: selectedStart || "",
+        selectedEnd: selectedEnd || "",
+        travelers: Number(travelers || 1),
+      },
+    }));
   };
 
   const log = (...args) => {
@@ -230,6 +280,11 @@
   };
 
   const renderWidget = async (root) => {
+    if (root._bookedSelectionHandler) {
+      document.removeEventListener(SELECTION_EVENT, root._bookedSelectionHandler);
+      root._bookedSelectionHandler = null;
+    }
+
     const giteId = root.dataset.giteId;
     const mode = root.dataset.mode === "calendar" ? "calendar" : "booking";
     const monthsCount = Math.max(1, Math.min(12, Number(root.dataset.months || 2)));
@@ -350,6 +405,7 @@
       form.addEventListener("change", () => {
         root.dataset.selectedStart = dateEntreeInput.value;
         root.dataset.selectedEnd = dateSortieInput.value;
+        publishSelection(root, giteId, dateEntreeInput.value, dateSortieInput.value, form.querySelector("[name=nb_adultes]").value);
         void updateQuote();
       });
 
@@ -416,6 +472,35 @@
         );
       };
 
+      root._bookedSelectionHandler = (event) => {
+        const detail = event.detail || {};
+        if (detail.source === root || String(detail.giteId || "") !== String(giteId || "")) return;
+
+        dateEntreeInput.value = detail.selectedStart || "";
+        dateSortieInput.value = detail.selectedEnd || "";
+        if (detail.travelers && form.querySelector("[name=nb_adultes]")) {
+          form.querySelector("[name=nb_adultes]").value = String(detail.travelers);
+        }
+        root.dataset.selectedStart = dateEntreeInput.value;
+        root.dataset.selectedEnd = dateSortieInput.value;
+
+        renderAvailabilityCalendar(
+          calendar,
+          currentAvailability,
+          currentMonthCursor,
+          monthsCount,
+          dateEntreeInput.value,
+          dateSortieInput.value,
+          navigateCalendar,
+          mode === "booking" ? handleCalendarDayClick : null
+        );
+
+        if (mode === "booking") {
+          void updateQuote();
+        }
+      };
+      document.addEventListener(SELECTION_EVENT, root._bookedSelectionHandler);
+
       renderAvailabilityCalendar(
         calendar,
         currentAvailability,
@@ -473,6 +558,433 @@
     }
   };
 
+  const renderBookingCard = async (root) => {
+    if (root._bookedBookingCardCleanup) {
+      root._bookedBookingCardCleanup();
+      root._bookedBookingCardCleanup = null;
+    }
+
+    let giteId = String(root.dataset.giteId || "").trim();
+    if (!giteId) {
+      const fallbackWidget = document.querySelector(".booked-widget[data-gite-id]");
+      giteId = String(fallbackWidget && fallbackWidget.dataset ? fallbackWidget.dataset.giteId || "" : "").trim();
+      if (giteId) {
+        root.dataset.giteId = giteId;
+      }
+    }
+
+    if (!giteId) {
+      root.innerHTML = "";
+      root.appendChild(createElement("div", "booked-widget--error", "Ajoutez un gîte au bloc Booked Réservation ou placez-le avec un calendrier Booked."));
+      return;
+    }
+
+    const configuredMonths = Math.max(1, Math.min(12, Number(root.dataset.months || 2)));
+    const showTravelers = root.dataset.showTravelers !== "0";
+    let travelers = Math.max(1, Number(root.dataset.travelers || 1));
+    let selectedStart = root.dataset.selectedStart || "";
+    let selectedEnd = root.dataset.selectedEnd || "";
+    let currentMonthCursor = root.dataset.monthCursor ? parseDate(root.dataset.monthCursor) : startOfMonth(new Date());
+    currentMonthCursor = currentMonthCursor || startOfMonth(new Date());
+    let currentAvailability = null;
+    let quote = null;
+    let feedback = "";
+    let isQuoting = false;
+    let isSubmitting = false;
+    let isPopoverOpen = false;
+    let isModalOpen = false;
+    let giteConfig = null;
+
+    root.innerHTML = "";
+    root.appendChild(createElement("div", "booked-widget__loading", "Chargement..."));
+
+    const getVisibleMonths = () =>
+      window.matchMedia && window.matchMedia("(max-width: 720px)").matches
+        ? 1
+        : Math.min(configuredMonths, 2);
+
+    const loadAvailability = async (monthCursor) => {
+      const visibleMonths = getVisibleMonths();
+      const availabilityFrom = formatDate(monthCursor);
+      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(monthCursor, visibleMonths - 1)), 1));
+      currentAvailability = await apiFetch(`/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`);
+      currentMonthCursor = monthCursor;
+      root.dataset.monthCursor = formatDate(currentMonthCursor);
+    };
+
+    const storeSelection = (shouldPublish = true) => {
+      root.dataset.selectedStart = selectedStart;
+      root.dataset.selectedEnd = selectedEnd;
+      root.dataset.travelers = String(travelers);
+      if (shouldPublish) {
+        publishSelection(root, giteId, selectedStart, selectedEnd, travelers);
+      }
+    };
+
+    const quotePayload = () => ({
+      date_entree: selectedStart,
+      date_sortie: selectedEnd,
+      nb_adultes: travelers,
+      nb_enfants_2_17: 0,
+      options: getDefaultOptionsPayload(travelers),
+    });
+
+    const requestQuote = async () => {
+      if (!selectedStart || !selectedEnd) {
+        quote = null;
+        feedback = "";
+        renderCard();
+        return;
+      }
+
+      isQuoting = true;
+      feedback = "";
+      renderCard();
+      try {
+        quote = await apiFetch(`/gites/${encodeURIComponent(giteId)}/quote`, {
+          method: "POST",
+          body: quotePayload(),
+        });
+        feedback = "";
+      } catch (error) {
+        quote = null;
+        feedback = error.message || "Prix indisponible.";
+      } finally {
+        isQuoting = false;
+        renderCard();
+      }
+    };
+
+    const closeFloatingUi = () => {
+      if (!isPopoverOpen && !isModalOpen) return;
+      isPopoverOpen = false;
+      isModalOpen = false;
+      renderCard();
+    };
+
+    const handleOutsideClick = (event) => {
+      if (!isPopoverOpen || root.contains(event.target)) return;
+      isPopoverOpen = false;
+      renderCard();
+    };
+
+    const handleEscape = (event) => {
+      if (event.key !== "Escape") return;
+      closeFloatingUi();
+    };
+
+    const handleResize = () => {
+      if (isPopoverOpen) {
+        void loadAvailability(currentMonthCursor).then(renderCard).catch((error) => {
+          feedback = error.message || "Calendrier indisponible.";
+          renderCard();
+        });
+      }
+    };
+
+    const openPopover = () => {
+      isPopoverOpen = true;
+      isModalOpen = false;
+      renderCard();
+    };
+
+    const clearDates = () => {
+      selectedStart = "";
+      selectedEnd = "";
+      quote = null;
+      feedback = "";
+      storeSelection();
+      renderCard();
+    };
+
+    const handleDayClick = (date) => {
+      if (!selectedStart || selectedEnd) {
+        selectedStart = date;
+        selectedEnd = "";
+        quote = null;
+      } else if (date > selectedStart) {
+        selectedEnd = date;
+        isPopoverOpen = false;
+      } else {
+        selectedStart = date;
+        selectedEnd = "";
+        quote = null;
+      }
+      feedback = "";
+      storeSelection();
+      renderCard();
+      if (selectedStart && selectedEnd) {
+        void requestQuote();
+      }
+    };
+
+    const navigatePopover = async (direction) => {
+      const nextMonthCursor = addMonths(currentMonthCursor, direction);
+      try {
+        await loadAvailability(nextMonthCursor);
+        renderCard();
+      } catch (error) {
+        feedback = error.message || "Navigation impossible.";
+        renderCard();
+      }
+    };
+
+    const buildDateButton = (className, label, value) => {
+      const button = createElement("button", className);
+      button.type = "button";
+      button.addEventListener("click", openPopover);
+      button.appendChild(createElement("span", "booked-booking-card__field-label", label));
+      button.appendChild(createElement("span", "booked-booking-card__field-value", value ? formatDisplayDate(value) : "Ajouter une date"));
+      return button;
+    };
+
+    const renderPopover = (card) => {
+      const popover = createElement("div", "booked-booking-card__popover");
+      popover.setAttribute("role", "dialog");
+      popover.setAttribute("aria-label", "Sélection des dates");
+
+      const intro = createElement("div", "booked-booking-card__popover-intro");
+      intro.appendChild(createElement("h3", "", "Sélectionnez les dates"));
+      intro.appendChild(createElement("p", "", "Ajoutez vos dates de voyage pour connaître le prix exact"));
+      popover.appendChild(intro);
+
+      const fields = createElement("div", "booked-booking-card__popover-fields");
+      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Arrivée", selectedStart));
+      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Départ", selectedEnd));
+      popover.appendChild(fields);
+
+      const calendar = createElement("div", "booked-booking-card__calendar");
+      if (currentAvailability) {
+        renderAvailabilityCalendar(
+          calendar,
+          currentAvailability,
+          currentMonthCursor,
+          getVisibleMonths(),
+          selectedStart,
+          selectedEnd,
+          navigatePopover,
+          handleDayClick
+        );
+      }
+      popover.appendChild(calendar);
+
+      const actions = createElement("div", "booked-booking-card__popover-actions");
+      const clearButton = createElement("button", "booked-booking-card__text-button", "Effacer les dates");
+      clearButton.type = "button";
+      clearButton.addEventListener("click", clearDates);
+      const closeButton = createElement("button", "booked-booking-card__close-button", "Fermer");
+      closeButton.type = "button";
+      closeButton.addEventListener("click", () => {
+        isPopoverOpen = false;
+        renderCard();
+      });
+      actions.append(clearButton, closeButton);
+      popover.appendChild(actions);
+
+      card.appendChild(popover);
+    };
+
+    const renderModal = (card) => {
+      const overlay = createElement("div", "booked-booking-card__modal-overlay");
+      const dialog = createElement("div", "booked-booking-card__modal");
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute("aria-label", "Demande de réservation");
+
+      const closeButton = createElement("button", "booked-booking-card__modal-close", "×");
+      closeButton.type = "button";
+      closeButton.setAttribute("aria-label", "Fermer");
+      closeButton.addEventListener("click", () => {
+        isModalOpen = false;
+        renderCard();
+      });
+
+      const title = createElement("h3", "booked-booking-card__modal-title", "Demande de réservation");
+      const summary = createElement(
+        "p",
+        "booked-booking-card__modal-summary",
+        `${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`
+      );
+
+      const form = createElement("form", "booked-booking-card__modal-form");
+      form.innerHTML = `
+        <label>Prénom<input type="text" name="prenom" autocomplete="given-name" required></label>
+        <label>Nom<input type="text" name="nom" autocomplete="family-name" required></label>
+        <label>Téléphone<input type="tel" name="telephone" autocomplete="tel" required></label>
+        <label>Email<input type="email" name="email" autocomplete="email" required></label>
+        <div class="booked-booking-card__modal-feedback" aria-live="polite">${feedback ? escapeHtml(feedback) : ""}</div>
+        <button type="submit" class="booked-booking-card__primary"${isSubmitting ? " disabled" : ""}>${isSubmitting ? "Envoi..." : "Envoyer la demande"}</button>
+      `;
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const formData = new FormData(form);
+        isSubmitting = true;
+        feedback = "";
+        renderCard();
+
+        try {
+          const prenom = String(formData.get("prenom") || "").trim();
+          const nom = String(formData.get("nom") || "").trim();
+          const created = await apiFetch("/requests", {
+            method: "POST",
+            body: Object.assign({ gite_id: giteId }, quotePayload(), {
+              hote_nom: `${prenom} ${nom}`.trim(),
+              telephone: String(formData.get("telephone") || "").trim(),
+              email: String(formData.get("email") || "").trim(),
+              message_client: "",
+            }),
+          });
+          feedback = created && created.hold_expires_at
+            ? `Demande enregistrée. Les dates sont bloquées jusqu'au ${new Date(created.hold_expires_at).toLocaleString("fr-FR")}.`
+            : "Demande enregistrée.";
+          isSubmitting = false;
+          isModalOpen = false;
+          renderCard();
+        } catch (error) {
+          feedback = error.message || "Envoi impossible.";
+          isSubmitting = false;
+          isModalOpen = true;
+          renderCard();
+        }
+      });
+
+      dialog.append(closeButton, title, summary, form);
+      overlay.appendChild(dialog);
+      overlay.addEventListener("click", (event) => {
+        if (event.target !== overlay) return;
+        isModalOpen = false;
+        renderCard();
+      });
+      card.appendChild(overlay);
+
+      window.setTimeout(() => {
+        const firstInput = dialog.querySelector("input");
+        if (firstInput) firstInput.focus();
+      }, 0);
+    };
+
+    function renderCard() {
+      root.innerHTML = "";
+      const card = createElement("div", "booked-booking-card__panel");
+      const hasDates = Boolean(selectedStart && selectedEnd);
+      const hasQuote = Boolean(hasDates && quote);
+
+      const title = createElement("h2", hasQuote ? "booked-booking-card__total" : "booked-booking-card__title");
+      title.textContent = hasQuote ? `${formatTotalPrice(getQuoteTotal(quote))} au total` : "Indiquez vos dates pour afficher les prix";
+      card.appendChild(title);
+
+      const fields = createElement("div", "booked-booking-card__fields");
+      fields.appendChild(buildDateButton("booked-booking-card__field booked-booking-card__field--arrival", "Arrivée", selectedStart));
+      fields.appendChild(buildDateButton("booked-booking-card__field booked-booking-card__field--departure", "Départ", selectedEnd));
+
+      if (showTravelers) {
+        const travelersField = createElement("div", "booked-booking-card__travelers");
+        travelersField.appendChild(createElement("span", "booked-booking-card__field-label", "Voyageurs"));
+        const row = createElement("div", "booked-booking-card__travelers-row");
+        const input = createElement("input", "booked-booking-card__travelers-input");
+        input.type = "number";
+        input.min = "1";
+        input.max = String(giteConfig && giteConfig.capacite_max ? giteConfig.capacite_max : 99);
+        input.value = String(travelers);
+        input.setAttribute("aria-label", "Nombre de voyageurs");
+        input.addEventListener("change", () => {
+          travelers = Math.max(1, Math.min(Number(input.max || 99), Number(input.value || 1)));
+          quote = null;
+          storeSelection();
+          renderCard();
+          if (selectedStart && selectedEnd) {
+            void requestQuote();
+          }
+        });
+        row.appendChild(createElement("span", "booked-booking-card__field-value", `${travelers} voyageur${travelers > 1 ? "s" : ""}`));
+        row.appendChild(input);
+        travelersField.appendChild(row);
+        fields.appendChild(travelersField);
+      }
+      card.appendChild(fields);
+
+      const primary = createElement(
+        "button",
+        "booked-booking-card__primary",
+        hasQuote ? "Demande de réservation" : isQuoting ? "Vérification..." : "Vérifier la disponibilité"
+      );
+      primary.type = "button";
+      primary.disabled = isQuoting;
+      primary.addEventListener("click", () => {
+        if (!selectedStart || !selectedEnd) {
+          openPopover();
+          return;
+        }
+        if (!quote) {
+          void requestQuote();
+          return;
+        }
+        isPopoverOpen = false;
+        isModalOpen = true;
+        feedback = "";
+        renderCard();
+      });
+      card.appendChild(primary);
+
+      if (feedback && !isModalOpen) {
+        card.appendChild(createElement("div", "booked-booking-card__feedback", feedback));
+      }
+
+      if (hasQuote) {
+        card.appendChild(createElement("p", "booked-booking-card__small-note", "Aucun montant ne vous sera débité pour le moment"));
+      }
+
+      if (isPopoverOpen) {
+        renderPopover(card);
+      }
+      if (isModalOpen) {
+        renderModal(card);
+      }
+
+      root.appendChild(card);
+    }
+
+    try {
+      const availabilityFrom = formatDate(currentMonthCursor);
+      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(currentMonthCursor, getVisibleMonths() - 1)), 1));
+      [giteConfig, currentAvailability] = await Promise.all([
+        apiFetch(`/gites/${encodeURIComponent(giteId)}/config`),
+        apiFetch(`/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`),
+      ]);
+      renderCard();
+
+      const externalSelectionHandler = (event) => {
+        const detail = event.detail || {};
+        if (detail.source === root || String(detail.giteId || "") !== String(giteId || "")) return;
+        selectedStart = detail.selectedStart || "";
+        selectedEnd = detail.selectedEnd || "";
+        travelers = Math.max(1, Number(detail.travelers || travelers || 1));
+        quote = null;
+        feedback = "";
+        storeSelection(false);
+        renderCard();
+        if (selectedStart && selectedEnd) {
+          void requestQuote();
+        }
+      };
+
+      document.addEventListener(SELECTION_EVENT, externalSelectionHandler);
+      document.addEventListener("click", handleOutsideClick);
+      document.addEventListener("keydown", handleEscape);
+      window.addEventListener("resize", handleResize);
+      root._bookedBookingCardCleanup = () => {
+        document.removeEventListener(SELECTION_EVENT, externalSelectionHandler);
+        document.removeEventListener("click", handleOutsideClick);
+        document.removeEventListener("keydown", handleEscape);
+        window.removeEventListener("resize", handleResize);
+      };
+    } catch (error) {
+      log("booking card error", error);
+      root.innerHTML = "";
+      root.appendChild(createElement("div", "booked-widget--error", error.message || "Carte de réservation indisponible."));
+    }
+  };
+
   window.BookedWidget = {
     render: renderWidget,
     initAll() {
@@ -484,11 +996,27 @@
     },
   };
 
+  window.BookedBookingCard = {
+    render: renderBookingCard,
+    initAll() {
+      document.querySelectorAll(".booked-booking-card").forEach((root) => {
+        if (root.dataset.bookedBookingCardInitialized === "1") return;
+        root.dataset.bookedBookingCardInitialized = "1";
+        renderBookingCard(root);
+      });
+    },
+  };
+
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".booked-widget[data-gite-id]").forEach((root) => {
       if (root.dataset.bookedInitialized === "1") return;
       root.dataset.bookedInitialized = "1";
       renderWidget(root);
+    });
+    document.querySelectorAll(".booked-booking-card").forEach((root) => {
+      if (root.dataset.bookedBookingCardInitialized === "1") return;
+      root.dataset.bookedBookingCardInitialized = "1";
+      renderBookingCard(root);
     });
   });
 })();

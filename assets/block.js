@@ -303,6 +303,28 @@
     });
   };
 
+  const BookingCardPreview = ({ attributes }) => {
+    const ref = useRef(null);
+
+    useEffect(() => {
+      if (!ref.current || !attributes.giteId || !window.BookedBookingCard) return;
+      ref.current.dataset.bookedBookingCardInitialized = "0";
+      window.BookedBookingCard.render(ref.current);
+    }, [attributes.giteId, attributes.months, attributes.showTravelers]);
+
+    if (!attributes.giteId) {
+      return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
+    }
+
+    return el("div", {
+      ref,
+      className: "booked-booking-card",
+      "data-gite-id": attributes.giteId,
+      "data-months": String(attributes.months || 2),
+      "data-show-travelers": attributes.showTravelers === false ? "0" : "1",
+    });
+  };
+
   const GiteInfoPreview = ({ attributes }) => {
     const ref = useRef(null);
 
@@ -699,6 +721,61 @@
           )
         ),
         el("div", blockProps, el(WidgetPreview, { attributes }))
+      );
+    },
+
+    save() {
+      return null;
+    },
+  });
+
+  registerBlockType("booked/booking-card", {
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-block booked-block--booking-card" });
+      const { gites, isLoading, error, loadGites } = useGites();
+
+      return el(
+        Fragment,
+        null,
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Réglages Booked Réservation", "booked"), initialOpen: true },
+            isLoading ? el(Spinner) : null,
+            error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
+            el(SelectControl, {
+              label: __("Gîte", "booked"),
+              value: attributes.giteId || "",
+              options: getGiteOptions(gites),
+              onChange: (value) => setAttributes({ giteId: value }),
+              help: __("Laisser vide côté front permet de reprendre le premier calendrier Booked de la page.", "booked"),
+            }),
+            error
+              ? el(TextControl, {
+                  label: __("ID du gîte", "booked"),
+                  value: attributes.giteId || "",
+                  help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
+                  onChange: (value) => setAttributes({ giteId: value }),
+                })
+              : null,
+            el(RangeControl, {
+              label: __("Nombre de mois", "booked"),
+              min: 1,
+              max: 12,
+              value: attributes.months || 2,
+              onChange: (value) => setAttributes({ months: value || 1 }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les voyageurs", "booked"),
+              checked: attributes.showTravelers !== false,
+              onChange: (value) => setAttributes({ showTravelers: value }),
+            }),
+            el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
+          )
+        ),
+        el("div", blockProps, el(BookingCardPreview, { attributes }))
       );
     },
 

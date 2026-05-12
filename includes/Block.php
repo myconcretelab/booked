@@ -97,6 +97,29 @@ class Booked_Block
             'render_callback' => [$this, 'render_gite_info_block'],
         ]);
 
+        register_block_type('booked/booking-card', [
+            'api_version' => 2,
+            'title' => 'Booked Réservation',
+            'category' => 'widgets',
+            'icon' => 'calendar',
+            'description' => 'Carte latérale de sélection des dates et demande de réservation.',
+            'attributes' => [
+                'giteId' => [
+                    'type' => 'string',
+                    'default' => '',
+                ],
+                'months' => [
+                    'type' => 'number',
+                    'default' => 2,
+                ],
+                'showTravelers' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
+            ],
+            'render_callback' => [$this, 'render_booking_card_block'],
+        ]);
+
         register_block_type('booked/accordion', [
             'api_version' => 2,
             'title' => 'Booked Accordéon',
@@ -184,10 +207,10 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info'],
-            '0.3.12',
+            '0.3.13',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.12');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.13');
     }
 
     public function render_block(array $attributes): string
@@ -214,6 +237,23 @@ class Booked_Block
             $months,
             $show_title ? '1' : '0',
             $show_capacity ? '1' : '0'
+        );
+    }
+
+    public function render_booking_card_block(array $attributes): string
+    {
+        $gite_id = sanitize_text_field((string) ($attributes['giteId'] ?? ''));
+        $months = max(1, min(12, (int) ($attributes['months'] ?? 2)));
+        $show_travelers = !array_key_exists('showTravelers', $attributes) || !empty($attributes['showTravelers']);
+
+        wp_enqueue_style('booked-widget');
+        wp_enqueue_script('booked-widget');
+
+        return sprintf(
+            '<div class="booked-booking-card" data-gite-id="%s" data-months="%d" data-show-travelers="%s"></div>',
+            esc_attr($gite_id),
+            $months,
+            $show_travelers ? '1' : '0'
         );
     }
 
