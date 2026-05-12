@@ -2,9 +2,6 @@
   const config = window.BookedWidgetConfig || {};
   const SELECTION_EVENT = "booked:selection-change";
 
-  const formatPrice = (value) =>
-    new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(value || 0));
-
   const formatDate = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -15,6 +12,18 @@
   const formatDisplayDate = (value) => {
     const date = parseDate(value);
     return date ? new Intl.DateTimeFormat("fr-FR").format(date) : "";
+  };
+
+  const formatShortDisplayDate = (value) => {
+    const date = parseDate(value);
+    return date ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(date) : "";
+  };
+
+  const getNightCount = (startValue, endValue) => {
+    const start = parseDate(startValue);
+    const end = parseDate(endValue);
+    if (!start || !end || end <= start) return 0;
+    return Math.round((end - start) / 86400000);
   };
 
   const formatTotalPrice = (value) => {
@@ -134,30 +143,6 @@
       throw new Error(payload.error || "Erreur Booked.");
     }
     return payload;
-  };
-
-  const buildOptionsPayload = (form) => {
-    const adults = Number(form.querySelector("[name=nb_adultes]").value || 1);
-    return {
-      draps: {
-        enabled: form.querySelector("[name=opt_draps]").checked,
-        nb_lits: Number(form.querySelector("[name=draps_nb_lits]").value || 0),
-      },
-      linge_toilette: {
-        enabled: form.querySelector("[name=opt_linge]").checked,
-        nb_personnes: Number(form.querySelector("[name=linge_nb_personnes]").value || adults),
-      },
-      menage: {
-        enabled: form.querySelector("[name=opt_menage]").checked,
-      },
-      depart_tardif: {
-        enabled: form.querySelector("[name=opt_depart_tardif]").checked,
-      },
-      chiens: {
-        enabled: form.querySelector("[name=opt_chiens]").checked,
-        nb: Number(form.querySelector("[name=chiens_nb]").value || 0),
-      },
-    };
   };
 
   const getBlockedDays = (availability) => {
@@ -286,12 +271,11 @@
     }
 
     const giteId = root.dataset.giteId;
-    const mode = root.dataset.mode === "calendar" ? "calendar" : "booking";
     const monthsCount = Math.max(1, Math.min(12, Number(root.dataset.months || 2)));
     const showTitle = root.dataset.showTitle !== "0";
     const showCapacity = root.dataset.showCapacity !== "0";
-    const selectedStart = root.dataset.selectedStart || "";
-    const selectedEnd = root.dataset.selectedEnd || "";
+    let selectedStart = root.dataset.selectedStart || "";
+    let selectedEnd = root.dataset.selectedEnd || "";
     const initialMonth = root.dataset.monthCursor ? parseDate(root.dataset.monthCursor) : startOfMonth(new Date());
     const monthCursor = initialMonth || startOfMonth(new Date());
     root.innerHTML = "";
@@ -321,97 +305,33 @@
       const calendar = createElement("div", "booked-widget__calendar");
       availabilityCard.appendChild(calendar);
       shell.appendChild(availabilityCard);
-
-      const form = createElement("form", "booked-widget__form");
-      form.innerHTML = `
-        <div class="booked-widget__grid">
-          <label>Date d'arrivée<input type="date" name="date_entree" required></label>
-          <label>Date de départ<input type="date" name="date_sortie" required></label>
-          <label>Adultes<input type="number" name="nb_adultes" min="1" max="${giteConfig.nb_adultes_max}" value="2" required></label>
-          <label>Enfants<input type="number" name="nb_enfants_2_17" min="0" max="${giteConfig.nb_enfants_max}" value="0" required></label>
-          <label>Nom<input type="text" name="hote_nom" required></label>
-          <label>Téléphone<input type="text" name="telephone" required></label>
-          <label>Email<input type="email" name="email"></label>
-        </div>
-        <div class="booked-widget__options">
-          <label><input type="checkbox" name="opt_draps"> Draps</label>
-          <label><input type="number" name="draps_nb_lits" min="0" value="0"> Nb lits</label>
-          <label><input type="checkbox" name="opt_linge"> Linge</label>
-          <label><input type="number" name="linge_nb_personnes" min="0" value="2"> Nb pers.</label>
-          <label><input type="checkbox" name="opt_menage"> Ménage</label>
-          <label><input type="checkbox" name="opt_depart_tardif"> Départ tardif</label>
-          <label><input type="checkbox" name="opt_chiens" ${giteConfig.rules.regle_animaux_acceptes ? "" : "disabled"}> Chiens</label>
-          <label><input type="number" name="chiens_nb" min="0" value="0"> Nb chiens</label>
-        </div>
-        <label>Message<textarea name="message_client" rows="4" placeholder="Précisions éventuelles"></textarea></label>
-        <div class="booked-widget__quote"></div>
-        <div class="booked-widget__feedback"></div>
-        <button type="submit" class="booked-widget__submit">Envoyer la demande</button>
-      `;
-      if (mode === "booking") {
-        shell.appendChild(form);
-      }
+      const feedbackBox = createElement("div", "booked-widget__feedback");
+      shell.appendChild(feedbackBox);
       root.innerHTML = "";
       root.appendChild(shell);
-
-      const quoteBox = form.querySelector(".booked-widget__quote");
-      const feedbackBox = form.querySelector(".booked-widget__feedback");
-      const dateEntreeInput = form.querySelector("[name=date_entree]");
-      const dateSortieInput = form.querySelector("[name=date_sortie]");
-
-      if (selectedStart) {
-        dateEntreeInput.value = selectedStart;
-      }
-      if (selectedEnd) {
-        dateSortieInput.value = selectedEnd;
-      }
-
-      const updateQuote = async () => {
-        const dateEntree = dateEntreeInput.value;
-        const dateSortie = dateSortieInput.value;
-        if (!dateEntree || !dateSortie) {
-          quoteBox.innerHTML = "";
-          return;
-        }
-
-        try {
-          const quote = await apiFetch(`/gites/${encodeURIComponent(giteId)}/quote`, {
-            method: "POST",
-            body: {
-              date_entree: dateEntree,
-              date_sortie: dateSortie,
-              nb_adultes: Number(form.querySelector("[name=nb_adultes]").value || 1),
-              nb_enfants_2_17: Number(form.querySelector("[name=nb_enfants_2_17]").value || 0),
-              options: buildOptionsPayload(form),
-            },
-          });
-          quoteBox.innerHTML = `
-            <div class="booked-widget__quote-card">
-              <strong>Estimation</strong>
-              <div>Hébergement: ${formatPrice(quote.montant_hebergement)}</div>
-              <div>Options: ${formatPrice(quote.total_options)}</div>
-              <div>Taxe de séjour: ${formatPrice(quote.taxe_sejour)}</div>
-              <div class="booked-widget__quote-total">Total: ${formatPrice(quote.total_global)}</div>
-              <div>Séjour minimum requis: ${quote.required_min_nights} nuit(s)</div>
-            </div>
-          `;
-          feedbackBox.textContent = "";
-        } catch (error) {
-          quoteBox.innerHTML = "";
-          feedbackBox.textContent = error.message;
-        }
-      };
-
-      form.addEventListener("change", () => {
-        root.dataset.selectedStart = dateEntreeInput.value;
-        root.dataset.selectedEnd = dateSortieInput.value;
-        publishSelection(root, giteId, dateEntreeInput.value, dateSortieInput.value, form.querySelector("[name=nb_adultes]").value);
-        void updateQuote();
-      });
 
       let currentAvailability = availability;
       let currentMonthCursor = monthCursor;
       let isNavigating = false;
+
+      const renderCalendar = () => {
+        renderAvailabilityCalendar(
+          calendar,
+          currentAvailability,
+          currentMonthCursor,
+          monthsCount,
+          selectedStart,
+          selectedEnd,
+          navigateCalendar,
+          handleCalendarDayClick
+        );
+      };
+
+      const storeSelection = () => {
+        root.dataset.selectedStart = selectedStart;
+        root.dataset.selectedEnd = selectedEnd;
+        publishSelection(root, giteId, selectedStart, selectedEnd, 1);
+      };
 
       const navigateCalendar = async (direction) => {
         if (isNavigating) return;
@@ -428,16 +348,7 @@
           );
           currentMonthCursor = nextMonthCursor;
           root.dataset.monthCursor = formatDate(currentMonthCursor);
-          renderAvailabilityCalendar(
-            calendar,
-            currentAvailability,
-            currentMonthCursor,
-            monthsCount,
-            dateEntreeInput.value,
-            dateSortieInput.value,
-            navigateCalendar,
-            mode === "booking" ? handleCalendarDayClick : null
-          );
+          renderCalendar();
         } catch (error) {
           log("calendar navigation error", error);
           feedbackBox.textContent = error.message || "Navigation impossible.";
@@ -448,109 +359,33 @@
       };
 
       const handleCalendarDayClick = (date) => {
-        if (!dateEntreeInput.value || dateSortieInput.value) {
-          dateEntreeInput.value = date;
-          dateSortieInput.value = "";
-        } else if (date > dateEntreeInput.value) {
-          dateSortieInput.value = date;
+        if (!selectedStart || selectedEnd) {
+          selectedStart = date;
+          selectedEnd = "";
+        } else if (date > selectedStart) {
+          selectedEnd = date;
         } else {
-          dateEntreeInput.value = date;
-          dateSortieInput.value = "";
+          selectedStart = date;
+          selectedEnd = "";
         }
-        root.dataset.selectedStart = dateEntreeInput.value;
-        root.dataset.selectedEnd = dateSortieInput.value;
-        form.dispatchEvent(new Event("change", { bubbles: true }));
-        renderAvailabilityCalendar(
-          calendar,
-          currentAvailability,
-          currentMonthCursor,
-          monthsCount,
-          dateEntreeInput.value,
-          dateSortieInput.value,
-          navigateCalendar,
-          handleCalendarDayClick
-        );
+        feedbackBox.textContent = "";
+        storeSelection();
+        renderCalendar();
       };
 
       root._bookedSelectionHandler = (event) => {
         const detail = event.detail || {};
         if (detail.source === root || String(detail.giteId || "") !== String(giteId || "")) return;
 
-        dateEntreeInput.value = detail.selectedStart || "";
-        dateSortieInput.value = detail.selectedEnd || "";
-        if (detail.travelers && form.querySelector("[name=nb_adultes]")) {
-          form.querySelector("[name=nb_adultes]").value = String(detail.travelers);
-        }
-        root.dataset.selectedStart = dateEntreeInput.value;
-        root.dataset.selectedEnd = dateSortieInput.value;
-
-        renderAvailabilityCalendar(
-          calendar,
-          currentAvailability,
-          currentMonthCursor,
-          monthsCount,
-          dateEntreeInput.value,
-          dateSortieInput.value,
-          navigateCalendar,
-          mode === "booking" ? handleCalendarDayClick : null
-        );
-
-        if (mode === "booking") {
-          void updateQuote();
-        }
+        selectedStart = detail.selectedStart || "";
+        selectedEnd = detail.selectedEnd || "";
+        root.dataset.selectedStart = selectedStart;
+        root.dataset.selectedEnd = selectedEnd;
+        renderCalendar();
       };
       document.addEventListener(SELECTION_EVENT, root._bookedSelectionHandler);
 
-      renderAvailabilityCalendar(
-        calendar,
-        currentAvailability,
-        currentMonthCursor,
-        monthsCount,
-        selectedStart,
-        selectedEnd,
-        navigateCalendar,
-        mode === "booking" ? handleCalendarDayClick : null
-      );
-
-      if (mode !== "booking") {
-        return;
-      }
-
-      form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        feedbackBox.textContent = "";
-        const submitButton = form.querySelector(".booked-widget__submit");
-        submitButton.disabled = true;
-        submitButton.textContent = "Envoi…";
-
-        try {
-          const created = await apiFetch("/requests", {
-            method: "POST",
-            body: {
-              gite_id: giteId,
-              date_entree: form.querySelector("[name=date_entree]").value,
-              date_sortie: form.querySelector("[name=date_sortie]").value,
-              nb_adultes: Number(form.querySelector("[name=nb_adultes]").value || 1),
-              nb_enfants_2_17: Number(form.querySelector("[name=nb_enfants_2_17]").value || 0),
-              hote_nom: form.querySelector("[name=hote_nom]").value,
-              telephone: form.querySelector("[name=telephone]").value,
-              email: form.querySelector("[name=email]").value,
-              message_client: form.querySelector("[name=message_client]").value,
-              options: buildOptionsPayload(form),
-            },
-          });
-          feedbackBox.textContent = `Demande enregistrée. Les dates sont bloquées jusqu'au ${new Date(created.hold_expires_at).toLocaleString("fr-FR")}.`;
-          form.reset();
-          quoteBox.innerHTML = "";
-          await renderWidget(root);
-        } catch (error) {
-          log("submit error", error);
-          feedbackBox.textContent = error.message || "Envoi impossible.";
-        } finally {
-          submitButton.disabled = false;
-          submitButton.textContent = "Envoyer la demande";
-        }
-      });
+      renderCalendar();
     } catch (error) {
       log("widget error", error);
       root.innerHTML = "";
@@ -579,7 +414,6 @@
       return;
     }
 
-    const configuredMonths = Math.max(1, Math.min(12, Number(root.dataset.months || 2)));
     const showTravelers = root.dataset.showTravelers !== "0";
     let travelers = Math.max(1, Number(root.dataset.travelers || 1));
     let selectedStart = root.dataset.selectedStart || "";
@@ -601,7 +435,7 @@
     const getVisibleMonths = () =>
       window.matchMedia && window.matchMedia("(max-width: 720px)").matches
         ? 1
-        : Math.min(configuredMonths, 2);
+        : 2;
 
     const loadAvailability = async (monthCursor) => {
       const visibleMonths = getVisibleMonths();
@@ -685,6 +519,16 @@
     const openPopover = () => {
       isPopoverOpen = true;
       isModalOpen = false;
+      const startDate = parseDate(selectedStart);
+      if (startDate) {
+        const nextMonthCursor = startOfMonth(startDate);
+        if (formatDate(nextMonthCursor) !== formatDate(currentMonthCursor)) {
+          void loadAvailability(nextMonthCursor).then(renderCard).catch((error) => {
+            feedback = error.message || "Calendrier indisponible.";
+            renderCard();
+          });
+        }
+      }
       renderCard();
     };
 
@@ -729,12 +573,15 @@
       }
     };
 
-    const buildDateButton = (className, label, value) => {
+    const buildDateButton = (className, label, value, showClearIcon = false) => {
       const button = createElement("button", className);
       button.type = "button";
       button.addEventListener("click", openPopover);
       button.appendChild(createElement("span", "booked-booking-card__field-label", label));
       button.appendChild(createElement("span", "booked-booking-card__field-value", value ? formatDisplayDate(value) : "Ajouter une date"));
+      if (showClearIcon && value) {
+        button.appendChild(createElement("span", "booked-booking-card__field-clear", "×"));
+      }
       return button;
     };
 
@@ -743,15 +590,23 @@
       popover.setAttribute("role", "dialog");
       popover.setAttribute("aria-label", "Sélection des dates");
 
+      const header = createElement("div", "booked-booking-card__popover-header");
       const intro = createElement("div", "booked-booking-card__popover-intro");
-      intro.appendChild(createElement("h3", "", "Sélectionnez les dates"));
-      intro.appendChild(createElement("p", "", "Ajoutez vos dates de voyage pour connaître le prix exact"));
-      popover.appendChild(intro);
+      const nights = getNightCount(selectedStart, selectedEnd);
+      intro.appendChild(createElement("h3", "", nights > 0 ? `${nights} nuit${nights > 1 ? "s" : ""}` : "Sélectionnez les dates"));
+      intro.appendChild(createElement(
+        "p",
+        "",
+        selectedStart && selectedEnd
+          ? `${formatShortDisplayDate(selectedStart)} - ${formatShortDisplayDate(selectedEnd)}`
+          : "Ajoutez vos dates de voyage pour connaître le prix exact"
+      ));
 
       const fields = createElement("div", "booked-booking-card__popover-fields");
-      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Arrivée", selectedStart));
-      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Départ", selectedEnd));
-      popover.appendChild(fields);
+      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Arrivée", selectedStart, true));
+      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Départ", selectedEnd, true));
+      header.append(intro, fields);
+      popover.appendChild(header);
 
       const calendar = createElement("div", "booked-booking-card__calendar");
       if (currentAvailability) {

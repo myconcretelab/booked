@@ -3,7 +3,7 @@
   const { BlockControls, InnerBlocks, InspectorControls, RichText, useBlockProps } = wp.blockEditor;
   const { Button, CheckboxControl, DropdownMenu, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl, ToolbarGroup } = wp.components;
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
-  const { __ } = wp.i18n;
+  const { __, sprintf } = wp.i18n;
   const apiFetch = wp.apiFetch;
   const NO_SELECTION_ID = "__booked_no_selection__";
   const DEFAULT_GITE_META_KEY = "_booked_default_gite_id";
@@ -42,13 +42,34 @@
     return { gites, isLoading, error, loadGites };
   };
 
-  const getGiteOptions = (gites) => [
-    { label: __("Sélectionner un gîte", "booked"), value: "" },
+  const getGiteName = (gites, giteId) => {
+    const gite = gites.find((item) => item.id === giteId);
+    return gite ? gite.name : giteId;
+  };
+
+  const getGiteOptions = (gites, defaultGiteId = "") => [
+    {
+      label: defaultGiteId
+        ? sprintf(__("Gîte de la page (%s)", "booked"), getGiteName(gites, defaultGiteId))
+        : __("Sélectionner un gîte", "booked"),
+      value: "",
+    },
     ...gites.map((gite) => ({
       label: gite.capacity ? `${gite.name} (${gite.capacity} pers.)` : gite.name,
       value: gite.id,
     })),
   ];
+
+  const useDefaultGiteId = () =>
+    wp.data.useSelect(
+      (select) => {
+        const meta = select("core/editor").getEditedPostAttribute("meta") || {};
+        return meta[DEFAULT_GITE_META_KEY] || "";
+      },
+      []
+    );
+
+  const getEffectiveGiteId = (attributes, defaultGiteId) => attributes.giteId || defaultGiteId || "";
 
   const useGiteVariables = (giteId) => {
     const [variables, setVariables] = useState([]);
@@ -281,22 +302,23 @@
 
   const WidgetPreview = ({ attributes }) => {
     const ref = useRef(null);
+    const defaultGiteId = useDefaultGiteId();
+    const giteId = getEffectiveGiteId(attributes, defaultGiteId);
 
     useEffect(() => {
-      if (!ref.current || !attributes.giteId || !window.BookedWidget) return;
+      if (!ref.current || !giteId || !window.BookedWidget) return;
       ref.current.dataset.bookedInitialized = "0";
       window.BookedWidget.render(ref.current);
-    }, [attributes.giteId, attributes.mode, attributes.months, attributes.showTitle, attributes.showCapacity]);
+    }, [giteId, attributes.months, attributes.showTitle, attributes.showCapacity]);
 
-    if (!attributes.giteId) {
+    if (!giteId) {
       return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
     }
 
     return el("div", {
       ref,
       className: "booked-widget",
-      "data-gite-id": attributes.giteId,
-      "data-mode": attributes.mode,
+      "data-gite-id": giteId,
       "data-months": String(attributes.months || 2),
       "data-show-title": attributes.showTitle ? "1" : "0",
       "data-show-capacity": attributes.showCapacity ? "1" : "0",
@@ -305,21 +327,23 @@
 
   const BookingCardPreview = ({ attributes }) => {
     const ref = useRef(null);
+    const defaultGiteId = useDefaultGiteId();
+    const giteId = getEffectiveGiteId(attributes, defaultGiteId);
 
     useEffect(() => {
-      if (!ref.current || !attributes.giteId || !window.BookedBookingCard) return;
+      if (!ref.current || !giteId || !window.BookedBookingCard) return;
       ref.current.dataset.bookedBookingCardInitialized = "0";
       window.BookedBookingCard.render(ref.current);
-    }, [attributes.giteId, attributes.months, attributes.showTravelers]);
+    }, [giteId, attributes.months, attributes.showTravelers]);
 
-    if (!attributes.giteId) {
+    if (!giteId) {
       return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
     }
 
     return el("div", {
       ref,
       className: "booked-booking-card",
-      "data-gite-id": attributes.giteId,
+      "data-gite-id": giteId,
       "data-months": String(attributes.months || 2),
       "data-show-travelers": attributes.showTravelers === false ? "0" : "1",
     });
@@ -327,13 +351,15 @@
 
   const GiteInfoPreview = ({ attributes }) => {
     const ref = useRef(null);
+    const defaultGiteId = useDefaultGiteId();
+    const giteId = getEffectiveGiteId(attributes, defaultGiteId);
 
     useEffect(() => {
-      if (!ref.current || !attributes.giteId || !window.BookedGiteInfo) return;
+      if (!ref.current || !giteId || !window.BookedGiteInfo) return;
       ref.current.dataset.bookedInfoInitialized = "0";
       window.BookedGiteInfo.render(ref.current);
     }, [
-      attributes.giteId,
+      giteId,
       attributes.layout,
       attributes.cardColumns,
       JSON.stringify(attributes.selectedSectionIds || []),
@@ -343,14 +369,14 @@
       attributes.showNotes,
     ]);
 
-    if (!attributes.giteId) {
+    if (!giteId) {
       return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
     }
 
     return el("div", {
       ref,
       className: "booked-gite-info",
-      "data-gite-id": attributes.giteId,
+      "data-gite-id": giteId,
       "data-layout": attributes.layout || "list",
       "data-card-columns": String(attributes.cardColumns || 3),
       "data-selected-section-ids": JSON.stringify(attributes.selectedSectionIds || []),
@@ -503,7 +529,9 @@
     edit({ attributes, setAttributes, isSelected }) {
       const blockProps = useBlockProps({ className: "booked-block booked-block--text" });
       const { gites, isLoading, error, loadGites } = useGites();
-      const { variables, isLoading: isVariablesLoading, error: variablesError, loadVariables } = useGiteVariables(attributes.giteId || "");
+      const defaultGiteId = useDefaultGiteId();
+      const effectiveGiteId = getEffectiveGiteId(attributes, defaultGiteId);
+      const { variables, isLoading: isVariablesLoading, error: variablesError, loadVariables } = useGiteVariables(effectiveGiteId);
       const { phrases, isLoading: isPhrasesLoading, error: phrasesError, loadPhrases } = useDynamicPhrases();
 
       useEffect(() => {
@@ -539,7 +567,7 @@
               label: __("Insérer une variable Booked", "booked"),
               controls: variableControls.length > 0 ? variableControls : [
                 {
-                  title: attributes.giteId
+                  title: effectiveGiteId
                     ? __("Aucune variable disponible", "booked")
                     : __("Sélectionnez un gîte", "booked"),
                   isDisabled: true,
@@ -571,8 +599,11 @@
             el(SelectControl, {
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
-              options: getGiteOptions(gites),
+              options: getGiteOptions(gites, defaultGiteId),
               onChange: (value) => setAttributes({ giteId: value }),
+              help: defaultGiteId && !attributes.giteId
+                ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
+                : undefined,
             }),
             error
               ? el(TextControl, {
@@ -587,12 +618,12 @@
           el(
             PanelBody,
             { title: __("Variables", "booked"), initialOpen: true },
-            !attributes.giteId
+            !effectiveGiteId
               ? el("p", { className: "booked-block-help" }, __("Sélectionnez un gîte pour afficher ses variables.", "booked"))
               : null,
             isVariablesLoading ? el(Spinner) : null,
             variablesError ? el(Notice, { status: "error", isDismissible: false }, variablesError) : null,
-            attributes.giteId && !isVariablesLoading && !variablesError && variables.length === 0
+            effectiveGiteId && !isVariablesLoading && !variablesError && variables.length === 0
               ? el("p", { className: "booked-block-help" }, __("Aucune variable disponible pour ce gîte.", "booked"))
               : null,
             variables.map((variable) =>
@@ -608,7 +639,7 @@
                 variable.preview ? el("span", { className: "booked-block-variable__preview" }, variable.preview) : null
               )
             ),
-            attributes.giteId
+            effectiveGiteId
               ? el(Button, { variant: "secondary", onClick: loadVariables, disabled: isVariablesLoading }, __("Recharger les variables", "booked"))
               : null
           ),
@@ -665,6 +696,7 @@
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block" });
       const { gites, isLoading, error, loadGites } = useGites();
+      const defaultGiteId = useDefaultGiteId();
 
       return el(
         Fragment,
@@ -680,8 +712,11 @@
             el(SelectControl, {
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
-              options: getGiteOptions(gites),
+              options: getGiteOptions(gites, defaultGiteId),
               onChange: (value) => setAttributes({ giteId: value }),
+              help: defaultGiteId && !attributes.giteId
+                ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
+                : undefined,
             }),
             error
               ? el(TextControl, {
@@ -691,15 +726,6 @@
                   onChange: (value) => setAttributes({ giteId: value }),
                 })
               : null,
-            el(SelectControl, {
-              label: __("Mode", "booked"),
-              value: attributes.mode || "booking",
-              options: [
-                { label: __("Calendrier + formulaire", "booked"), value: "booking" },
-                { label: __("Calendrier seul", "booked"), value: "calendar" },
-              ],
-              onChange: (value) => setAttributes({ mode: value }),
-            }),
             el(RangeControl, {
               label: __("Nombre de mois", "booked"),
               min: 1,
@@ -733,6 +759,7 @@
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block booked-block--booking-card" });
       const { gites, isLoading, error, loadGites } = useGites();
+      const defaultGiteId = useDefaultGiteId();
 
       return el(
         Fragment,
@@ -748,9 +775,11 @@
             el(SelectControl, {
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
-              options: getGiteOptions(gites),
+              options: getGiteOptions(gites, defaultGiteId),
               onChange: (value) => setAttributes({ giteId: value }),
-              help: __("Laisser vide côté front permet de reprendre le premier calendrier Booked de la page.", "booked"),
+              help: defaultGiteId && !attributes.giteId
+                ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
+                : __("Laisser vide côté front permet de reprendre le premier calendrier Booked de la page.", "booked"),
             }),
             error
               ? el(TextControl, {
@@ -788,12 +817,14 @@
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block booked-block--gite-info" });
       const { gites, isLoading, error, loadGites } = useGites();
+      const defaultGiteId = useDefaultGiteId();
+      const effectiveGiteId = getEffectiveGiteId(attributes, defaultGiteId);
       const [content, setContent] = useState(null);
       const [contentError, setContentError] = useState("");
       const [isContentLoading, setIsContentLoading] = useState(false);
 
       useEffect(() => {
-        if (!attributes.giteId) {
+        if (!effectiveGiteId) {
           setContent(null);
           setContentError("");
           return;
@@ -801,7 +832,7 @@
 
         setIsContentLoading(true);
         setContentError("");
-        apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(attributes.giteId)}/content` })
+        apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(effectiveGiteId)}/content` })
           .then((payload) => {
             setContent(payload);
             setIsContentLoading(false);
@@ -811,7 +842,7 @@
             setContentError(apiError.message || __("Impossible de charger les infos du gîte.", "booked"));
             setIsContentLoading(false);
           });
-      }, [attributes.giteId]);
+      }, [effectiveGiteId]);
 
       const sections = content && Array.isArray(content.sections) ? content.sections : [];
       const sectionIds = sections.map((section) => String(section.id || "")).filter(Boolean);
@@ -835,8 +866,11 @@
             el(SelectControl, {
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
-              options: getGiteOptions(gites),
+              options: getGiteOptions(gites, defaultGiteId),
               onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID] }),
+              help: defaultGiteId && !attributes.giteId
+                ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
+                : undefined,
             }),
             error
               ? el(TextControl, {

@@ -19,6 +19,22 @@ class Booked_Block
         add_action('enqueue_block_editor_assets', [$this, 'enqueue_editor_assets']);
     }
 
+    private function get_default_gite_id(): string
+    {
+        $post = get_post();
+        if (!$post instanceof WP_Post) {
+            return '';
+        }
+
+        return sanitize_text_field((string) get_post_meta($post->ID, Booked_PageVariables::DEFAULT_GITE_META_KEY, true));
+    }
+
+    private function resolve_gite_id(array $attributes): string
+    {
+        $gite_id = sanitize_text_field((string) ($attributes['giteId'] ?? ''));
+        return $gite_id !== '' ? $gite_id : $this->get_default_gite_id();
+    }
+
     public function register_block(): void
     {
         register_block_type('booked/widget', [
@@ -26,15 +42,11 @@ class Booked_Block
             'title' => 'Booked',
             'category' => 'widgets',
             'icon' => 'calendar-alt',
-            'description' => 'Calendrier de disponibilités et demande de réservation pour un gîte.',
+            'description' => 'Calendrier de disponibilités pour un gîte.',
             'attributes' => [
                 'giteId' => [
                     'type' => 'string',
                     'default' => '',
-                ],
-                'mode' => [
-                    'type' => 'string',
-                    'default' => 'booking',
                 ],
                 'months' => [
                     'type' => 'number',
@@ -207,22 +219,19 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info'],
-            '0.3.13',
+            '0.3.16',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.13');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.16');
     }
 
     public function render_block(array $attributes): string
     {
-        $gite_id = sanitize_text_field((string) ($attributes['giteId'] ?? ''));
+        $gite_id = $this->resolve_gite_id($attributes);
         if ($gite_id === '') {
-            return '<div class="booked-widget booked-widget--error">Sélectionnez un gîte dans le bloc Booked.</div>';
+            return '<div class="booked-widget booked-widget--error">Sélectionnez un gîte dans le bloc Booked ou dans les réglages de la page.</div>';
         }
 
-        $mode = in_array((string) ($attributes['mode'] ?? 'booking'), ['booking', 'calendar'], true)
-            ? (string) $attributes['mode']
-            : 'booking';
         $months = max(1, min(12, (int) ($attributes['months'] ?? 2)));
         $show_title = !empty($attributes['showTitle']);
         $show_capacity = !empty($attributes['showCapacity']);
@@ -231,9 +240,8 @@ class Booked_Block
         wp_enqueue_script('booked-widget');
 
         return sprintf(
-            '<div class="booked-widget" data-gite-id="%s" data-mode="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s"></div>',
+            '<div class="booked-widget" data-gite-id="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s"></div>',
             esc_attr($gite_id),
-            esc_attr($mode),
             $months,
             $show_title ? '1' : '0',
             $show_capacity ? '1' : '0'
@@ -242,7 +250,7 @@ class Booked_Block
 
     public function render_booking_card_block(array $attributes): string
     {
-        $gite_id = sanitize_text_field((string) ($attributes['giteId'] ?? ''));
+        $gite_id = $this->resolve_gite_id($attributes);
         $months = max(1, min(12, (int) ($attributes['months'] ?? 2)));
         $show_travelers = !array_key_exists('showTravelers', $attributes) || !empty($attributes['showTravelers']);
 
@@ -259,9 +267,9 @@ class Booked_Block
 
     public function render_gite_info_block(array $attributes): string
     {
-        $gite_id = sanitize_text_field((string) ($attributes['giteId'] ?? ''));
+        $gite_id = $this->resolve_gite_id($attributes);
         if ($gite_id === '') {
-            return '<div class="booked-gite-info booked-widget--error">Sélectionnez un gîte dans le bloc Booked Infos gîte.</div>';
+            return '<div class="booked-gite-info booked-widget--error">Sélectionnez un gîte dans le bloc Booked Infos gîte ou dans les réglages de la page.</div>';
         }
 
         $layout = in_array((string) ($attributes['layout'] ?? 'list'), ['list', 'accordion', 'cards'], true)
@@ -292,7 +300,7 @@ class Booked_Block
 
     public function render_text_block(array $attributes): string
     {
-        $gite_id = sanitize_text_field((string) ($attributes['giteId'] ?? ''));
+        $gite_id = $this->resolve_gite_id($attributes);
         $content = (string) ($attributes['content'] ?? '');
         if (trim(wp_strip_all_tags($content)) === '') {
             return '';

@@ -7,9 +7,7 @@
 }
 
 .booked-widget__shell,
-.booked-widget__form,
-.booked-widget__ranges,
-.booked-widget__options {
+.booked-widget__ranges {
   display: grid;
   gap: 14px;
 }
@@ -212,54 +210,9 @@
   border-bottom: 0;
 }
 
-.booked-widget__grid,
-.booked-widget__options {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.booked-widget label {
-  display: grid;
-  gap: 6px;
-  font-weight: 600;
-}
-
-.booked-widget input,
-.booked-widget textarea {
-  border: 1px solid #cbd5e1;
-  border-radius: 12px;
-  padding: 10px 12px;
-  font: inherit;
-}
-
-.booked-widget__quote-card {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #166534;
-  border-radius: 16px;
-  padding: 16px;
-  display: grid;
-  gap: 8px;
-}
-
-.booked-widget__quote-total {
-  font-weight: 700;
-}
-
 .booked-widget__feedback {
   min-height: 20px;
   color: #991b1b;
-}
-
-.booked-widget__submit {
-  border: 0;
-  border-radius: 999px;
-  padding: 14px 18px;
-  background: #0f766e;
-  color: #fff;
-  font-weight: 700;
-  cursor: pointer;
 }
 
 .booked-widget--error,
@@ -556,6 +509,7 @@
   box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
   color: #222;
   display: grid;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   gap: 26px;
   padding: 32px 28px;
 }
@@ -563,14 +517,16 @@
 .booked-booking-card__title,
 .booked-booking-card__total {
   color: #222;
-  font-size: 32px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: 0;
-  line-height: 0.95;
+  line-height: 1.08;
   margin: 0;
 }
 
 .booked-booking-card__total {
+  font-size: 30px;
   text-decoration: underline;
   text-underline-offset: 5px;
 }
@@ -709,6 +665,13 @@
   z-index: 10000;
 }
 
+.booked-booking-card__popover-header {
+  align-items: start;
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(220px, 1fr) minmax(440px, 0.95fr);
+}
+
 .booked-booking-card__popover-intro {
   display: grid;
   gap: 14px;
@@ -721,6 +684,7 @@
 
 .booked-booking-card__popover-intro h3 {
   color: #222;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 34px;
   font-weight: 800;
   line-height: 1.1;
@@ -739,15 +703,30 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   justify-self: end;
-  margin-top: -98px;
   max-width: 520px;
   overflow: hidden;
-  width: 48%;
+  width: 100%;
+}
+
+.booked-booking-card__popover-field {
+  padding-right: 52px;
+  position: relative;
 }
 
 .booked-booking-card__popover-fields .booked-booking-card__field-value {
-  color: #777;
+  color: #222;
   font-size: 22px;
+}
+
+.booked-booking-card__field-clear {
+  color: #222;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .booked-booking-card__calendar .booked-widget__calendar-toolbar {
@@ -915,7 +894,7 @@
 
   .booked-booking-card__title,
   .booked-booking-card__total {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .booked-booking-card__fields,
@@ -957,6 +936,10 @@
 
   .booked-booking-card__popover-intro p {
     font-size: 18px;
+  }
+
+  .booked-booking-card__popover-header {
+    grid-template-columns: 1fr;
   }
 
   .booked-booking-card__popover-fields {

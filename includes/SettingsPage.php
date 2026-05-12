@@ -876,10 +876,9 @@ class Booked_SettingsPage
                 <h2>Blocs Gutenberg</h2>
 
                 <h3>Booked</h3>
-                <p>Affiche le calendrier de disponibilités et, selon le mode choisi, le formulaire de demande de réservation.</p>
+                <p>Affiche le calendrier de disponibilités du gîte.</p>
                 <ul>
                     <li><strong>Gîte</strong> : sélection depuis la liste API ou saisie manuelle de l’identifiant.</li>
-                    <li><strong>Mode</strong> : calendrier + formulaire, ou calendrier seul.</li>
                     <li><strong>Mois affichés</strong> : de 1 à 12 mois.</li>
                     <li><strong>Options</strong> : affichage du titre et de la capacité.</li>
                 </ul>
@@ -906,7 +905,7 @@ Arrivée : {{gite.horaire_arrivee}}</code></pre>
                 <h2>Shortcode</h2>
                 <p>Le shortcode principal est <code>[booked_widget]</code>. L’attribut <code>gite_id</code> est obligatoire.</p>
                 <pre><code>[booked_widget gite_id="mon-gite"]</code></pre>
-                <pre><code>[booked_widget gite_id="mon-gite" mode="calendar" months="3" show_title="0" show_capacity="1"]</code></pre>
+                <pre><code>[booked_widget gite_id="mon-gite" months="3" show_title="0" show_capacity="1"]</code></pre>
 
                 <table>
                     <thead>
@@ -919,10 +918,6 @@ Arrivée : {{gite.horaire_arrivee}}</code></pre>
                         <tr>
                             <th scope="row"><code>gite_id</code></th>
                             <td>Identifiant du gîte côté application contrats. Obligatoire.</td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><code>mode</code></th>
-                            <td><code>booking</code> pour calendrier + formulaire, ou <code>calendar</code> pour calendrier seul. Valeur par défaut : <code>booking</code>.</td>
                         </tr>
                         <tr>
                             <th scope="row"><code>months</code></th>
