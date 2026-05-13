@@ -578,10 +578,7 @@
     root.innerHTML = "";
     root.appendChild(createElement("div", "booked-widget__loading", "Chargement..."));
 
-    const getVisibleMonths = () =>
-      window.matchMedia && window.matchMedia("(max-width: 720px)").matches
-        ? 1
-        : 2;
+    const getVisibleMonths = () => 2;
 
     const loadAvailability = async (monthCursor) => {
       const visibleMonths = getVisibleMonths();
@@ -643,7 +640,8 @@
     };
 
     const handleOutsideClick = (event) => {
-      if (!isPopoverOpen || root.contains(event.target)) return;
+      const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+      if (!isPopoverOpen || path.includes(root) || root.contains(event.target)) return;
       isPopoverOpen = false;
       renderCard();
     };
