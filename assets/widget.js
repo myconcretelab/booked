@@ -174,6 +174,85 @@
     july_august: normalizeColor(root.dataset.summerColor, DEFAULT_PERIOD_COLORS.july_august),
   });
 
+  const shouldShowPeriodColors = (root) => root.dataset.showPeriodColors !== "0";
+
+  const getNightMinimum = (value) => {
+    if (value === null || value === undefined || value === "") return 0;
+    if (typeof value === "number") return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+    const match = String(value).match(/\d+/);
+    return match ? Math.max(0, Number(match[0])) : 0;
+  };
+
+  const normalizeDataKey = (value) =>
+    String(value || "")
+      .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+
+  const flattenScalars = (value, prefix = "", output = {}) => {
+    if (!value || typeof value !== "object") return output;
+
+    Object.entries(value).forEach(([key, item]) => {
+      const normalizedKey = normalizeDataKey(key);
+      if (!normalizedKey) return;
+      const path = prefix ? `${prefix}.${normalizedKey}` : normalizedKey;
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        flattenScalars(item, path, output);
+        return;
+      }
+      if (Array.isArray(item)) return;
+      output[path] = item;
+    });
+
+    return output;
+  };
+
+  const getMinimumNightsFromObject = (value, keys) => {
+    const flat = flattenScalars(value);
+    const normalizedKeys = keys.map(normalizeDataKey).filter(Boolean);
+
+    for (const key of normalizedKeys) {
+      const exact = getNightMinimum(flat[key]);
+      if (exact > 0) return exact;
+    }
+
+    for (const key of normalizedKeys) {
+      const matchingPath = Object.keys(flat).find((path) => path.endsWith(`.${key}`));
+      const nights = getNightMinimum(flat[matchingPath]);
+      if (nights > 0) return nights;
+    }
+
+    return 0;
+  };
+
+  const getPeriodItemMinimumNights = (item) => {
+    const nights = getMinimumNightsFromObject(item, [
+      "minimum_nights",
+      "min_nights",
+      "nb_nuits_minimum",
+      "minimum_nuits",
+      "min_nuits",
+      "nights_minimum",
+    ]);
+
+    return nights || getNightMinimum(item?.label);
+  };
+
+  const getConfigMinimumNights = (type, giteConfig) => {
+    const keysByType = {
+      school_holiday: ["nb_nuits_minimum_vacances_scolaires", "min_nuits_vacances_scolaires"],
+      bridge: ["nb_nuits_minimum_ponts", "min_nuits_ponts", "nb_nuits_minimum_toute_annee", "min_nuits_toute_annee"],
+      july_august: ["nb_nuits_minimum_juillet_aout", "min_nuits_juillet_aout"],
+    };
+
+    return getMinimumNightsFromObject(giteConfig, keysByType[type] || []);
+  };
+
+  const formatMinimumNights = (nights) => `${nights} nuit${nights > 1 ? "s" : ""} minimum`;
+
   const getPeriodDays = (availability) => {
     const periodDays = new Map();
     (availability.calendar_periods || []).forEach((item) => {
@@ -186,6 +265,7 @@
         periodDays.set(formatDate(day), {
           type,
           label: String(item.label || ""),
+          minimumNights: getPeriodItemMinimumNights(item),
         });
       }
     });
@@ -199,7 +279,7 @@
     return blockedDays.get(formatDate(day)) || "free";
   };
 
-  const renderMonth = (monthDate, blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick) => {
+  const renderMonth = (monthDate, blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors = true) => {
     const month = startOfMonth(monthDate);
     const monthEnd = endOfMonth(month);
     const firstWeekday = (month.getDay() + 6) % 7;
@@ -225,7 +305,7 @@
     for (let day = month; day <= monthEnd; day = addDays(day, 1)) {
       const status = getDayStatus(day, blockedDays);
       const dateValue = formatDate(day);
-      const period = status === "free" ? periodDays.get(dateValue) : null;
+      const period = showPeriodColors && status === "free" ? periodDays.get(dateValue) : null;
       const periodClass = period ? ` booked-widget__day--period booked-widget__day--period-${period.type}` : "";
       const selectionClass =
         dateValue === selectedStart || dateValue === selectedEnd
@@ -266,7 +346,7 @@
     return monthElement;
   };
 
-  const renderAvailabilityCalendar = (target, availability, monthCursor, monthsCount, selectedStart, selectedEnd, onNavigate, onDayClick, periodColors = DEFAULT_PERIOD_COLORS) => {
+  const renderAvailabilityCalendar = (target, availability, monthCursor, monthsCount, selectedStart, selectedEnd, onNavigate, onDayClick, periodColors = DEFAULT_PERIOD_COLORS, showPeriodColors = true, giteConfig = null) => {
     const blockedDays = getBlockedDays(availability);
     const periodDays = getPeriodDays(availability);
     target.innerHTML = "";
@@ -287,7 +367,7 @@
     const months = createElement("div", "booked-widget__months");
     months.style.setProperty("--booked-month-count", String(Math.min(monthsCount, 3)));
     for (let index = 0; index < monthsCount; index += 1) {
-      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick));
+      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors));
     }
     target.appendChild(months);
 
@@ -302,20 +382,25 @@
       item.appendChild(createElement("span", "", labelText));
       legend.appendChild(item);
     });
-    [
-      ["school_holiday", "Vacances"],
-      ["bridge", "Pont"],
-      ["july_august", "Juillet / août"],
-    ].forEach(([type, labelText]) => {
-      const hasPeriod = Array.from(periodDays.values()).some((period) => period.type === type);
-      if (!hasPeriod) return;
-      const item = createElement("span", "booked-widget__legend-item");
-      const dot = createElement("span", "booked-widget__legend-dot booked-widget__legend-dot--period");
-      dot.style.setProperty("--booked-period-color", periodColors[type] || DEFAULT_PERIOD_COLORS[type]);
-      item.appendChild(dot);
-      item.appendChild(createElement("span", "", labelText));
-      legend.appendChild(item);
-    });
+    if (showPeriodColors) {
+      [
+        "school_holiday",
+        "bridge",
+        "july_august",
+      ].forEach((type) => {
+        const period = Array.from(periodDays.values()).find((periodItem) => periodItem.type === type);
+        if (!period) return;
+        const minimumNights = period.minimumNights || getConfigMinimumNights(type, giteConfig);
+        const labelText = minimumNights > 0 ? formatMinimumNights(minimumNights) : "";
+        if (!labelText) return;
+        const item = createElement("span", "booked-widget__legend-item");
+        const dot = createElement("span", "booked-widget__legend-dot booked-widget__legend-dot--period");
+        dot.style.setProperty("--booked-period-color", periodColors[type] || DEFAULT_PERIOD_COLORS[type]);
+        item.appendChild(dot);
+        item.appendChild(createElement("span", "", labelText));
+        legend.appendChild(item);
+      });
+    }
     target.appendChild(legend);
   };
 
@@ -330,6 +415,7 @@
     const showTitle = root.dataset.showTitle !== "0";
     const showCapacity = root.dataset.showCapacity !== "0";
     const periodColors = getPeriodColors(root);
+    const showPeriodColors = shouldShowPeriodColors(root);
     let selectedStart = root.dataset.selectedStart || "";
     let selectedEnd = root.dataset.selectedEnd || "";
     const initialMonth = root.dataset.monthCursor ? parseDate(root.dataset.monthCursor) : startOfMonth(new Date());
@@ -380,7 +466,9 @@
           selectedEnd,
           navigateCalendar,
           handleCalendarDayClick,
-          periodColors
+          periodColors,
+          showPeriodColors,
+          giteConfig
         );
       };
 
@@ -677,7 +765,9 @@
           selectedEnd,
           navigatePopover,
           handleDayClick,
-          periodColors
+          periodColors,
+          true,
+          giteConfig
         );
       }
       popover.appendChild(calendar);

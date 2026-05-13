@@ -880,7 +880,7 @@ class Booked_SettingsPage
                 <ul>
                     <li><strong>Gîte</strong> : sélection depuis la liste API ou saisie manuelle de l’identifiant.</li>
                     <li><strong>Mois affichés</strong> : de 1 à 12 mois.</li>
-                    <li><strong>Options</strong> : affichage du titre et de la capacité.</li>
+                    <li><strong>Options</strong> : affichage du titre, de la capacité et des codes couleurs des périodes liées aux nombres de nuits.</li>
                 </ul>
 
                 <h3>Booked Infos gîte</h3>
@@ -930,6 +930,10 @@ Arrivée : {{gite.horaire_arrivee}}</code></pre>
                         <tr>
                             <th scope="row"><code>show_capacity</code></th>
                             <td><code>1</code> pour afficher la capacité, <code>0</code> pour la masquer. Valeur par défaut : <code>1</code>.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>show_period_colors</code></th>
+                            <td><code>1</code> pour afficher les codes couleurs des périodes liées aux nombres de nuits, <code>0</code> pour les masquer. Valeur par défaut : <code>1</code>.</td>
                         </tr>
                     </tbody>
                 </table>

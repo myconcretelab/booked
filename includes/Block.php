@@ -97,6 +97,10 @@ class Booked_Block
                     'type' => 'boolean',
                     'default' => true,
                 ],
+                'showPeriodColors' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
             ] + $this->get_calendar_color_attributes(),
             'render_callback' => [$this, 'render_block'],
         ]);
@@ -256,7 +260,7 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info'],
-            '0.3.17',
+            '0.3.18',
             true
         );
         wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.17');
@@ -272,16 +276,18 @@ class Booked_Block
         $months = max(1, min(12, (int) ($attributes['months'] ?? 2)));
         $show_title = !empty($attributes['showTitle']);
         $show_capacity = !empty($attributes['showCapacity']);
+        $show_period_colors = !array_key_exists('showPeriodColors', $attributes) || !empty($attributes['showPeriodColors']);
 
         wp_enqueue_style('booked-widget');
         wp_enqueue_script('booked-widget');
 
         return sprintf(
-            '<div class="booked-widget" data-gite-id="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s"%s></div>',
+            '<div class="booked-widget" data-gite-id="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s" data-show-period-colors="%s"%s></div>',
             esc_attr($gite_id),
             $months,
             $show_title ? '1' : '0',
             $show_capacity ? '1' : '0',
+            $show_period_colors ? '1' : '0',
             $this->get_calendar_color_data_attributes($attributes)
         );
     }

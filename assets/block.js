@@ -353,7 +353,7 @@
       if (!ref.current || !giteId || !window.BookedWidget) return;
       ref.current.dataset.bookedInitialized = "0";
       window.BookedWidget.render(ref.current);
-    }, [giteId, attributes.months, attributes.showTitle, attributes.showCapacity, attributes.holidayColor, attributes.bridgeColor, attributes.summerColor]);
+    }, [giteId, attributes.months, attributes.showTitle, attributes.showCapacity, attributes.showPeriodColors, attributes.holidayColor, attributes.bridgeColor, attributes.summerColor]);
 
     if (!giteId) {
       return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
@@ -366,6 +366,7 @@
       "data-months": String(attributes.months || 2),
       "data-show-title": attributes.showTitle ? "1" : "0",
       "data-show-capacity": attributes.showCapacity ? "1" : "0",
+      "data-show-period-colors": attributes.showPeriodColors === false ? "0" : "1",
       "data-holiday-color": attributes.holidayColor || DEFAULT_PERIOD_COLORS.holidayColor,
       "data-bridge-color": attributes.bridgeColor || DEFAULT_PERIOD_COLORS.bridgeColor,
       "data-summer-color": attributes.summerColor || DEFAULT_PERIOD_COLORS.summerColor,
@@ -760,6 +761,10 @@
         type: "boolean",
         default: true,
       },
+      showPeriodColors: {
+        type: "boolean",
+        default: true,
+      },
       ...calendarColorAttributes,
     },
     edit({ attributes, setAttributes }) {
@@ -812,7 +817,13 @@
               checked: attributes.showCapacity !== false,
               onChange: (value) => setAttributes({ showCapacity: value }),
             }),
-            ...getCalendarColorControls(attributes, setAttributes),
+            el(ToggleControl, {
+              label: __("Afficher les codes couleurs", "booked"),
+              checked: attributes.showPeriodColors !== false,
+              onChange: (value) => setAttributes({ showPeriodColors: value }),
+              help: __("Affiche les couleurs des périodes liées aux nombres de nuits.", "booked"),
+            }),
+            ...(attributes.showPeriodColors !== false ? getCalendarColorControls(attributes, setAttributes) : []),
             el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
           )
         ),
