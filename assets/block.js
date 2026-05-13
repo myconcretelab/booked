@@ -7,6 +7,11 @@
   const apiFetch = wp.apiFetch;
   const NO_SELECTION_ID = "__booked_no_selection__";
   const DEFAULT_GITE_META_KEY = "_booked_default_gite_id";
+  const DEFAULT_PERIOD_COLORS = {
+    holidayColor: "#22c55e",
+    bridgeColor: "#f97316",
+    summerColor: "#0ea5e9",
+  };
 
   const normalizeGites = (payload) => {
     const items = payload && Array.isArray(payload.gites) ? payload.gites : [];
@@ -58,6 +63,45 @@
       label: gite.capacity ? `${gite.name} (${gite.capacity} pers.)` : gite.name,
       value: gite.id,
     })),
+  ];
+
+  const calendarColorAttributes = {
+    holidayColor: {
+      type: "string",
+      default: DEFAULT_PERIOD_COLORS.holidayColor,
+    },
+    bridgeColor: {
+      type: "string",
+      default: DEFAULT_PERIOD_COLORS.bridgeColor,
+    },
+    summerColor: {
+      type: "string",
+      default: DEFAULT_PERIOD_COLORS.summerColor,
+    },
+  };
+
+  const getCalendarColorControls = (attributes, setAttributes) => [
+    el(TextControl, {
+      key: "holidayColor",
+      type: "color",
+      label: __("Vacances scolaires", "booked"),
+      value: attributes.holidayColor || DEFAULT_PERIOD_COLORS.holidayColor,
+      onChange: (holidayColor) => setAttributes({ holidayColor }),
+    }),
+    el(TextControl, {
+      key: "bridgeColor",
+      type: "color",
+      label: __("Ponts", "booked"),
+      value: attributes.bridgeColor || DEFAULT_PERIOD_COLORS.bridgeColor,
+      onChange: (bridgeColor) => setAttributes({ bridgeColor }),
+    }),
+    el(TextControl, {
+      key: "summerColor",
+      type: "color",
+      label: __("Juillet / août", "booked"),
+      value: attributes.summerColor || DEFAULT_PERIOD_COLORS.summerColor,
+      onChange: (summerColor) => setAttributes({ summerColor }),
+    }),
   ];
 
   const useDefaultGiteId = () =>
@@ -309,7 +353,7 @@
       if (!ref.current || !giteId || !window.BookedWidget) return;
       ref.current.dataset.bookedInitialized = "0";
       window.BookedWidget.render(ref.current);
-    }, [giteId, attributes.months, attributes.showTitle, attributes.showCapacity]);
+    }, [giteId, attributes.months, attributes.showTitle, attributes.showCapacity, attributes.holidayColor, attributes.bridgeColor, attributes.summerColor]);
 
     if (!giteId) {
       return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
@@ -322,6 +366,9 @@
       "data-months": String(attributes.months || 2),
       "data-show-title": attributes.showTitle ? "1" : "0",
       "data-show-capacity": attributes.showCapacity ? "1" : "0",
+      "data-holiday-color": attributes.holidayColor || DEFAULT_PERIOD_COLORS.holidayColor,
+      "data-bridge-color": attributes.bridgeColor || DEFAULT_PERIOD_COLORS.bridgeColor,
+      "data-summer-color": attributes.summerColor || DEFAULT_PERIOD_COLORS.summerColor,
     });
   };
 
@@ -334,7 +381,7 @@
       if (!ref.current || !giteId || !window.BookedBookingCard) return;
       ref.current.dataset.bookedBookingCardInitialized = "0";
       window.BookedBookingCard.render(ref.current);
-    }, [giteId, attributes.months, attributes.showTravelers]);
+    }, [giteId, attributes.months, attributes.showTravelers, attributes.holidayColor, attributes.bridgeColor, attributes.summerColor]);
 
     if (!giteId) {
       return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
@@ -346,6 +393,9 @@
       "data-gite-id": giteId,
       "data-months": String(attributes.months || 2),
       "data-show-travelers": attributes.showTravelers === false ? "0" : "1",
+      "data-holiday-color": attributes.holidayColor || DEFAULT_PERIOD_COLORS.holidayColor,
+      "data-bridge-color": attributes.bridgeColor || DEFAULT_PERIOD_COLORS.bridgeColor,
+      "data-summer-color": attributes.summerColor || DEFAULT_PERIOD_COLORS.summerColor,
     });
   };
 
@@ -693,6 +743,25 @@
   });
 
   registerBlockType("booked/widget", {
+    attributes: {
+      giteId: {
+        type: "string",
+        default: "",
+      },
+      months: {
+        type: "number",
+        default: 2,
+      },
+      showTitle: {
+        type: "boolean",
+        default: true,
+      },
+      showCapacity: {
+        type: "boolean",
+        default: true,
+      },
+      ...calendarColorAttributes,
+    },
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block" });
       const { gites, isLoading, error, loadGites } = useGites();
@@ -743,6 +812,7 @@
               checked: attributes.showCapacity !== false,
               onChange: (value) => setAttributes({ showCapacity: value }),
             }),
+            ...getCalendarColorControls(attributes, setAttributes),
             el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
           )
         ),
@@ -756,6 +826,21 @@
   });
 
   registerBlockType("booked/booking-card", {
+    attributes: {
+      giteId: {
+        type: "string",
+        default: "",
+      },
+      months: {
+        type: "number",
+        default: 2,
+      },
+      showTravelers: {
+        type: "boolean",
+        default: true,
+      },
+      ...calendarColorAttributes,
+    },
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block booked-block--booking-card" });
       const { gites, isLoading, error, loadGites } = useGites();
@@ -801,6 +886,7 @@
               checked: attributes.showTravelers !== false,
               onChange: (value) => setAttributes({ showTravelers: value }),
             }),
+            ...getCalendarColorControls(attributes, setAttributes),
             el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
           )
         ),

@@ -7,6 +7,9 @@ if (!defined('ABSPATH')) {
 class Booked_Block
 {
     private Booked_Variables $variables;
+    private const DEFAULT_HOLIDAY_COLOR = '#22c55e';
+    private const DEFAULT_BRIDGE_COLOR = '#f97316';
+    private const DEFAULT_SUMMER_COLOR = '#0ea5e9';
 
     public function __construct(Booked_Variables $variables)
     {
@@ -35,6 +38,40 @@ class Booked_Block
         return $gite_id !== '' ? $gite_id : $this->get_default_gite_id();
     }
 
+    private function normalize_color($value, string $fallback): string
+    {
+        $color = sanitize_hex_color((string) $value);
+        return is_string($color) && $color !== '' ? $color : $fallback;
+    }
+
+    private function get_calendar_color_attributes(): array
+    {
+        return [
+            'holidayColor' => [
+                'type' => 'string',
+                'default' => self::DEFAULT_HOLIDAY_COLOR,
+            ],
+            'bridgeColor' => [
+                'type' => 'string',
+                'default' => self::DEFAULT_BRIDGE_COLOR,
+            ],
+            'summerColor' => [
+                'type' => 'string',
+                'default' => self::DEFAULT_SUMMER_COLOR,
+            ],
+        ];
+    }
+
+    private function get_calendar_color_data_attributes(array $attributes): string
+    {
+        return sprintf(
+            ' data-holiday-color="%s" data-bridge-color="%s" data-summer-color="%s"',
+            esc_attr($this->normalize_color($attributes['holidayColor'] ?? self::DEFAULT_HOLIDAY_COLOR, self::DEFAULT_HOLIDAY_COLOR)),
+            esc_attr($this->normalize_color($attributes['bridgeColor'] ?? self::DEFAULT_BRIDGE_COLOR, self::DEFAULT_BRIDGE_COLOR)),
+            esc_attr($this->normalize_color($attributes['summerColor'] ?? self::DEFAULT_SUMMER_COLOR, self::DEFAULT_SUMMER_COLOR))
+        );
+    }
+
     public function register_block(): void
     {
         register_block_type('booked/widget', [
@@ -60,7 +97,7 @@ class Booked_Block
                     'type' => 'boolean',
                     'default' => true,
                 ],
-            ],
+            ] + $this->get_calendar_color_attributes(),
             'render_callback' => [$this, 'render_block'],
         ]);
 
@@ -128,7 +165,7 @@ class Booked_Block
                     'type' => 'boolean',
                     'default' => true,
                 ],
-            ],
+            ] + $this->get_calendar_color_attributes(),
             'render_callback' => [$this, 'render_booking_card_block'],
         ]);
 
@@ -219,10 +256,10 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info'],
-            '0.3.16',
+            '0.3.17',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.16');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.17');
     }
 
     public function render_block(array $attributes): string
@@ -240,11 +277,12 @@ class Booked_Block
         wp_enqueue_script('booked-widget');
 
         return sprintf(
-            '<div class="booked-widget" data-gite-id="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s"></div>',
+            '<div class="booked-widget" data-gite-id="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s"%s></div>',
             esc_attr($gite_id),
             $months,
             $show_title ? '1' : '0',
-            $show_capacity ? '1' : '0'
+            $show_capacity ? '1' : '0',
+            $this->get_calendar_color_data_attributes($attributes)
         );
     }
 
@@ -258,10 +296,11 @@ class Booked_Block
         wp_enqueue_script('booked-widget');
 
         return sprintf(
-            '<div class="booked-booking-card" data-gite-id="%s" data-months="%d" data-show-travelers="%s"></div>',
+            '<div class="booked-booking-card" data-gite-id="%s" data-months="%d" data-show-travelers="%s"%s></div>',
             esc_attr($gite_id),
             $months,
-            $show_travelers ? '1' : '0'
+            $show_travelers ? '1' : '0',
+            $this->get_calendar_color_data_attributes($attributes)
         );
     }
 

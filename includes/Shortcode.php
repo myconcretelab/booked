@@ -6,6 +6,10 @@ if (!defined('ABSPATH')) {
 
 class Booked_Shortcode
 {
+    private const DEFAULT_HOLIDAY_COLOR = '#22c55e';
+    private const DEFAULT_BRIDGE_COLOR = '#f97316';
+    private const DEFAULT_SUMMER_COLOR = '#0ea5e9';
+
     public function register(): void
     {
         add_shortcode('booked_widget', [$this, 'render_shortcode']);
@@ -14,8 +18,8 @@ class Booked_Shortcode
 
     public function register_assets(): void
     {
-        wp_register_style('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.css', [], '0.3.16');
-        wp_register_script('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.js', [], '0.3.16', true);
+        wp_register_style('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.css', [], '0.3.17');
+        wp_register_script('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.js', [], '0.3.17', true);
         wp_register_script('booked-accordion', BOOKED_PLUGIN_URL . 'assets/accordion.js', [], '0.3.8', true);
         wp_register_script('booked-gite-info', BOOKED_PLUGIN_URL . 'assets/gite-info.js', ['booked-widget', 'booked-accordion'], '0.3.9', true);
         wp_localize_script('booked-widget', 'BookedWidgetConfig', [
@@ -31,6 +35,9 @@ class Booked_Shortcode
             'months' => '2',
             'show_title' => '1',
             'show_capacity' => '1',
+            'holiday_color' => self::DEFAULT_HOLIDAY_COLOR,
+            'bridge_color' => self::DEFAULT_BRIDGE_COLOR,
+            'summer_color' => self::DEFAULT_SUMMER_COLOR,
         ], $atts, 'booked_widget');
 
         $gite_id = sanitize_text_field((string) $atts['gite_id']);
@@ -46,11 +53,14 @@ class Booked_Shortcode
         wp_enqueue_script('booked-widget');
 
         return sprintf(
-            '<div class="booked-widget" data-gite-id="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s"></div>',
+            '<div class="booked-widget" data-gite-id="%s" data-months="%d" data-show-title="%s" data-show-capacity="%s" data-holiday-color="%s" data-bridge-color="%s" data-summer-color="%s"></div>',
             esc_attr($gite_id),
             $months,
             $show_title === false ? '0' : '1',
-            $show_capacity === false ? '0' : '1'
+            $show_capacity === false ? '0' : '1',
+            esc_attr(sanitize_hex_color((string) $atts['holiday_color']) ?: self::DEFAULT_HOLIDAY_COLOR),
+            esc_attr(sanitize_hex_color((string) $atts['bridge_color']) ?: self::DEFAULT_BRIDGE_COLOR),
+            esc_attr(sanitize_hex_color((string) $atts['summer_color']) ?: self::DEFAULT_SUMMER_COLOR)
         );
     }
 }

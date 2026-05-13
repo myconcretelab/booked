@@ -128,6 +128,16 @@
   box-shadow: none;
 }
 
+.booked-widget__day--period.booked-widget__day--free:not(.booked-widget__day--selected):not(.booked-widget__day--in-range) {
+  border-color: color-mix(in srgb, var(--booked-period-color) 50%, #dbe3ea 50%);
+  background: color-mix(in srgb, var(--booked-period-color) 16%, #ffffff 84%);
+}
+
+.booked-widget__day--period.booked-widget__day--free:not(.booked-widget__day--selected):not(.booked-widget__day--in-range):hover {
+  border-color: var(--booked-period-color);
+  box-shadow: inset 0 0 0 1px var(--booked-period-color);
+}
+
 .booked-widget__day--selected {
   border-color: #0f766e;
   background: #0f766e;
@@ -196,6 +206,11 @@
 .booked-widget__legend-dot--option {
   border-color: #fde68a;
   background: #fef3c7;
+}
+
+.booked-widget__legend-dot--period {
+  border-color: color-mix(in srgb, var(--booked-period-color) 50%, #dbe3ea 50%);
+  background: color-mix(in srgb, var(--booked-period-color) 25%, #ffffff 75%);
 }
 
 .booked-widget__range {

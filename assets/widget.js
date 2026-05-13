@@ -1,6 +1,11 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
   const SELECTION_EVENT = "booked:selection-change";
+  const DEFAULT_PERIOD_COLORS = {
+    school_holiday: "#22c55e",
+    bridge: "#f97316",
+    july_august: "#0ea5e9",
+  };
 
   const formatDate = (date) => {
     const year = date.getFullYear();
@@ -159,6 +164,34 @@
     return blockedDays;
   };
 
+  const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(String(value || "").trim())
+    ? String(value).trim()
+    : fallback;
+
+  const getPeriodColors = (root) => ({
+    school_holiday: normalizeColor(root.dataset.holidayColor, DEFAULT_PERIOD_COLORS.school_holiday),
+    bridge: normalizeColor(root.dataset.bridgeColor, DEFAULT_PERIOD_COLORS.bridge),
+    july_august: normalizeColor(root.dataset.summerColor, DEFAULT_PERIOD_COLORS.july_august),
+  });
+
+  const getPeriodDays = (availability) => {
+    const periodDays = new Map();
+    (availability.calendar_periods || []).forEach((item) => {
+      const start = parseDate(item.start);
+      const end = parseDate(item.end);
+      const type = String(item.type || "");
+      if (!start || !end || !DEFAULT_PERIOD_COLORS[type]) return;
+
+      for (let day = start; day < end; day = addDays(day, 1)) {
+        periodDays.set(formatDate(day), {
+          type,
+          label: String(item.label || ""),
+        });
+      }
+    });
+    return periodDays;
+  };
+
   const getDayStatus = (day, blockedDays) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -166,7 +199,7 @@
     return blockedDays.get(formatDate(day)) || "free";
   };
 
-  const renderMonth = (monthDate, blockedDays, selectedStart, selectedEnd, onDayClick) => {
+  const renderMonth = (monthDate, blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick) => {
     const month = startOfMonth(monthDate);
     const monthEnd = endOfMonth(month);
     const firstWeekday = (month.getDay() + 6) % 7;
@@ -192,6 +225,8 @@
     for (let day = month; day <= monthEnd; day = addDays(day, 1)) {
       const status = getDayStatus(day, blockedDays);
       const dateValue = formatDate(day);
+      const period = status === "free" ? periodDays.get(dateValue) : null;
+      const periodClass = period ? ` booked-widget__day--period booked-widget__day--period-${period.type}` : "";
       const selectionClass =
         dateValue === selectedStart || dateValue === selectedEnd
           ? " booked-widget__day--selected"
@@ -200,15 +235,20 @@
             : "";
       const button = createElement(
         "button",
-        `booked-widget__day booked-widget__day--${status}${selectionClass}`,
+        `booked-widget__day booked-widget__day--${status}${periodClass}${selectionClass}`,
         String(day.getDate())
       );
       button.type = "button";
       button.dataset.date = dateValue;
+      if (period) {
+        button.dataset.periodType = period.type;
+        button.dataset.periodLabel = period.label;
+        button.style.setProperty("--booked-period-color", periodColors[period.type] || DEFAULT_PERIOD_COLORS[period.type]);
+      }
       button.disabled = status !== "free" || !onDayClick;
       button.setAttribute(
         "aria-label",
-        `${dateValue} ${status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}`
+        `${dateValue} ${status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}${period?.label ? `, ${period.label}` : ""}`
       );
       if (status === "free" && onDayClick) {
         button.addEventListener("click", () => onDayClick(dateValue));
@@ -226,8 +266,9 @@
     return monthElement;
   };
 
-  const renderAvailabilityCalendar = (target, availability, monthCursor, monthsCount, selectedStart, selectedEnd, onNavigate, onDayClick) => {
+  const renderAvailabilityCalendar = (target, availability, monthCursor, monthsCount, selectedStart, selectedEnd, onNavigate, onDayClick, periodColors = DEFAULT_PERIOD_COLORS) => {
     const blockedDays = getBlockedDays(availability);
+    const periodDays = getPeriodDays(availability);
     target.innerHTML = "";
 
     const toolbar = createElement("div", "booked-widget__calendar-toolbar");
@@ -246,7 +287,7 @@
     const months = createElement("div", "booked-widget__months");
     months.style.setProperty("--booked-month-count", String(Math.min(monthsCount, 3)));
     for (let index = 0; index < monthsCount; index += 1) {
-      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, selectedStart, selectedEnd, onDayClick));
+      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick));
     }
     target.appendChild(months);
 
@@ -258,6 +299,20 @@
     ].forEach(([status, labelText]) => {
       const item = createElement("span", "booked-widget__legend-item");
       item.appendChild(createElement("span", `booked-widget__legend-dot booked-widget__legend-dot--${status}`));
+      item.appendChild(createElement("span", "", labelText));
+      legend.appendChild(item);
+    });
+    [
+      ["school_holiday", "Vacances"],
+      ["bridge", "Pont"],
+      ["july_august", "Juillet / août"],
+    ].forEach(([type, labelText]) => {
+      const hasPeriod = Array.from(periodDays.values()).some((period) => period.type === type);
+      if (!hasPeriod) return;
+      const item = createElement("span", "booked-widget__legend-item");
+      const dot = createElement("span", "booked-widget__legend-dot booked-widget__legend-dot--period");
+      dot.style.setProperty("--booked-period-color", periodColors[type] || DEFAULT_PERIOD_COLORS[type]);
+      item.appendChild(dot);
       item.appendChild(createElement("span", "", labelText));
       legend.appendChild(item);
     });
@@ -274,6 +329,7 @@
     const monthsCount = Math.max(1, Math.min(12, Number(root.dataset.months || 2)));
     const showTitle = root.dataset.showTitle !== "0";
     const showCapacity = root.dataset.showCapacity !== "0";
+    const periodColors = getPeriodColors(root);
     let selectedStart = root.dataset.selectedStart || "";
     let selectedEnd = root.dataset.selectedEnd || "";
     const initialMonth = root.dataset.monthCursor ? parseDate(root.dataset.monthCursor) : startOfMonth(new Date());
@@ -323,7 +379,8 @@
           selectedStart,
           selectedEnd,
           navigateCalendar,
-          handleCalendarDayClick
+          handleCalendarDayClick,
+          periodColors
         );
       };
 
@@ -415,6 +472,7 @@
     }
 
     const showTravelers = root.dataset.showTravelers !== "0";
+    const periodColors = getPeriodColors(root);
     let travelers = Math.max(1, Number(root.dataset.travelers || 1));
     let selectedStart = root.dataset.selectedStart || "";
     let selectedEnd = root.dataset.selectedEnd || "";
@@ -618,7 +676,8 @@
           selectedStart,
           selectedEnd,
           navigatePopover,
-          handleDayClick
+          handleDayClick,
+          periodColors
         );
       }
       popover.appendChild(calendar);
