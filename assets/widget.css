@@ -12,6 +12,10 @@
   gap: 14px;
 }
 
+.booked-widget__shell {
+  position: relative;
+}
+
 .booked-widget__header h3,
 .booked-widget__header p,
 .booked-widget__card h4 {
@@ -234,6 +238,41 @@
 .booked-widget__loading,
 .booked-widget__empty {
   color: #475569;
+}
+
+.booked-refresh-indicator {
+  align-items: center;
+  background: color-mix(in srgb, Canvas 88%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  color: inherit;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 7px;
+  line-height: 1;
+  padding: 7px 10px;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 2;
+}
+
+.booked-refresh-indicator__spinner {
+  animation: booked-refresh-spin 780ms linear infinite;
+  border: 2px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-top-color: currentColor;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 12px;
+  width: 12px;
+}
+
+@keyframes booked-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .booked-gite-info {
@@ -531,6 +570,7 @@
   display: grid;
   gap: 20px;
   padding: 24px;
+  position: relative;
 }
 
 .booked-booking-card__title,

@@ -1,6 +1,7 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
   const SELECTION_EVENT = "booked:selection-change";
+  const CACHE_PREFIX = "booked:api:v1:";
   const DEFAULT_PERIOD_COLORS = {
     school_holiday: "#22c55e",
     bridge: "#f97316",
@@ -69,6 +70,15 @@
     return element;
   };
 
+  const createRefreshIndicator = (label = "Mise à jour...") => {
+    const indicator = createElement("div", "booked-refresh-indicator");
+    indicator.setAttribute("role", "status");
+    indicator.setAttribute("aria-live", "polite");
+    indicator.appendChild(createElement("span", "booked-refresh-indicator__spinner"));
+    indicator.appendChild(createElement("span", "booked-refresh-indicator__label", label));
+    return indicator;
+  };
+
   const escapeHtml = (value) =>
     String(value || "")
       .replace(/&/g, "&amp;")
@@ -134,9 +144,35 @@
     return url.toString();
   };
 
+  const getCacheKey = (path) => `${CACHE_PREFIX}${buildApiUrl(path)}`;
+
+  const readCachedApi = (path) => {
+    try {
+      const cached = window.localStorage.getItem(getCacheKey(path));
+      if (!cached) return null;
+      const parsed = JSON.parse(cached);
+      return parsed && Object.prototype.hasOwnProperty.call(parsed, "data") ? parsed.data : null;
+    } catch (error) {
+      log("cache read error", error);
+      return null;
+    }
+  };
+
+  const writeCachedApi = (path, data) => {
+    try {
+      window.localStorage.setItem(getCacheKey(path), JSON.stringify({
+        savedAt: Date.now(),
+        data,
+      }));
+    } catch (error) {
+      log("cache write error", error);
+    }
+  };
+
   const apiFetch = async (path, options) => {
+    const method = String(options?.method || "GET").toUpperCase();
     const response = await fetch(buildApiUrl(path), {
-      method: options?.method || "GET",
+      method,
       headers: {
         "Content-Type": "application/json",
       },
@@ -146,6 +182,9 @@
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(payload.error || "Erreur Booked.");
+    }
+    if (method === "GET") {
+      writeCachedApi(path, payload);
     }
     return payload;
   };
@@ -420,119 +459,192 @@
     let selectedEnd = root.dataset.selectedEnd || "";
     const initialMonth = root.dataset.monthCursor ? parseDate(root.dataset.monthCursor) : startOfMonth(new Date());
     const monthCursor = initialMonth || startOfMonth(new Date());
-    root.innerHTML = "";
-    root.appendChild(createElement("div", "booked-widget__loading", "Chargement des disponibilités…"));
+    let currentAvailability = null;
+    let currentGiteConfig = null;
+    let currentMonthCursor = monthCursor;
+    let isNavigating = false;
+    let isRefreshing = false;
+    let calendar = null;
+    let feedbackBox = null;
+    let shell = null;
 
-    try {
-      const availabilityFrom = formatDate(monthCursor);
-      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(monthCursor, monthsCount - 1)), 1));
-      const [giteConfig, availability] = await Promise.all([
-        apiFetch(`/gites/${encodeURIComponent(giteId)}/config`),
-        apiFetch(`/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`),
-      ]);
+    const getAvailabilityPath = (cursor) => {
+      const availabilityFrom = formatDate(cursor);
+      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(cursor, monthsCount - 1)), 1));
+      return `/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`;
+    };
 
-      const shell = createElement("div", "booked-widget__shell");
+    const configPath = `/gites/${encodeURIComponent(giteId)}/config`;
+    const initialAvailabilityPath = getAvailabilityPath(monthCursor);
+
+    const renderRefreshState = () => {
+      if (!shell) return;
+      Array.from(shell.children).forEach((item) => {
+        if (item.classList.contains("booked-refresh-indicator")) {
+          item.remove();
+        }
+      });
+      if (isRefreshing) {
+        shell.appendChild(createRefreshIndicator());
+      }
+    };
+
+    const renderCalendar = () => {
+      if (!calendar || !currentAvailability || !currentGiteConfig) return;
+      renderAvailabilityCalendar(
+        calendar,
+        currentAvailability,
+        currentMonthCursor,
+        monthsCount,
+        selectedStart,
+        selectedEnd,
+        navigateCalendar,
+        handleCalendarDayClick,
+        periodColors,
+        showPeriodColors,
+        currentGiteConfig
+      );
+      renderRefreshState();
+    };
+
+    const renderShell = () => {
+      shell = createElement("div", "booked-widget__shell");
       if (showTitle || showCapacity) {
         const header = createElement("div", "booked-widget__header");
         if (showTitle) {
-          header.appendChild(createElement("h3", "booked-widget__title", giteConfig.nom));
+          header.appendChild(createElement("h3", "booked-widget__title", currentGiteConfig.nom));
         }
         if (showCapacity) {
-          header.appendChild(createElement("p", "booked-widget__subtitle", `Capacité max ${giteConfig.capacite_max} personnes`));
+          header.appendChild(createElement("p", "booked-widget__subtitle", `Capacité max ${currentGiteConfig.capacite_max} personnes`));
         }
         shell.appendChild(header);
       }
 
       const availabilityCard = createElement("div", "booked-widget__card");
-      const calendar = createElement("div", "booked-widget__calendar");
+      calendar = createElement("div", "booked-widget__calendar");
       availabilityCard.appendChild(calendar);
       shell.appendChild(availabilityCard);
-      const feedbackBox = createElement("div", "booked-widget__feedback");
+      feedbackBox = createElement("div", "booked-widget__feedback");
       shell.appendChild(feedbackBox);
       root.innerHTML = "";
       root.appendChild(shell);
+      renderCalendar();
+    };
 
-      let currentAvailability = availability;
-      let currentMonthCursor = monthCursor;
-      let isNavigating = false;
+    const applyData = (giteConfig, availability, nextMonthCursor = currentMonthCursor) => {
+      currentGiteConfig = giteConfig;
+      currentAvailability = availability;
+      currentMonthCursor = nextMonthCursor;
+      root.dataset.monthCursor = formatDate(currentMonthCursor);
+      renderShell();
+    };
 
-      const renderCalendar = () => {
-        renderAvailabilityCalendar(
-          calendar,
-          currentAvailability,
-          currentMonthCursor,
-          monthsCount,
-          selectedStart,
-          selectedEnd,
-          navigateCalendar,
-          handleCalendarDayClick,
-          periodColors,
-          showPeriodColors,
-          giteConfig
-        );
-      };
+    const storeSelection = () => {
+      root.dataset.selectedStart = selectedStart;
+      root.dataset.selectedEnd = selectedEnd;
+      publishSelection(root, giteId, selectedStart, selectedEnd, 1);
+    };
 
-      const storeSelection = () => {
-        root.dataset.selectedStart = selectedStart;
-        root.dataset.selectedEnd = selectedEnd;
-        publishSelection(root, giteId, selectedStart, selectedEnd, 1);
-      };
+    async function navigateCalendar(direction) {
+      if (isNavigating) return;
 
-      const navigateCalendar = async (direction) => {
-        if (isNavigating) return;
-
-        isNavigating = true;
-        const nextMonthCursor = addMonths(currentMonthCursor, direction);
-        const availabilityFrom = formatDate(nextMonthCursor);
-        const availabilityTo = formatDate(addDays(endOfMonth(addMonths(nextMonthCursor, monthsCount - 1)), 1));
+      isNavigating = true;
+      const nextMonthCursor = addMonths(currentMonthCursor, direction);
+      const availabilityPath = getAvailabilityPath(nextMonthCursor);
+      const cachedAvailability = readCachedApi(availabilityPath);
+      const previousAvailability = currentAvailability;
+      const previousMonthCursor = currentMonthCursor;
+      if (calendar) {
         calendar.setAttribute("aria-busy", "true");
+      }
 
-        try {
-          currentAvailability = await apiFetch(
-            `/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`
-          );
-          currentMonthCursor = nextMonthCursor;
+      if (cachedAvailability) {
+        currentAvailability = cachedAvailability;
+        currentMonthCursor = nextMonthCursor;
+        root.dataset.monthCursor = formatDate(currentMonthCursor);
+        isRefreshing = true;
+        renderCalendar();
+      }
+
+      try {
+        currentAvailability = await apiFetch(availabilityPath);
+        currentMonthCursor = nextMonthCursor;
+        root.dataset.monthCursor = formatDate(currentMonthCursor);
+        feedbackBox.textContent = "";
+        renderCalendar();
+      } catch (error) {
+        log("calendar navigation error", error);
+        if (!cachedAvailability) {
+          currentAvailability = previousAvailability;
+          currentMonthCursor = previousMonthCursor;
           root.dataset.monthCursor = formatDate(currentMonthCursor);
           renderCalendar();
-        } catch (error) {
-          log("calendar navigation error", error);
-          feedbackBox.textContent = error.message || "Navigation impossible.";
-        } finally {
+        }
+        feedbackBox.textContent = error.message || "Navigation impossible.";
+      } finally {
+        isRefreshing = false;
+        if (calendar) {
           calendar.removeAttribute("aria-busy");
-          isNavigating = false;
         }
-      };
+        renderRefreshState();
+        isNavigating = false;
+      }
+    }
 
-      const handleCalendarDayClick = (date) => {
-        if (!selectedStart || selectedEnd) {
-          selectedStart = date;
-          selectedEnd = "";
-        } else if (date > selectedStart) {
-          selectedEnd = date;
-        } else {
-          selectedStart = date;
-          selectedEnd = "";
-        }
-        feedbackBox.textContent = "";
-        storeSelection();
-        renderCalendar();
-      };
-
-      root._bookedSelectionHandler = (event) => {
-        const detail = event.detail || {};
-        if (detail.source === root || String(detail.giteId || "") !== String(giteId || "")) return;
-
-        selectedStart = detail.selectedStart || "";
-        selectedEnd = detail.selectedEnd || "";
-        root.dataset.selectedStart = selectedStart;
-        root.dataset.selectedEnd = selectedEnd;
-        renderCalendar();
-      };
-      document.addEventListener(SELECTION_EVENT, root._bookedSelectionHandler);
-
+    function handleCalendarDayClick(date) {
+      if (!selectedStart || selectedEnd) {
+        selectedStart = date;
+        selectedEnd = "";
+      } else if (date > selectedStart) {
+        selectedEnd = date;
+      } else {
+        selectedStart = date;
+        selectedEnd = "";
+      }
+      feedbackBox.textContent = "";
+      storeSelection();
       renderCalendar();
+    }
+
+    root._bookedSelectionHandler = (event) => {
+      const detail = event.detail || {};
+      if (detail.source === root || String(detail.giteId || "") !== String(giteId || "")) return;
+
+      selectedStart = detail.selectedStart || "";
+      selectedEnd = detail.selectedEnd || "";
+      root.dataset.selectedStart = selectedStart;
+      root.dataset.selectedEnd = selectedEnd;
+      renderCalendar();
+    };
+    document.addEventListener(SELECTION_EVENT, root._bookedSelectionHandler);
+
+    const cachedConfig = readCachedApi(configPath);
+    const cachedAvailability = readCachedApi(initialAvailabilityPath);
+    if (cachedConfig && cachedAvailability) {
+      isRefreshing = true;
+      applyData(cachedConfig, cachedAvailability, monthCursor);
+    } else {
+      root.innerHTML = "";
+      root.appendChild(createElement("div", "booked-widget__loading", "Chargement des disponibilités…"));
+    }
+
+    try {
+      const [giteConfig, availability] = await Promise.all([
+        apiFetch(configPath),
+        apiFetch(initialAvailabilityPath),
+      ]);
+      isRefreshing = false;
+      applyData(giteConfig, availability, monthCursor);
     } catch (error) {
       log("widget error", error);
+      if (cachedConfig && cachedAvailability) {
+        isRefreshing = false;
+        renderRefreshState();
+        if (feedbackBox) {
+          feedbackBox.textContent = error.message || "Mise à jour impossible.";
+        }
+        return;
+      }
       root.innerHTML = "";
       root.appendChild(createElement("div", "booked-widget booked-widget--error", error.message || "Widget indisponible."));
     }
@@ -572,22 +684,50 @@
     let hasSelectionError = false;
     let isQuoting = false;
     let isSubmitting = false;
+    let isRefreshing = false;
     let isPopoverOpen = false;
     let isModalOpen = false;
     let giteConfig = null;
-
-    root.innerHTML = "";
-    root.appendChild(createElement("div", "booked-widget__loading", "Chargement..."));
+    let areEventsBound = false;
 
     const getVisibleMonths = () => 2;
 
-    const loadAvailability = async (monthCursor) => {
+    const getAvailabilityPath = (monthCursor) => {
       const visibleMonths = getVisibleMonths();
       const availabilityFrom = formatDate(monthCursor);
       const availabilityTo = formatDate(addDays(endOfMonth(addMonths(monthCursor, visibleMonths - 1)), 1));
-      currentAvailability = await apiFetch(`/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`);
+      return `/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`;
+    };
+
+    const loadAvailability = async (monthCursor, options = {}) => {
+      const availabilityPath = getAvailabilityPath(monthCursor);
+      const cachedAvailability = options.useCache === false ? null : readCachedApi(availabilityPath);
+      if (cachedAvailability) {
+        currentAvailability = cachedAvailability;
+        currentMonthCursor = monthCursor;
+        root.dataset.monthCursor = formatDate(currentMonthCursor);
+        if (options.renderCached) {
+          isRefreshing = true;
+          renderCard();
+        }
+      }
+      currentAvailability = await apiFetch(availabilityPath);
       currentMonthCursor = monthCursor;
       root.dataset.monthCursor = formatDate(currentMonthCursor);
+    };
+
+    const loadAvailabilityAndRender = async (monthCursor, errorMessage) => {
+      isRefreshing = true;
+      renderCard();
+      try {
+        await loadAvailability(monthCursor, { renderCached: true });
+        feedback = "";
+      } catch (error) {
+        feedback = error.message || errorMessage;
+      } finally {
+        isRefreshing = false;
+        renderCard();
+      }
     };
 
     const storeSelection = (shouldPublish = true) => {
@@ -665,10 +805,7 @@
 
     const handleResize = () => {
       if (isPopoverOpen) {
-        void loadAvailability(currentMonthCursor).then(renderCard).catch((error) => {
-          feedback = error.message || "Calendrier indisponible.";
-          renderCard();
-        });
+        void loadAvailabilityAndRender(currentMonthCursor, "Calendrier indisponible.");
       }
     };
 
@@ -679,10 +816,7 @@
       if (startDate) {
         const nextMonthCursor = startOfMonth(startDate);
         if (formatDate(nextMonthCursor) !== formatDate(currentMonthCursor)) {
-          void loadAvailability(nextMonthCursor).then(renderCard).catch((error) => {
-            feedback = error.message || "Calendrier indisponible.";
-            renderCard();
-          });
+          void loadAvailabilityAndRender(nextMonthCursor, "Calendrier indisponible.");
         }
       }
       renderCard();
@@ -721,13 +855,7 @@
 
     const navigatePopover = async (direction) => {
       const nextMonthCursor = addMonths(currentMonthCursor, direction);
-      try {
-        await loadAvailability(nextMonthCursor);
-        renderCard();
-      } catch (error) {
-        feedback = error.message || "Navigation impossible.";
-        renderCard();
-      }
+      await loadAvailabilityAndRender(nextMonthCursor, "Navigation impossible.");
     };
 
     const buildDateButton = (className, label, value, showClearIcon = false) => {
@@ -888,6 +1016,9 @@
       const card = createElement("div", "booked-booking-card__panel");
       const hasDates = Boolean(selectedStart && selectedEnd);
       const hasQuote = Boolean(hasDates && quote);
+      if (isRefreshing) {
+        card.appendChild(createRefreshIndicator());
+      }
 
       const title = createElement("h2", hasQuote ? "booked-booking-card__total" : "booked-booking-card__title");
       title.textContent = hasQuote ? `${formatTotalPrice(getQuoteTotal(quote))} au total` : "Indiquez vos dates pour afficher les prix";
@@ -966,14 +1097,9 @@
       root.appendChild(card);
     }
 
-    try {
-      const availabilityFrom = formatDate(currentMonthCursor);
-      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(currentMonthCursor, getVisibleMonths() - 1)), 1));
-      [giteConfig, currentAvailability] = await Promise.all([
-        apiFetch(`/gites/${encodeURIComponent(giteId)}/config`),
-        apiFetch(`/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`),
-      ]);
-      renderCard();
+    const bindEvents = () => {
+      if (areEventsBound) return;
+      areEventsBound = true;
 
       const externalSelectionHandler = (event) => {
         const detail = event.detail || {};
@@ -1001,8 +1127,40 @@
         document.removeEventListener("keydown", handleEscape);
         window.removeEventListener("resize", handleResize);
       };
+    };
+
+    const configPath = `/gites/${encodeURIComponent(giteId)}/config`;
+    const initialAvailabilityPath = getAvailabilityPath(currentMonthCursor);
+    const cachedConfig = readCachedApi(configPath);
+    const cachedAvailability = readCachedApi(initialAvailabilityPath);
+    if (cachedConfig && cachedAvailability) {
+      giteConfig = cachedConfig;
+      currentAvailability = cachedAvailability;
+      isRefreshing = true;
+      renderCard();
+      bindEvents();
+    } else {
+      root.innerHTML = "";
+      root.appendChild(createElement("div", "booked-widget__loading", "Chargement..."));
+    }
+
+    try {
+      [giteConfig, currentAvailability] = await Promise.all([
+        apiFetch(configPath),
+        apiFetch(initialAvailabilityPath),
+      ]);
+      isRefreshing = false;
+      renderCard();
+      bindEvents();
     } catch (error) {
       log("booking card error", error);
+      if (cachedConfig && cachedAvailability) {
+        isRefreshing = false;
+        feedback = error.message || "Mise à jour impossible.";
+        renderCard();
+        bindEvents();
+        return;
+      }
       root.innerHTML = "";
       root.appendChild(createElement("div", "booked-widget--error", error.message || "Carte de réservation indisponible."));
     }
