@@ -837,6 +837,24 @@
   });
 
   registerBlockType("booked/booking-card", {
+    supports: {
+      align: true,
+      anchor: true,
+      className: true,
+      color: {
+        background: true,
+        gradients: true,
+        text: true,
+      },
+      spacing: {
+        margin: true,
+        padding: true,
+      },
+      typography: {
+        fontSize: true,
+        lineHeight: true,
+      },
+    },
     attributes: {
       giteId: {
         type: "string",

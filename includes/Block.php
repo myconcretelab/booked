@@ -156,6 +156,24 @@ class Booked_Block
             'category' => 'widgets',
             'icon' => 'calendar',
             'description' => 'Carte latérale de sélection des dates et demande de réservation.',
+            'supports' => [
+                'align' => true,
+                'anchor' => true,
+                'className' => true,
+                'color' => [
+                    'background' => true,
+                    'gradients' => true,
+                    'text' => true,
+                ],
+                'spacing' => [
+                    'margin' => true,
+                    'padding' => true,
+                ],
+                'typography' => [
+                    'fontSize' => true,
+                    'lineHeight' => true,
+                ],
+            ],
             'attributes' => [
                 'giteId' => [
                     'type' => 'string',
@@ -260,10 +278,10 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info'],
-            '0.3.18',
+            '0.3.19',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.17');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.18');
     }
 
     public function render_block(array $attributes): string
@@ -301,8 +319,11 @@ class Booked_Block
         wp_enqueue_style('booked-widget');
         wp_enqueue_script('booked-widget');
 
+        $wrapper_attributes = get_block_wrapper_attributes(['class' => 'booked-booking-card']);
+
         return sprintf(
-            '<div class="booked-booking-card" data-gite-id="%s" data-months="%d" data-show-travelers="%s"%s></div>',
+            '<div %s data-gite-id="%s" data-months="%d" data-show-travelers="%s"%s></div>',
+            $wrapper_attributes,
             esc_attr($gite_id),
             $months,
             $show_travelers ? '1' : '0',

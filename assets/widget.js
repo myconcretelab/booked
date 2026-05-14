@@ -569,6 +569,7 @@
     let currentAvailability = null;
     let quote = null;
     let feedback = "";
+    let hasSelectionError = false;
     let isQuoting = false;
     let isSubmitting = false;
     let isPopoverOpen = false;
@@ -606,16 +607,18 @@
       options: getDefaultOptionsPayload(travelers),
     });
 
-    const requestQuote = async () => {
+    const requestQuote = async (options = {}) => {
       if (!selectedStart || !selectedEnd) {
         quote = null;
         feedback = "";
+        hasSelectionError = false;
         renderCard();
         return;
       }
 
       isQuoting = true;
       feedback = "";
+      hasSelectionError = false;
       renderCard();
       try {
         quote = await apiFetch(`/gites/${encodeURIComponent(giteId)}/quote`, {
@@ -623,9 +626,18 @@
           body: quotePayload(),
         });
         feedback = "";
+        hasSelectionError = false;
+        if (options.closePopoverOnSuccess) {
+          isPopoverOpen = false;
+        }
       } catch (error) {
         quote = null;
         feedback = error.message || "Prix indisponible.";
+        hasSelectionError = true;
+        if (options.keepPopoverOpenOnError) {
+          isPopoverOpen = true;
+          isModalOpen = false;
+        }
       } finally {
         isQuoting = false;
         renderCard();
@@ -681,6 +693,7 @@
       selectedEnd = "";
       quote = null;
       feedback = "";
+      hasSelectionError = false;
       storeSelection();
       renderCard();
     };
@@ -692,17 +705,17 @@
         quote = null;
       } else if (date > selectedStart) {
         selectedEnd = date;
-        isPopoverOpen = false;
       } else {
         selectedStart = date;
         selectedEnd = "";
         quote = null;
       }
       feedback = "";
+      hasSelectionError = false;
       storeSelection();
       renderCard();
       if (selectedStart && selectedEnd) {
-        void requestQuote();
+        void requestQuote({ closePopoverOnSuccess: true, keepPopoverOpenOnError: true });
       }
     };
 
@@ -769,6 +782,11 @@
         );
       }
       popover.appendChild(calendar);
+
+      const popoverFeedback = createElement("div", "booked-booking-card__popover-feedback", feedback);
+      popoverFeedback.setAttribute("aria-live", "polite");
+      popoverFeedback.setAttribute("aria-hidden", feedback ? "false" : "true");
+      popover.appendChild(popoverFeedback);
 
       const actions = createElement("div", "booked-booking-card__popover-actions");
       const clearButton = createElement("button", "booked-booking-card__text-button", "Effacer les dates");
@@ -892,6 +910,8 @@
         input.addEventListener("change", () => {
           travelers = Math.max(1, Math.min(Number(input.max || 99), Number(input.value || 1)));
           quote = null;
+          feedback = "";
+          hasSelectionError = false;
           storeSelection();
           renderCard();
           if (selectedStart && selectedEnd) {
@@ -911,7 +931,7 @@
         hasQuote ? "Demande de réservation" : isQuoting ? "Vérification..." : "Vérifier la disponibilité"
       );
       primary.type = "button";
-      primary.disabled = isQuoting;
+      primary.disabled = isQuoting || hasSelectionError;
       primary.addEventListener("click", () => {
         if (!selectedStart || !selectedEnd) {
           openPopover();
@@ -928,7 +948,7 @@
       });
       card.appendChild(primary);
 
-      if (feedback && !isModalOpen) {
+      if (feedback && !isModalOpen && !isPopoverOpen) {
         card.appendChild(createElement("div", "booked-booking-card__feedback", feedback));
       }
 
@@ -963,6 +983,7 @@
         travelers = Math.max(1, Number(detail.travelers || travelers || 1));
         quote = null;
         feedback = "";
+        hasSelectionError = false;
         storeSelection(false);
         renderCard();
         if (selectedStart && selectedEnd) {
