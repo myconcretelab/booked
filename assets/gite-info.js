@@ -1,6 +1,7 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
   const contentRequests = new Map();
+  const CACHE_PREFIX = "booked:gite-info:v1:";
 
   const BED_LABELS = {
     single: "Lit 90",
@@ -74,6 +75,30 @@
     return url.toString();
   };
 
+  const getCacheKey = (path) => `${CACHE_PREFIX}${buildApiUrl(path)}`;
+
+  const readCachedApi = (path) => {
+    try {
+      const cached = window.localStorage.getItem(getCacheKey(path));
+      if (!cached) return null;
+      const parsed = JSON.parse(cached);
+      return parsed && Object.prototype.hasOwnProperty.call(parsed, "data") ? parsed.data : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeCachedApi = (path, data) => {
+    try {
+      window.localStorage.setItem(getCacheKey(path), JSON.stringify({
+        savedAt: Date.now(),
+        data,
+      }));
+    } catch {
+      // Cache is optional; rendering must keep working without localStorage.
+    }
+  };
+
   const apiFetch = async (path) => {
     const response = await fetch(buildApiUrl(path), {
       headers: { Accept: "application/json" },
@@ -82,13 +107,23 @@
     if (!response.ok) {
       throw new Error(payload.error || "Contenu Booked indisponible.");
     }
+    writeCachedApi(path, payload);
     return payload;
   };
 
+  const getContentPath = (giteId) => `/gites/${encodeURIComponent(String(giteId || ""))}/content`;
+
   const fetchGiteContent = (giteId) => {
     const normalizedGiteId = String(giteId || "");
+    const path = getContentPath(normalizedGiteId);
     if (!contentRequests.has(normalizedGiteId)) {
-      contentRequests.set(normalizedGiteId, apiFetch(`/gites/${encodeURIComponent(normalizedGiteId)}/content`));
+      contentRequests.set(
+        normalizedGiteId,
+        apiFetch(path).catch((error) => {
+          contentRequests.delete(normalizedGiteId);
+          throw error;
+        })
+      );
     }
     return contentRequests.get(normalizedGiteId);
   };
@@ -290,12 +325,19 @@
       return;
     }
 
-    root.innerHTML = "";
-    root.appendChild(createElement("div", "booked-gite-info__loading", "Chargement..."));
+    const cachedPayload = readCachedApi(getContentPath(giteId));
+    if (cachedPayload) {
+      renderContent(root, cachedPayload);
+    } else {
+      root.innerHTML = "";
+      root.appendChild(createElement("div", "booked-gite-info__loading", "Chargement..."));
+    }
+
     try {
       const payload = await fetchGiteContent(giteId);
       renderContent(root, payload);
     } catch (error) {
+      if (cachedPayload) return;
       root.innerHTML = "";
       root.appendChild(createElement("div", "booked-widget--error", error.message || "Contenu indisponible."));
     }

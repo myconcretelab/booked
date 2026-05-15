@@ -5,6 +5,7 @@
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
   const { __, sprintf } = wp.i18n;
   const apiFetch = wp.apiFetch;
+  const EDITOR_CACHE_PREFIX = "booked:block-api:v1:";
   const NO_SELECTION_ID = "__booked_no_selection__";
   const DEFAULT_GITE_META_KEY = "_booked_default_gite_id";
   const DEFAULT_PERIOD_COLORS = {
@@ -23,21 +24,58 @@
     })).filter((item) => item.id);
   };
 
+  const readCachedEditorApi = (path) => {
+    try {
+      const cached = window.localStorage.getItem(`${EDITOR_CACHE_PREFIX}${path}`);
+      if (!cached) return null;
+      const parsed = JSON.parse(cached);
+      return parsed && Object.prototype.hasOwnProperty.call(parsed, "data") ? parsed.data : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeCachedEditorApi = (path, data) => {
+    try {
+      window.localStorage.setItem(`${EDITOR_CACHE_PREFIX}${path}`, JSON.stringify({
+        savedAt: Date.now(),
+        data,
+      }));
+    } catch {
+      // Cache is optional; the editor still works when storage is unavailable.
+    }
+  };
+
+  const cachedApiFetch = (path) =>
+    apiFetch({ path }).then((payload) => {
+      writeCachedEditorApi(path, payload);
+      return payload;
+    });
+
   const useGites = () => {
     const [gites, setGites] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
 
     const loadGites = () => {
-      setIsLoading(true);
+      const path = "/booked/v1/gites";
+      const cached = readCachedEditorApi(path);
+      if (cached) {
+        setGites(normalizeGites(cached));
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+      }
       setError("");
-      apiFetch({ path: "/booked/v1/gites" })
+      cachedApiFetch(path)
         .then((payload) => {
           setGites(normalizeGites(payload));
           setIsLoading(false);
         })
         .catch((apiError) => {
-          setError(apiError.message || __("Impossible de charger les gîtes.", "booked"));
+          if (!cached) {
+            setError(apiError.message || __("Impossible de charger les gîtes.", "booked"));
+          }
           setIsLoading(false);
         });
     };
@@ -128,16 +166,25 @@
         return;
       }
 
-      setIsLoading(true);
+      const path = `/booked/v1/gites/${encodeURIComponent(giteId)}/variables?refresh=1`;
+      const cached = readCachedEditorApi(path);
+      if (cached) {
+        setVariables(cached && Array.isArray(cached.variables) ? cached.variables : []);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+      }
       setError("");
-      apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(giteId)}/variables?refresh=1` })
+      cachedApiFetch(path)
         .then((payload) => {
           setVariables(payload && Array.isArray(payload.variables) ? payload.variables : []);
           setIsLoading(false);
         })
         .catch((apiError) => {
-          setVariables([]);
-          setError(apiError.message || __("Impossible de charger les variables du gîte.", "booked"));
+          if (!cached) {
+            setVariables([]);
+            setError(apiError.message || __("Impossible de charger les variables du gîte.", "booked"));
+          }
           setIsLoading(false);
         });
     };
@@ -153,16 +200,25 @@
     const [error, setError] = useState("");
 
     const loadPhrases = () => {
-      setIsLoading(true);
+      const path = "/booked/v1/dynamic-phrases";
+      const cached = readCachedEditorApi(path);
+      if (cached) {
+        setPhrases(cached && Array.isArray(cached.phrases) ? cached.phrases : []);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+      }
       setError("");
-      apiFetch({ path: "/booked/v1/dynamic-phrases" })
+      cachedApiFetch(path)
         .then((payload) => {
           setPhrases(payload && Array.isArray(payload.phrases) ? payload.phrases : []);
           setIsLoading(false);
         })
         .catch((apiError) => {
-          setPhrases([]);
-          setError(apiError.message || __("Impossible de charger les phrases dynamiques.", "booked"));
+          if (!cached) {
+            setPhrases([]);
+            setError(apiError.message || __("Impossible de charger les phrases dynamiques.", "booked"));
+          }
           setIsLoading(false);
         });
     };
@@ -945,16 +1001,25 @@
           return;
         }
 
-        setIsContentLoading(true);
+        const path = `/booked/v1/gites/${encodeURIComponent(effectiveGiteId)}/content`;
+        const cached = readCachedEditorApi(path);
+        if (cached) {
+          setContent(cached);
+          setIsContentLoading(false);
+        } else {
+          setIsContentLoading(true);
+        }
         setContentError("");
-        apiFetch({ path: `/booked/v1/gites/${encodeURIComponent(effectiveGiteId)}/content` })
+        cachedApiFetch(path)
           .then((payload) => {
             setContent(payload);
             setIsContentLoading(false);
           })
           .catch((apiError) => {
-            setContent(null);
-            setContentError(apiError.message || __("Impossible de charger les infos du gîte.", "booked"));
+            if (!cached) {
+              setContent(null);
+              setContentError(apiError.message || __("Impossible de charger les infos du gîte.", "booked"));
+            }
             setIsContentLoading(false);
           });
       }, [effectiveGiteId]);
