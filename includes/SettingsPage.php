@@ -169,6 +169,7 @@ class Booked_SettingsPage
                             <button type="button" class="button" id="booked-toggle-webhook-secret">Révéler</button>
                             <p class="description">À renseigner aussi dans <code>contrats</code> avec <code>BOOKED_WORDPRESS_WEBHOOK_SECRET</code>.</p>
                             <p class="description">URL webhook : <code><?php echo esc_html(rest_url('booked/v1/webhooks/gite-photos')); ?></code></p>
+                            <p class="description">À chaque notification de Contrats, Booked importe les photos immédiatement et renvoie le résultat à l'application.</p>
                         </td>
                     </tr>
                     <tr>

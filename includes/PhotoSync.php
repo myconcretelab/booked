@@ -60,7 +60,7 @@ class Booked_PhotoSync
         $photos = $this->normalize_remote_photos($content['photos'] ?? []);
         $existing = $this->get_attachment_ids_by_photo_id($gite_id);
         $seen_photo_ids = [];
-        $counts = ['created' => 0, 'updated' => 0, 'replaced' => 0, 'orphaned' => 0, 'error' => ''];
+        $counts = ['created' => 0, 'updated' => 0, 'replaced' => 0, 'orphaned' => 0, 'failed' => 0, 'error' => ''];
 
         foreach ($photos as $index => $photo) {
             $photo_id = $photo['id'];
@@ -70,6 +70,7 @@ class Booked_PhotoSync
             if ($attachment_id > 0 && $this->should_replace_attachment($attachment_id, $photo)) {
                 $replacement_id = $this->import_photo($gite_id, $photo);
                 if ($replacement_id <= 0) {
+                    $counts['failed']++;
                     continue;
                 }
 
@@ -81,6 +82,7 @@ class Booked_PhotoSync
             if ($attachment_id <= 0) {
                 $attachment_id = $this->import_photo($gite_id, $photo);
                 if ($attachment_id <= 0) {
+                    $counts['failed']++;
                     continue;
                 }
                 $counts['created']++;

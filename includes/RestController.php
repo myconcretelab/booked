@@ -368,13 +368,23 @@ class Booked_RestController
             return new WP_REST_Response(['error' => 'gite_id manquant.'], 400);
         }
 
-        $this->photo_sync->schedule_sync($gite_id, 30);
+        $result = $this->photo_sync->sync_gite_photos($gite_id);
+        if (!empty($result['error'])) {
+            return new WP_REST_Response([
+                'ok' => false,
+                'gite_id' => $gite_id,
+                'error' => $result['error'],
+                'result' => $result,
+            ], 502);
+        }
 
         return new WP_REST_Response([
             'ok' => true,
-            'queued' => true,
+            'queued' => false,
             'gite_id' => $gite_id,
-        ], 202);
+            'result' => $result,
+            'photos' => $this->photo_sync->get_public_photos($gite_id),
+        ], 200);
     }
 
     private function is_valid_webhook_request(WP_REST_Request $request): bool
