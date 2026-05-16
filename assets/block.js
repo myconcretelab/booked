@@ -13,6 +13,43 @@
     bridgeColor: "#f97316",
     summerColor: "#0ea5e9",
   };
+  const HEADING_STYLES = [
+    "line-ticks",
+    "long-lines",
+    "short-lines",
+    "double-lines",
+    "split-line",
+    "corner-lines",
+    "brackets",
+    "underline",
+    "overline",
+    "marker",
+    "ribbon",
+    "boxed",
+    "plain",
+  ];
+
+  const getHeadingStyleOptions = () => [
+    { label: __("Traits avec repères", "booked"), value: "line-ticks" },
+    { label: __("Longs traits", "booked"), value: "long-lines" },
+    { label: __("Traits courts", "booked"), value: "short-lines" },
+    { label: __("Double trait", "booked"), value: "double-lines" },
+    { label: __("Trait séparé", "booked"), value: "split-line" },
+    { label: __("Coins", "booked"), value: "corner-lines" },
+    { label: __("Crochets", "booked"), value: "brackets" },
+    { label: __("Souligné", "booked"), value: "underline" },
+    { label: __("Surligné", "booked"), value: "overline" },
+    { label: __("Marqueur", "booked"), value: "marker" },
+    { label: __("Ruban", "booked"), value: "ribbon" },
+    { label: __("Encadré", "booked"), value: "boxed" },
+    { label: __("Simple", "booked"), value: "plain" },
+  ];
+
+  const getHeadingTagName = (level) => `h${[2, 3, 4].includes(Number(level)) ? Number(level) : 2}`;
+  const getHeadingStyle = (style) => (HEADING_STYLES.includes(style) ? style : "line-ticks");
+  const getHeadingTextAlign = (textAlign) => (["left", "center", "right"].includes(textAlign) ? textAlign : "center");
+  const getHeadingClassName = (attributes) =>
+    `booked-heading booked-heading--${getHeadingStyle(attributes.style)} booked-heading--align-${getHeadingTextAlign(attributes.textAlign)}`;
 
   const normalizeGites = (payload) => {
     const items = payload && Array.isArray(payload.gites) ? payload.gites : [];
@@ -612,6 +649,123 @@
           )
         )
       );
+    },
+  });
+
+  registerBlockType("booked/heading", {
+    attributes: {
+      content: {
+        type: "string",
+        default: __("Rez de chaussée", "booked"),
+      },
+      level: {
+        type: "number",
+        default: 2,
+      },
+      style: {
+        type: "string",
+        default: "line-ticks",
+      },
+      textAlign: {
+        type: "string",
+        default: "center",
+      },
+    },
+    supports: {
+      align: true,
+      anchor: true,
+      className: true,
+      color: {
+        background: true,
+        gradients: true,
+        text: true,
+      },
+      spacing: {
+        margin: true,
+        padding: true,
+      },
+      typography: {
+        fontSize: true,
+        lineHeight: true,
+      },
+    },
+    transforms: {
+      from: [
+        {
+          type: "block",
+          blocks: ["core/heading"],
+          transform: ({ content, level }) => createBlock("booked/heading", { content, level }),
+        },
+      ],
+      to: [
+        {
+          type: "block",
+          blocks: ["core/heading"],
+          transform: ({ content, level }) => createBlock("core/heading", { content, level }),
+        },
+      ],
+    },
+
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: getHeadingClassName(attributes) });
+      const tagName = getHeadingTagName(attributes.level);
+
+      return el(
+        Fragment,
+        null,
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Réglages du titre", "booked"), initialOpen: true },
+            el(SelectControl, {
+              label: __("Style", "booked"),
+              value: getHeadingStyle(attributes.style),
+              options: getHeadingStyleOptions(),
+              onChange: (style) => setAttributes({ style }),
+            }),
+            el(SelectControl, {
+              label: __("Niveau", "booked"),
+              value: String(attributes.level || 2),
+              options: [
+                { label: "H2", value: "2" },
+                { label: "H3", value: "3" },
+                { label: "H4", value: "4" },
+              ],
+              onChange: (level) => setAttributes({ level: Number(level) }),
+            }),
+            el(SelectControl, {
+              label: __("Alignement du texte", "booked"),
+              value: getHeadingTextAlign(attributes.textAlign),
+              options: [
+                { label: __("Gauche", "booked"), value: "left" },
+                { label: __("Centre", "booked"), value: "center" },
+                { label: __("Droite", "booked"), value: "right" },
+              ],
+              onChange: (textAlign) => setAttributes({ textAlign }),
+            })
+          )
+        ),
+        el(
+          "div",
+          blockProps,
+          el("span", { className: "booked-heading__line booked-heading__line--before", "aria-hidden": "true" }),
+          el(RichText, {
+            tagName,
+            className: "booked-heading__text",
+            value: attributes.content || "",
+            placeholder: __("Votre titre...", "booked"),
+            allowedFormats: [],
+            onChange: (content) => setAttributes({ content }),
+          }),
+          el("span", { className: "booked-heading__line booked-heading__line--after", "aria-hidden": "true" })
+        )
+      );
+    },
+
+    save() {
+      return null;
     },
   });
 

@@ -225,6 +225,52 @@ class Booked_Block
             'script' => 'booked-accordion',
         ]);
 
+        register_block_type('booked/heading', [
+            'api_version' => 2,
+            'title' => 'Booked Titre',
+            'category' => 'text',
+            'icon' => 'heading',
+            'description' => 'Titre décoratif avec séparateurs et plusieurs styles Booked.',
+            'attributes' => [
+                'content' => [
+                    'type' => 'string',
+                    'default' => 'Rez de chaussée',
+                ],
+                'level' => [
+                    'type' => 'number',
+                    'default' => 2,
+                ],
+                'style' => [
+                    'type' => 'string',
+                    'default' => 'line-ticks',
+                ],
+                'textAlign' => [
+                    'type' => 'string',
+                    'default' => 'center',
+                ],
+            ],
+            'supports' => [
+                'align' => true,
+                'anchor' => true,
+                'className' => true,
+                'color' => [
+                    'background' => true,
+                    'gradients' => true,
+                    'text' => true,
+                ],
+                'spacing' => [
+                    'margin' => true,
+                    'padding' => true,
+                ],
+                'typography' => [
+                    'fontSize' => true,
+                    'lineHeight' => true,
+                ],
+            ],
+            'style' => 'booked-widget',
+            'render_callback' => [$this, 'render_heading_block'],
+        ]);
+
         register_block_type('booked/text', [
             'api_version' => 2,
             'title' => 'Booked Texte',
@@ -278,10 +324,54 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info'],
-            '0.3.20',
+            '0.3.22',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.18');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.19');
+    }
+
+    public function render_heading_block(array $attributes): string
+    {
+        $content = (string) ($attributes['content'] ?? '');
+        if (trim(wp_strip_all_tags($content)) === '') {
+            return '';
+        }
+        $rendered_content = esc_html(wp_strip_all_tags($content));
+
+        $level = max(2, min(4, (int) ($attributes['level'] ?? 2)));
+        $allowed_styles = [
+            'line-ticks',
+            'long-lines',
+            'short-lines',
+            'double-lines',
+            'split-line',
+            'corner-lines',
+            'brackets',
+            'underline',
+            'overline',
+            'marker',
+            'ribbon',
+            'boxed',
+            'plain',
+        ];
+        $style = in_array((string) ($attributes['style'] ?? 'line-ticks'), $allowed_styles, true)
+            ? (string) $attributes['style']
+            : 'line-ticks';
+        $align = in_array((string) ($attributes['textAlign'] ?? 'center'), ['left', 'center', 'right'], true)
+            ? (string) $attributes['textAlign']
+            : 'center';
+
+        wp_enqueue_style('booked-widget');
+
+        return sprintf(
+            '<div %s><span class="booked-heading__line booked-heading__line--before" aria-hidden="true"></span><h%d class="booked-heading__text">%s</h%d><span class="booked-heading__line booked-heading__line--after" aria-hidden="true"></span></div>',
+            get_block_wrapper_attributes([
+                'class' => sprintf('booked-heading booked-heading--%s booked-heading--align-%s', $style, $align),
+            ]),
+            $level,
+            $rendered_content,
+            $level
+        );
     }
 
     public function render_block(array $attributes): string
