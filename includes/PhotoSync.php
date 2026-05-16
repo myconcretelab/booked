@@ -60,7 +60,7 @@ class Booked_PhotoSync
         $photos = $this->normalize_remote_photos($content['photos'] ?? []);
         $existing = $this->get_attachment_ids_by_photo_id($gite_id);
         $seen_photo_ids = [];
-        $counts = ['created' => 0, 'updated' => 0, 'replaced' => 0, 'orphaned' => 0, 'failed' => 0, 'error' => ''];
+        $counts = ['created' => 0, 'updated' => 0, 'replaced' => 0, 'orphaned' => 0, 'failed' => 0, 'error' => '', 'errors' => []];
 
         foreach ($photos as $index => $photo) {
             $photo_id = $photo['id'];
@@ -69,8 +69,9 @@ class Booked_PhotoSync
 
             if ($attachment_id > 0 && $this->should_replace_attachment($attachment_id, $photo)) {
                 $replacement_id = $this->import_photo($gite_id, $photo);
-                if ($replacement_id <= 0) {
+                if (is_wp_error($replacement_id)) {
                     $counts['failed']++;
+                    $counts['errors'][] = $this->format_import_error($photo, 'replace', $replacement_id);
                     continue;
                 }
 
@@ -81,8 +82,9 @@ class Booked_PhotoSync
 
             if ($attachment_id <= 0) {
                 $attachment_id = $this->import_photo($gite_id, $photo);
-                if ($attachment_id <= 0) {
+                if (is_wp_error($attachment_id)) {
                     $counts['failed']++;
+                    $counts['errors'][] = $this->format_import_error($photo, 'create', $attachment_id);
                     continue;
                 }
                 $counts['created']++;
@@ -244,7 +246,7 @@ class Booked_PhotoSync
         return $source_url !== $photo['url'] || $hash !== $photo['hash'];
     }
 
-    private function import_photo(string $gite_id, array $photo): int
+    private function import_photo(string $gite_id, array $photo)
     {
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/media.php';
@@ -252,7 +254,16 @@ class Booked_PhotoSync
 
         $tmp = download_url($photo['url']);
         if (is_wp_error($tmp)) {
-            return 0;
+            return new WP_Error(
+                'booked_photo_download_failed',
+                sprintf('Téléchargement impossible: %s', $tmp->get_error_message()),
+                [
+                    'source_url' => $photo['url'],
+                    'photo_id' => $photo['id'],
+                    'original_code' => $tmp->get_error_code(),
+                    'original_data' => $tmp->get_error_data(),
+                ]
+            );
         }
 
         $path = parse_url($photo['url'], PHP_URL_PATH);
@@ -269,10 +280,36 @@ class Booked_PhotoSync
         $attachment_id = media_handle_sideload($file, 0, $photo['title'] ?: $photo['alt']);
         if (is_wp_error($attachment_id)) {
             @unlink($tmp);
-            return 0;
+            return new WP_Error(
+                'booked_photo_media_failed',
+                sprintf('Import média impossible: %s', $attachment_id->get_error_message()),
+                [
+                    'source_url' => $photo['url'],
+                    'photo_id' => $photo['id'],
+                    'filename' => $file['name'],
+                    'original_code' => $attachment_id->get_error_code(),
+                    'original_data' => $attachment_id->get_error_data(),
+                ]
+            );
         }
 
         return (int) $attachment_id;
+    }
+
+    private function format_import_error(array $photo, string $action, WP_Error $error): array
+    {
+        $data = $error->get_error_data();
+        $details = is_array($data) ? $data : [];
+
+        return [
+            'photo_id' => (string) ($photo['id'] ?? ''),
+            'title' => (string) ($photo['title'] ?? ''),
+            'url' => (string) ($photo['url'] ?? ''),
+            'action' => $action,
+            'error_code' => $error->get_error_code(),
+            'error_message' => $error->get_error_message(),
+            'details' => $details,
+        ];
     }
 
     private function update_attachment_metadata(int $attachment_id, string $gite_id, array $photo, int $fallback_order): void
