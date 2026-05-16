@@ -38,7 +38,7 @@ class Booked_PluginUpdater
             'plugin' => $plugin,
             'new_version' => $release['version'],
             'url' => $release['html_url'],
-            'package' => $this->package_url($release['tag_name']),
+            'package' => $release['package_url'],
             'tested' => $release['tested'],
             'requires' => $release['requires'],
         ];
@@ -63,7 +63,7 @@ class Booked_PluginUpdater
             'version' => $release['version'],
             'author' => '<a href="https://github.com/' . esc_attr(self::GITHUB_OWNER) . '">Sebsoaz</a>',
             'homepage' => $this->homepage_url(),
-            'download_link' => $this->package_url($release['tag_name']),
+            'download_link' => $release['package_url'],
             'requires' => $release['requires'],
             'tested' => $release['tested'],
             'last_updated' => $release['published_at'],
@@ -85,12 +85,12 @@ class Booked_PluginUpdater
             return $source;
         }
 
-        if (file_exists($expected_source)) {
+        global $wp_filesystem;
+        if (!$wp_filesystem) {
             return $source;
         }
 
-        global $wp_filesystem;
-        if (!$wp_filesystem) {
+        if (file_exists($expected_source) && !$wp_filesystem->delete($expected_source, true)) {
             return $source;
         }
 
@@ -124,6 +124,7 @@ class Booked_PluginUpdater
             'tag_name' => sanitize_text_field((string) $payload['tag_name']),
             'version' => ltrim(sanitize_text_field((string) $payload['tag_name']), 'vV'),
             'html_url' => esc_url_raw((string) ($payload['html_url'] ?? $this->homepage_url())),
+            'package_url' => $this->release_asset_url($payload) ?? $this->package_url((string) $payload['tag_name']),
             'published_at' => sanitize_text_field((string) ($payload['published_at'] ?? '')),
             'body' => (string) ($payload['body'] ?? ''),
             'requires' => '6.0',
@@ -148,6 +149,25 @@ class Booked_PluginUpdater
             rawurlencode(self::GITHUB_REPO),
             rawurlencode($tag_name)
         );
+    }
+
+    private function release_asset_url(array $payload): ?string
+    {
+        if (empty($payload['assets']) || !is_array($payload['assets'])) {
+            return null;
+        }
+
+        foreach ($payload['assets'] as $asset) {
+            if (!is_array($asset) || empty($asset['name']) || empty($asset['browser_download_url'])) {
+                continue;
+            }
+
+            if ((string) $asset['name'] === 'booked.zip') {
+                return esc_url_raw((string) $asset['browser_download_url']);
+            }
+        }
+
+        return null;
     }
 
     private function homepage_url(): string
