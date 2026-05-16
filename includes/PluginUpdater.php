@@ -8,8 +8,6 @@ class Booked_PluginUpdater
 {
     private const GITHUB_OWNER = 'myconcretelab';
     private const GITHUB_REPO = 'booked';
-    private const CACHE_KEY = 'booked_github_latest_release';
-    private const CACHE_TTL = 6 * HOUR_IN_SECONDS;
 
     public function register(): void
     {
@@ -105,11 +103,6 @@ class Booked_PluginUpdater
 
     private function get_latest_release(): ?array
     {
-        $cached = get_site_transient(self::CACHE_KEY);
-        if (is_array($cached)) {
-            return $cached;
-        }
-
         $response = wp_remote_get($this->api_url(), [
             'headers' => [
                 'Accept' => 'application/vnd.github+json',
@@ -127,7 +120,7 @@ class Booked_PluginUpdater
             return null;
         }
 
-        $release = [
+        return [
             'tag_name' => sanitize_text_field((string) $payload['tag_name']),
             'version' => ltrim(sanitize_text_field((string) $payload['tag_name']), 'vV'),
             'html_url' => esc_url_raw((string) ($payload['html_url'] ?? $this->homepage_url())),
@@ -136,10 +129,6 @@ class Booked_PluginUpdater
             'requires' => '6.0',
             'tested' => '6.5',
         ];
-
-        set_site_transient(self::CACHE_KEY, $release, self::CACHE_TTL);
-
-        return $release;
     }
 
     private function api_url(): string
