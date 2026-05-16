@@ -32,6 +32,10 @@
   min-height: 54px;
 }
 
+.booked-block--gallery {
+  min-height: 160px;
+}
+
 .booked-text__editor {
   margin: 0;
 }

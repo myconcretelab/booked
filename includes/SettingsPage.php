@@ -500,7 +500,12 @@ class Booked_SettingsPage
 
                 function semanticAliases(path) {
                     var aliases = {
+                        public_summary: ['accroche_courte'],
+                        public_description: ['description_longue'],
                         public_technical_description: ['description_technique'],
+                        accroche_courte: ['public_summary'],
+                        description_longue: ['public_description'],
+                        description_technique: ['public_technical_description'],
                         min_nuits_toute_annee: ['nb_nuits_minimum_toute_annee'],
                         min_nuits_vacances_scolaires: ['nb_nuits_minimum_vacances_scolaires'],
                         min_nuits_juillet_aout: ['nb_nuits_minimum_juillet_aout'],
@@ -759,10 +764,12 @@ class Booked_SettingsPage
     {
         $variables = [
             'gite.nom' => 'Nom du gîte',
+            'gite.accroche_courte' => 'Accroche courte',
+            'gite.description_longue' => 'Description longue',
+            'gite.description_technique' => 'Description technique',
             'gite.adresse_complete' => 'Adresse complète',
             'gite.horaire_arrivee' => 'Horaire d’arrivée',
             'gite.horaire_depart' => 'Horaire de départ',
-            'gite.description_technique' => 'Description technique',
             'gite.prix_nuit_basse_saison' => 'Prix/nuit basse saison',
             'gite.prix_nuit_haute_saison' => 'Prix/nuit haute saison',
             'gite.nb_nuits_minimum_toute_annee' => 'Minimum de nuits toute l’année',
@@ -942,6 +949,7 @@ Arrivée : {{gite.horaire_arrivee}}</code></pre>
             <section class="booked-docs__section">
                 <h2>Variables de contenu</h2>
                 <p>Les variables s’écrivent entre doubles accolades. Le format recommandé est <code>{{gite.nom_de_la_variable}}</code>. Elles sont disponibles dans le bloc <strong>Booked Texte</strong> et dans les blocs Gutenberg natifs si un gîte par défaut est défini pour la page.</p>
+                <p>Dans un modèle, le bloc <strong>Booked Texte</strong> peut insérer les variables communes sans gîte sélectionné. Au rendu public, les valeurs sont remplacées avec le gîte du bloc, le gîte par défaut de la page, ou le premier bloc Booked de la page qui possède un gîte.</p>
 
                 <h3>Gîte par défaut d’une page</h3>
                 <p>Dans l’éditeur Gutenberg, ouvrez les réglages de la page ou de l’article, puis le panneau <strong>Booked</strong>. Sélectionnez un gîte. Les blocs natifs de cette page pourront alors utiliser les variables <code>{{gite...}}</code>.</p>
@@ -959,6 +967,14 @@ Utilisation dans le contenu : {{phrase_prix}}</code></pre>
                         <tr>
                             <th scope="row"><code>{{gite.adresse_complete}}</code></th>
                             <td>Adresse complète du gîte.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>{{gite.accroche_courte}}</code></th>
+                            <td>Accroche courte publique du gîte.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>{{gite.description_longue}}</code></th>
+                            <td>Description longue publique du gîte.</td>
                         </tr>
                         <tr>
                             <th scope="row"><code>{{gite.horaire_arrivee}}</code></th>

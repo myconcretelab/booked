@@ -155,6 +155,49 @@
     },
   };
 
+  const galleryAttributes = {
+    giteId: {
+      type: "string",
+      default: "",
+    },
+    columns: {
+      type: "number",
+      default: 3,
+    },
+    gap: {
+      type: "number",
+      default: 16,
+    },
+    imageRatio: {
+      type: "string",
+      default: "4-3",
+    },
+    lightbox: {
+      type: "boolean",
+      default: true,
+    },
+    widthMode: {
+      type: "string",
+      default: "fixed",
+    },
+    maxWidth: {
+      type: "number",
+      default: 1200,
+    },
+    showCaptions: {
+      type: "boolean",
+      default: false,
+    },
+  };
+
+  const getGalleryRatioOptions = () => [
+    { label: __("Paysage 4:3", "booked"), value: "4-3" },
+    { label: __("Carré 1:1", "booked"), value: "1-1" },
+    { label: __("Paysage 3:2", "booked"), value: "3-2" },
+    { label: __("Large 16:9", "booked"), value: "16-9" },
+    { label: __("Portrait 2:3", "booked"), value: "2-3" },
+  ];
+
   const getCalendarColorControls = (attributes, setAttributes) => [
     el(TextControl, {
       key: "holidayColor",
@@ -196,14 +239,9 @@
     const [error, setError] = useState("");
 
     const loadVariables = () => {
-      if (!giteId) {
-        setVariables([]);
-        setError("");
-        setIsLoading(false);
-        return;
-      }
-
-      const path = `/booked/v1/gites/${encodeURIComponent(giteId)}/variables?refresh=1`;
+      const path = giteId
+        ? `/booked/v1/gites/${encodeURIComponent(giteId)}/variables?refresh=1`
+        : "/booked/v1/variables";
       const cached = readCachedEditorApi(path);
       if (cached) {
         setVariables(cached && Array.isArray(cached.variables) ? cached.variables : []);
@@ -220,7 +258,7 @@
         .catch((apiError) => {
           if (!cached) {
             setVariables([]);
-            setError(apiError.message || __("Impossible de charger les variables du gîte.", "booked"));
+            setError(apiError.message || __("Impossible de charger les variables Booked.", "booked"));
           }
           setIsLoading(false);
         });
@@ -228,7 +266,7 @@
 
     useEffect(loadVariables, [giteId]);
 
-    return { variables, isLoading, error, loadVariables };
+    return { variables, isCommon: !giteId, isLoading, error, loadVariables };
   };
 
   const useDynamicPhrases = () => {
@@ -317,6 +355,7 @@
 
     const variableMap = {};
     variables.forEach((variable) => {
+      if (variable.common) return;
       const token = stripTokenBraces(variable.token);
       if (token) {
         variableMap[token] = variable.preview || "";
@@ -528,6 +567,44 @@
       "data-show-title": attributes.showTitle === false ? "0" : "1",
       "data-show-section-titles": attributes.showSectionTitles === false ? "0" : "1",
       "data-show-notes": attributes.showNotes === false ? "0" : "1",
+    });
+  };
+
+  const GalleryPreview = ({ attributes }) => {
+    const ref = useRef(null);
+    const defaultGiteId = useDefaultGiteId();
+    const giteId = getEffectiveGiteId(attributes, defaultGiteId);
+
+    useEffect(() => {
+      if (!ref.current || !giteId || !window.BookedGallery) return;
+      ref.current.dataset.bookedGalleryInitialized = "0";
+      window.BookedGallery.render(ref.current);
+    }, [
+      giteId,
+      attributes.columns,
+      attributes.gap,
+      attributes.imageRatio,
+      attributes.lightbox,
+      attributes.widthMode,
+      attributes.maxWidth,
+      attributes.showCaptions,
+    ]);
+
+    if (!giteId) {
+      return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez un gîte dans les réglages du bloc.", "booked"));
+    }
+
+    return el("div", {
+      ref,
+      className: `booked-gallery booked-gallery--${attributes.widthMode === "full" ? "full" : "fixed"}`,
+      "data-gite-id": giteId,
+      "data-columns": String(attributes.columns || 3),
+      "data-gap": String(attributes.gap === undefined ? 16 : attributes.gap),
+      "data-image-ratio": attributes.imageRatio || "4-3",
+      "data-lightbox": attributes.lightbox === false ? "0" : "1",
+      "data-width-mode": attributes.widthMode === "full" ? "full" : "fixed",
+      "data-max-width": String(attributes.maxWidth || 1200),
+      "data-show-captions": attributes.showCaptions ? "1" : "0",
     });
   };
 
@@ -792,7 +869,7 @@
       const { gites, isLoading, error, loadGites } = useGites();
       const defaultGiteId = useDefaultGiteId();
       const effectiveGiteId = getEffectiveGiteId(attributes, defaultGiteId);
-      const { variables, isLoading: isVariablesLoading, error: variablesError, loadVariables } = useGiteVariables(effectiveGiteId);
+      const { variables, isCommon: isCommonVariables, isLoading: isVariablesLoading, error: variablesError, loadVariables } = useGiteVariables(effectiveGiteId);
       const { phrases, isLoading: isPhrasesLoading, error: phrasesError, loadPhrases } = useDynamicPhrases();
 
       useEffect(() => {
@@ -830,7 +907,7 @@
                 {
                   title: effectiveGiteId
                     ? __("Aucune variable disponible", "booked")
-                    : __("Sélectionnez un gîte", "booked"),
+                    : __("Aucune variable commune", "booked"),
                   isDisabled: true,
                 },
               ],
@@ -879,13 +956,13 @@
           el(
             PanelBody,
             { title: __("Variables", "booked"), initialOpen: true },
-            !effectiveGiteId
-              ? el("p", { className: "booked-block-help" }, __("Sélectionnez un gîte pour afficher ses variables.", "booked"))
+            isCommonVariables
+              ? el("p", { className: "booked-block-help" }, __("Variables communes insérables dans un modèle. Les valeurs seront remplacées si la page fournit un gîte.", "booked"))
               : null,
             isVariablesLoading ? el(Spinner) : null,
             variablesError ? el(Notice, { status: "error", isDismissible: false }, variablesError) : null,
-            effectiveGiteId && !isVariablesLoading && !variablesError && variables.length === 0
-              ? el("p", { className: "booked-block-help" }, __("Aucune variable disponible pour ce gîte.", "booked"))
+            !isVariablesLoading && !variablesError && variables.length === 0
+              ? el("p", { className: "booked-block-help" }, isCommonVariables ? __("Aucune variable commune disponible.", "booked") : __("Aucune variable disponible pour ce gîte.", "booked"))
               : null,
             variables.map((variable) =>
               el(
@@ -900,9 +977,7 @@
                 variable.preview ? el("span", { className: "booked-block-variable__preview" }, variable.preview) : null
               )
             ),
-            effectiveGiteId
-              ? el(Button, { variant: "secondary", onClick: loadVariables, disabled: isVariablesLoading }, __("Recharger les variables", "booked"))
-              : null
+            el(Button, { variant: "secondary", onClick: loadVariables, disabled: isVariablesLoading }, __("Recharger les variables", "booked"))
           ),
           el(
             PanelBody,
@@ -1130,6 +1205,125 @@
           )
         ),
         el("div", blockProps, el(BookingCardPreview, { attributes }))
+      );
+    },
+
+    save() {
+      return null;
+    },
+  });
+
+  registerBlockType("booked/gallery", {
+    attributes: galleryAttributes,
+    supports: {
+      align: true,
+      anchor: true,
+      className: true,
+      spacing: {
+        margin: true,
+        padding: true,
+      },
+    },
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-block booked-block--gallery" });
+      const { gites, isLoading, error, loadGites } = useGites();
+      const defaultGiteId = useDefaultGiteId();
+
+      return el(
+        Fragment,
+        null,
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Réglages Booked Galerie", "booked"), initialOpen: true },
+            isLoading ? el(Spinner) : null,
+            error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
+            el(SelectControl, {
+              label: __("Gîte", "booked"),
+              value: attributes.giteId || "",
+              options: getGiteOptions(gites, defaultGiteId),
+              onChange: (value) => setAttributes({ giteId: value }),
+              help: defaultGiteId && !attributes.giteId
+                ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
+                : undefined,
+            }),
+            error
+              ? el(TextControl, {
+                  label: __("ID du gîte", "booked"),
+                  value: attributes.giteId || "",
+                  help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
+                  onChange: (value) => setAttributes({ giteId: value }),
+                })
+              : null,
+            el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
+          ),
+          el(
+            PanelBody,
+            { title: __("Grille", "booked"), initialOpen: true },
+            el(SelectControl, {
+              label: __("Largeur", "booked"),
+              value: attributes.widthMode || "fixed",
+              options: [
+                { label: __("Fixe", "booked"), value: "fixed" },
+                { label: __("Pleine largeur", "booked"), value: "full" },
+              ],
+              onChange: (widthMode) => setAttributes({ widthMode }),
+            }),
+            (attributes.widthMode || "fixed") === "fixed"
+              ? el(RangeControl, {
+                  label: __("Largeur maximale", "booked"),
+                  value: attributes.maxWidth || 1200,
+                  min: 320,
+                  max: 2400,
+                  step: 20,
+                  onChange: (value) => setAttributes({ maxWidth: value || 1200 }),
+                })
+              : null,
+            el(RangeControl, {
+              label: __("Nombre de colonnes", "booked"),
+              value: attributes.columns || 3,
+              min: 1,
+              max: 6,
+              step: 1,
+              marks: [
+                { value: 1, label: "1" },
+                { value: 2, label: "2" },
+                { value: 3, label: "3" },
+                { value: 4, label: "4" },
+                { value: 5, label: "5" },
+                { value: 6, label: "6" },
+              ],
+              onChange: (value) => setAttributes({ columns: value || 3 }),
+            }),
+            el(RangeControl, {
+              label: __("Espacement", "booked"),
+              value: attributes.gap === undefined ? 16 : attributes.gap,
+              min: 0,
+              max: 64,
+              step: 1,
+              onChange: (value) => setAttributes({ gap: value === undefined || value === null ? 16 : value }),
+            }),
+            el(SelectControl, {
+              label: __("Taille des images", "booked"),
+              value: attributes.imageRatio || "4-3",
+              options: getGalleryRatioOptions(),
+              onChange: (imageRatio) => setAttributes({ imageRatio }),
+            }),
+            el(ToggleControl, {
+              label: __("Lightbox", "booked"),
+              checked: attributes.lightbox !== false,
+              onChange: (lightbox) => setAttributes({ lightbox }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les légendes", "booked"),
+              checked: !!attributes.showCaptions,
+              onChange: (showCaptions) => setAttributes({ showCaptions }),
+            })
+          )
+        ),
+        el("div", blockProps, el(GalleryPreview, { attributes }))
       );
     },
 

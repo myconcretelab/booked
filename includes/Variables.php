@@ -7,10 +7,15 @@ if (!defined('ABSPATH')) {
 class Booked_Variables
 {
     private const VARIABLE_LABELS = [
+        'nom' => 'Nom du gîte',
+        'accroche_courte' => 'Accroche courte',
+        'description_longue' => 'Description longue',
         'adresse_complete' => 'Adresse complète',
         'horaire_arrivee' => 'Horaire d’arrivée',
         'horaire_depart' => 'Horaire de départ',
         'description_technique' => 'Description technique',
+        'public_summary' => 'Accroche courte',
+        'public_description' => 'Description longue',
         'public_technical_description' => 'Description technique',
         'nb_nuits_minimum_toute_annee' => 'Minimum de nuits toute l’année',
         'nb_nuits_minimum_vacances_scolaires' => 'Minimum de nuits vacances scolaires',
@@ -56,9 +61,14 @@ class Booked_Variables
 
     public function render_text(string $html, string $gite_id): string
     {
+        $gite_id = sanitize_text_field($gite_id);
+        if ($gite_id === '') {
+            return $this->replace_global_tokens($html);
+        }
+
         $content = $this->get_gite_content($gite_id);
         if (is_wp_error($content)) {
-            return wp_kses_post($html);
+            return $this->replace_global_tokens($html);
         }
 
         return $this->replace_tokens($html, $content);
@@ -124,6 +134,52 @@ class Booked_Variables
         });
 
         return $items;
+    }
+
+    public function get_common_variable_items(): array
+    {
+        $items = [];
+        foreach (self::VARIABLE_LABELS as $token => $label) {
+            if ($this->should_hide_variable_item($token)) {
+                continue;
+            }
+
+            $items[] = [
+                'token' => '{{gite.' . $token . '}}',
+                'label' => $label,
+                'preview' => '',
+                'common' => true,
+            ];
+        }
+
+        usort($items, static function (array $a, array $b): int {
+            return strnatcasecmp($a['label'], $b['label']);
+        });
+
+        return $items;
+    }
+
+    private function replace_global_tokens(string $html): string
+    {
+        $map = $this->get_dynamic_phrases();
+        $previous = $html;
+
+        for ($i = 0; $i < 5; $i++) {
+            $rendered = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/', static function (array $matches) use ($map): string {
+                $token = strtolower($matches[1]);
+
+                return array_key_exists($token, $map) ? $map[$token] : $matches[0];
+            }, $previous);
+
+            $rendered = (string) $rendered;
+            if ($rendered === $previous || strpos($rendered, '{{') === false) {
+                break;
+            }
+
+            $previous = $rendered;
+        }
+
+        return wp_kses_post((string) $rendered);
     }
 
     private function get_replacement_map(array $content): array
@@ -234,7 +290,12 @@ class Booked_Variables
     private function get_semantic_aliases(string $path): array
     {
         $aliases = [
+            'public_summary' => ['accroche_courte'],
+            'public_description' => ['description_longue'],
             'public_technical_description' => ['description_technique'],
+            'accroche_courte' => ['public_summary'],
+            'description_longue' => ['public_description'],
+            'description_technique' => ['public_technical_description'],
             'min_nuits_toute_annee' => ['nb_nuits_minimum_toute_annee'],
             'min_nuits_vacances_scolaires' => ['nb_nuits_minimum_vacances_scolaires'],
             'min_nuits_juillet_aout' => ['nb_nuits_minimum_juillet_aout'],
@@ -249,6 +310,8 @@ class Booked_Variables
     private function should_hide_variable_item(string $token): bool
     {
         return in_array($token, [
+            'public_summary',
+            'public_description',
             'public_technical_description',
             'min_nuits_toute_annee',
             'min_nuits_vacances_scolaires',

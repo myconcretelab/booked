@@ -40,6 +40,12 @@ class Booked_RestController
             'permission_callback' => [$this, 'can_edit_posts'],
         ]);
 
+        register_rest_route('booked/v1', '/variables', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_common_variables'],
+            'permission_callback' => [$this, 'can_edit_posts'],
+        ]);
+
         register_rest_route('booked/v1', '/gites', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_gites'],
@@ -101,6 +107,60 @@ class Booked_RestController
         ], $status);
     }
 
+    private function absolutize_remote_url(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $url)) {
+            return esc_url_raw($url);
+        }
+
+        if (strpos($url, '//') === 0) {
+            return esc_url_raw((is_ssl() ? 'https:' : 'http:') . $url);
+        }
+
+        $settings = $this->api_client->get_settings();
+        $base_url = rtrim((string) ($settings['api_base_url'] ?? ''), '/');
+        if ($base_url === '') {
+            return esc_url_raw($url);
+        }
+
+        return esc_url_raw($base_url . '/' . ltrim($url, '/'));
+    }
+
+    private function normalize_gite_content_response(array $result): array
+    {
+        if (!isset($result['photos']) || !is_array($result['photos'])) {
+            return $result;
+        }
+
+        $result['photos'] = array_values(array_filter(array_map(function ($photo) {
+            if (!is_array($photo)) {
+                return null;
+            }
+
+            $url = $this->absolutize_remote_url((string) ($photo['url'] ?? ''));
+            if ($url === '') {
+                return null;
+            }
+
+            return [
+                'id' => sanitize_text_field((string) ($photo['id'] ?? md5($url))),
+                'url' => $url,
+                'title' => sanitize_text_field((string) ($photo['title'] ?? '')),
+                'alt' => sanitize_text_field((string) ($photo['alt'] ?? '')),
+                'credit' => sanitize_text_field((string) ($photo['credit'] ?? '')),
+                'is_primary' => !empty($photo['is_primary']),
+                'ordre' => isset($photo['ordre']) ? (int) $photo['ordre'] : 0,
+            ];
+        }, $result['photos'])));
+
+        return $result;
+    }
+
     public function get_config(WP_REST_Request $request)
     {
         $result = $this->api_client->request('GET', '/booked/gites/' . rawurlencode((string) $request['id']) . '/config');
@@ -116,7 +176,7 @@ class Booked_RestController
         if ($error = $this->maybe_error($result)) {
             return $error;
         }
-        return new WP_REST_Response($result, 200);
+        return new WP_REST_Response($this->normalize_gite_content_response($result), 200);
     }
 
     public function get_gites(WP_REST_Request $request)
@@ -159,6 +219,13 @@ class Booked_RestController
                 (string) $request['id'],
                 filter_var($request->get_param('refresh'), FILTER_VALIDATE_BOOLEAN)
             ),
+        ], 200);
+    }
+
+    public function get_common_variables(WP_REST_Request $request)
+    {
+        return new WP_REST_Response([
+            'variables' => $this->variables->get_common_variable_items(),
         ], 200);
     }
 
