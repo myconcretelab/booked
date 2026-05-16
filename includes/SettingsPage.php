@@ -38,6 +38,7 @@ class Booked_SettingsPage
         return [
             'api_base_url' => array_key_exists('api_base_url', $input) ? esc_url_raw((string) $input['api_base_url']) : (string) ($existing['api_base_url'] ?? ''),
             'integration_token' => array_key_exists('integration_token', $input) ? sanitize_text_field((string) $input['integration_token']) : (string) ($existing['integration_token'] ?? ''),
+            'webhook_secret' => array_key_exists('webhook_secret', $input) ? sanitize_text_field((string) $input['webhook_secret']) : (string) ($existing['webhook_secret'] ?? ''),
             'timeout_ms' => array_key_exists('timeout_ms', $input) ? max(1000, (int) $input['timeout_ms']) : max(1000, (int) ($existing['timeout_ms'] ?? 10000)),
             'debug_mode' => array_key_exists('debug_mode', $input) ? (!empty($input['debug_mode']) ? 1 : 0) : (!empty($existing['debug_mode']) ? 1 : 0),
             'dynamic_phrases' => array_key_exists('dynamic_phrases', $input) ? $this->sanitize_dynamic_phrases($input['dynamic_phrases']) : $this->sanitize_dynamic_phrases($existing['dynamic_phrases'] ?? []),
@@ -162,6 +163,15 @@ class Booked_SettingsPage
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row"><label for="booked-webhook-secret">Secret webhook photos</label></th>
+                        <td>
+                            <input id="booked-webhook-secret" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[webhook_secret]" type="password" class="regular-text" value="<?php echo esc_attr($settings['webhook_secret'] ?? ''); ?>" autocomplete="off" />
+                            <button type="button" class="button" id="booked-toggle-webhook-secret">Révéler</button>
+                            <p class="description">À renseigner aussi dans <code>contrats</code> avec <code>BOOKED_WORDPRESS_WEBHOOK_SECRET</code>.</p>
+                            <p class="description">URL webhook : <code><?php echo esc_html(rest_url('booked/v1/webhooks/gite-photos')); ?></code></p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><label for="booked-timeout-ms">Timeout API (ms)</label></th>
                         <td><input id="booked-timeout-ms" name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[timeout_ms]" type="number" min="1000" step="500" value="<?php echo esc_attr((string) ($settings['timeout_ms'] ?? 10000)); ?>" /></td>
                     </tr>
@@ -191,12 +201,22 @@ class Booked_SettingsPage
                 var result = document.getElementById('booked-test-api-result');
                 var tokenInput = document.getElementById('booked-integration-token');
                 var tokenToggle = document.getElementById('booked-toggle-token');
+                var webhookSecretInput = document.getElementById('booked-webhook-secret');
+                var webhookSecretToggle = document.getElementById('booked-toggle-webhook-secret');
 
                 if (tokenInput && tokenToggle) {
                     tokenToggle.addEventListener('click', function () {
                         var isHidden = tokenInput.type === 'password';
                         tokenInput.type = isHidden ? 'text' : 'password';
                         tokenToggle.textContent = isHidden ? 'Masquer' : 'Révéler';
+                    });
+                }
+
+                if (webhookSecretInput && webhookSecretToggle) {
+                    webhookSecretToggle.addEventListener('click', function () {
+                        var isHidden = webhookSecretInput.type === 'password';
+                        webhookSecretInput.type = isHidden ? 'text' : 'password';
+                        webhookSecretToggle.textContent = isHidden ? 'Masquer' : 'Révéler';
                     });
                 }
 

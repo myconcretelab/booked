@@ -1,7 +1,7 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
-  const contentRequests = new Map();
-  const CACHE_PREFIX = "booked:gallery:v1:";
+  const photoRequests = new Map();
+  const CACHE_PREFIX = "booked:gallery:v2:";
   const RATIOS = {
     "1-1": "1 / 1",
     "4-3": "4 / 3",
@@ -76,21 +76,20 @@
     return payload;
   };
 
-  const getContentPath = (giteId) => `/gites/${encodeURIComponent(String(giteId || ""))}/content`;
+  const getPhotosPath = (giteId) => `/gites/${encodeURIComponent(String(giteId || ""))}/photos`;
 
-  const fetchGiteContent = (giteId) => {
+  const fetchGitePhotos = (giteId) => {
     const normalizedGiteId = String(giteId || "");
-    const path = getContentPath(normalizedGiteId);
-    if (!contentRequests.has(normalizedGiteId)) {
-      contentRequests.set(
+    const path = getPhotosPath(normalizedGiteId);
+    if (!photoRequests.has(normalizedGiteId)) {
+      photoRequests.set(
         normalizedGiteId,
-        apiFetch(path).catch((error) => {
-          contentRequests.delete(normalizedGiteId);
-          throw error;
+        apiFetch(path).finally(() => {
+          photoRequests.delete(normalizedGiteId);
         })
       );
     }
-    return contentRequests.get(normalizedGiteId);
+    return photoRequests.get(normalizedGiteId);
   };
 
   const readNumberOption = (root, name, fallback, min, max) => {
@@ -130,6 +129,9 @@
       .map((photo, index) => ({
         id: String(photo && photo.id ? photo.id : `photo-${index}`),
         url: String(photo && photo.url ? photo.url : ""),
+        fullUrl: String(photo && photo.full_url ? photo.full_url : photo && photo.url ? photo.url : ""),
+        srcset: String(photo && photo.srcset ? photo.srcset : ""),
+        sizes: String(photo && photo.sizes ? photo.sizes : ""),
         title: String(photo && photo.title ? photo.title : ""),
         alt: String(photo && photo.alt ? photo.alt : ""),
         credit: String(photo && photo.credit ? photo.credit : ""),
@@ -141,6 +143,8 @@
   const buildImage = (photo, index) => {
     const image = createElement("img", "booked-gallery__image");
     image.src = photo.url;
+    if (photo.srcset) image.srcset = photo.srcset;
+    if (photo.sizes) image.sizes = photo.sizes;
     image.alt = photo.alt || photo.title || "";
     image.loading = index === 0 ? "eager" : "lazy";
     image.decoding = "async";
@@ -165,7 +169,9 @@
 
     const renderCurrent = () => {
       const photo = photos[currentIndex];
-      image.src = photo.url;
+      image.src = photo.fullUrl || photo.url;
+      image.removeAttribute("srcset");
+      image.removeAttribute("sizes");
       image.alt = photo.alt || photo.title || "";
       caption.textContent = buildCaptionText(photo);
       caption.hidden = caption.textContent === "";
@@ -255,7 +261,7 @@
       return;
     }
 
-    const cachedPayload = readCachedApi(getContentPath(giteId));
+    const cachedPayload = readCachedApi(getPhotosPath(giteId));
     if (cachedPayload) {
       renderContent(root, cachedPayload);
     } else {
@@ -264,7 +270,7 @@
     }
 
     try {
-      const payload = await fetchGiteContent(giteId);
+      const payload = await fetchGitePhotos(giteId);
       renderContent(root, payload);
     } catch (error) {
       if (cachedPayload) return;

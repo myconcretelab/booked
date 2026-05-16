@@ -8,11 +8,13 @@ class Booked_RestController
 {
     private Booked_ApiClient $api_client;
     private Booked_Variables $variables;
+    private Booked_PhotoSync $photo_sync;
 
-    public function __construct(Booked_ApiClient $api_client, Booked_Variables $variables)
+    public function __construct(Booked_ApiClient $api_client, Booked_Variables $variables, Booked_PhotoSync $photo_sync)
     {
         $this->api_client = $api_client;
         $this->variables = $variables;
+        $this->photo_sync = $photo_sync;
     }
 
     public function register(): void
@@ -32,6 +34,18 @@ class Booked_RestController
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_content'],
             'permission_callback' => '__return_true',
+        ]);
+
+        register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/photos', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_photos'],
+            'permission_callback' => '__return_true',
+        ]);
+
+        register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/photos/sync', [
+            'methods' => WP_REST_Server::CREATABLE,
+            'callback' => [$this, 'sync_photos'],
+            'permission_callback' => [$this, 'can_edit_posts'],
         ]);
 
         register_rest_route('booked/v1', '/gites/(?P<id>[^/]+)/variables', [
@@ -73,6 +87,12 @@ class Booked_RestController
         register_rest_route('booked/v1', '/requests', [
             'methods' => WP_REST_Server::CREATABLE,
             'callback' => [$this, 'post_request'],
+            'permission_callback' => '__return_true',
+        ]);
+
+        register_rest_route('booked/v1', '/webhooks/gite-photos', [
+            'methods' => WP_REST_Server::CREATABLE,
+            'callback' => [$this, 'post_gite_photos_webhook'],
             'permission_callback' => '__return_true',
         ]);
 
@@ -177,6 +197,33 @@ class Booked_RestController
             return $error;
         }
         return new WP_REST_Response($this->normalize_gite_content_response($result), 200);
+    }
+
+    public function get_photos(WP_REST_Request $request)
+    {
+        $gite_id = sanitize_text_field((string) $request['id']);
+        return new WP_REST_Response([
+            'photos' => $this->photo_sync->get_public_photos($gite_id),
+        ], 200);
+    }
+
+    public function sync_photos(WP_REST_Request $request)
+    {
+        $gite_id = sanitize_text_field((string) $request['id']);
+        $result = $this->photo_sync->sync_gite_photos($gite_id);
+        if (!empty($result['error'])) {
+            return new WP_REST_Response([
+                'ok' => false,
+                'error' => $result['error'],
+                'result' => $result,
+            ], 502);
+        }
+
+        return new WP_REST_Response([
+            'ok' => true,
+            'result' => $result,
+            'photos' => $this->photo_sync->get_public_photos($gite_id),
+        ], 200);
     }
 
     public function get_gites(WP_REST_Request $request)
@@ -307,6 +354,52 @@ class Booked_RestController
             return $error;
         }
         return new WP_REST_Response($result, 201);
+    }
+
+    public function post_gite_photos_webhook(WP_REST_Request $request)
+    {
+        if (!$this->is_valid_webhook_request($request)) {
+            return new WP_REST_Response(['error' => 'Signature webhook invalide.'], 401);
+        }
+
+        $payload = $request->get_json_params();
+        $gite_id = sanitize_text_field((string) ($payload['gite_id'] ?? ''));
+        if ($gite_id === '') {
+            return new WP_REST_Response(['error' => 'gite_id manquant.'], 400);
+        }
+
+        $this->photo_sync->schedule_sync($gite_id, 30);
+
+        return new WP_REST_Response([
+            'ok' => true,
+            'queued' => true,
+            'gite_id' => $gite_id,
+        ], 202);
+    }
+
+    private function is_valid_webhook_request(WP_REST_Request $request): bool
+    {
+        $settings = get_option(BOOKED_OPTION_KEY, []);
+        $secret = trim((string) ($settings['webhook_secret'] ?? ''));
+        if ($secret === '') {
+            return false;
+        }
+
+        $timestamp = trim((string) $request->get_header('x-booked-timestamp'));
+        $signature = trim((string) $request->get_header('x-booked-signature'));
+        if ($timestamp === '' || $signature === '') {
+            return false;
+        }
+
+        $time = strtotime($timestamp);
+        if (!$time || abs(time() - $time) > 10 * MINUTE_IN_SECONDS) {
+            return false;
+        }
+
+        $signature = preg_replace('/^sha256=/i', '', $signature);
+        $expected = hash_hmac('sha256', $timestamp . '.' . $request->get_body(), $secret);
+
+        return is_string($signature) && hash_equals($expected, $signature);
     }
 
     public function test_settings(WP_REST_Request $request)

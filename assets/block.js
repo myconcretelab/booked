@@ -570,7 +570,7 @@
     });
   };
 
-  const GalleryPreview = ({ attributes }) => {
+  const GalleryPreview = ({ attributes, refreshKey = 0 }) => {
     const ref = useRef(null);
     const defaultGiteId = useDefaultGiteId();
     const giteId = getEffectiveGiteId(attributes, defaultGiteId);
@@ -588,6 +588,7 @@
       attributes.widthMode,
       attributes.maxWidth,
       attributes.showCaptions,
+      refreshKey,
     ]);
 
     if (!giteId) {
@@ -1228,6 +1229,32 @@
       const blockProps = useBlockProps({ className: "booked-block booked-block--gallery" });
       const { gites, isLoading, error, loadGites } = useGites();
       const defaultGiteId = useDefaultGiteId();
+      const effectiveGiteId = getEffectiveGiteId(attributes, defaultGiteId);
+      const [syncState, setSyncState] = useState({ isSyncing: false, message: "", error: "" });
+
+      const syncPhotos = () => {
+        if (!effectiveGiteId) return;
+        setSyncState({ isSyncing: true, message: "", error: "" });
+        apiFetch({
+          path: `/booked/v1/gites/${encodeURIComponent(effectiveGiteId)}/photos/sync`,
+          method: "POST",
+        })
+          .then(() => {
+            setSyncState({
+              isSyncing: false,
+              message: __("Images synchronisées.", "booked"),
+              error: "",
+              refreshedAt: Date.now(),
+            });
+          })
+          .catch((apiError) => {
+            setSyncState({
+              isSyncing: false,
+              message: "",
+              error: apiError.message || __("Impossible de synchroniser les images.", "booked"),
+            });
+          });
+      };
 
       return el(
         Fragment,
@@ -1257,6 +1284,13 @@
                   onChange: (value) => setAttributes({ giteId: value }),
                 })
               : null,
+            el(Button, {
+              variant: "secondary",
+              onClick: syncPhotos,
+              disabled: !effectiveGiteId || syncState.isSyncing,
+            }, syncState.isSyncing ? __("Synchronisation...", "booked") : __("Synchroniser les images", "booked")),
+            syncState.message ? el(Notice, { status: "success", isDismissible: false }, syncState.message) : null,
+            syncState.error ? el(Notice, { status: "error", isDismissible: false }, syncState.error) : null,
             el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
           ),
           el(
@@ -1323,7 +1357,7 @@
             })
           )
         ),
-        el("div", blockProps, el(GalleryPreview, { attributes }))
+        el("div", blockProps, el(GalleryPreview, { attributes, refreshKey: syncState.refreshedAt || 0 }))
       );
     },
 
