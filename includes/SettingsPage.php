@@ -41,6 +41,7 @@ class Booked_SettingsPage
             'webhook_secret' => array_key_exists('webhook_secret', $input) ? sanitize_text_field((string) $input['webhook_secret']) : (string) ($existing['webhook_secret'] ?? ''),
             'timeout_ms' => array_key_exists('timeout_ms', $input) ? max(1000, (int) $input['timeout_ms']) : max(1000, (int) ($existing['timeout_ms'] ?? 10000)),
             'debug_mode' => array_key_exists('debug_mode', $input) ? (!empty($input['debug_mode']) ? 1 : 0) : (!empty($existing['debug_mode']) ? 1 : 0),
+            'development_mode' => array_key_exists('development_mode', $input) ? (!empty($input['development_mode']) ? 1 : 0) : (!empty($existing['development_mode']) ? 1 : 0),
             'dynamic_phrases' => array_key_exists('dynamic_phrases', $input) ? $this->sanitize_dynamic_phrases($input['dynamic_phrases']) : $this->sanitize_dynamic_phrases($existing['dynamic_phrases'] ?? []),
         ];
     }
@@ -184,6 +185,17 @@ class Booked_SettingsPage
                                 <input name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[debug_mode]" type="checkbox" value="1" <?php checked(!empty($settings['debug_mode'])); ?> />
                                 Activer les logs de débogage côté JS
                             </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Mode développement</th>
+                        <td>
+                            <label>
+                                <input name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[development_mode]" type="hidden" value="0" />
+                                <input name="<?php echo esc_attr(BOOKED_OPTION_KEY); ?>[development_mode]" type="checkbox" value="1" <?php checked(!empty($settings['development_mode'])); ?> />
+                                Masquer le site aux visiteurs non connectés
+                            </label>
+                            <p class="description">Quand cette option est active, les visiteurs non connectés sont redirigés vers la page de connexion WordPress. L’API REST publique est bloquée, sauf les appels Booked authentifiés par token d’intégration ou signature webhook.</p>
                         </td>
                     </tr>
                     <tr>
