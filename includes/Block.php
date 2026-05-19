@@ -137,9 +137,21 @@ class Booked_Block
                 'type' => 'string',
                 'default' => '4-3',
             ],
+            'layoutMode' => [
+                'type' => 'string',
+                'default' => 'grid',
+            ],
+            'featuredSideCount' => [
+                'type' => 'number',
+                'default' => 4,
+            ],
             'lightbox' => [
                 'type' => 'boolean',
                 'default' => true,
+            ],
+            'expandMode' => [
+                'type' => 'string',
+                'default' => 'lightbox',
             ],
             'widthMode' => [
                 'type' => 'string',
@@ -441,7 +453,7 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery'],
-            '0.3.26',
+            '0.3.27',
             true
         );
         wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.20');
@@ -579,18 +591,25 @@ class Booked_Block
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9', '2-3'], true)
             ? (string) $attributes['imageRatio']
             : '4-3';
+        $layout_mode = in_array((string) ($attributes['layoutMode'] ?? 'grid'), ['grid', 'featured'], true)
+            ? (string) $attributes['layoutMode']
+            : 'grid';
+        $featured_side_count = max(1, min(8, (int) ($attributes['featuredSideCount'] ?? 4)));
         $width_mode = in_array((string) ($attributes['widthMode'] ?? 'fixed'), ['fixed', 'full'], true)
             ? (string) $attributes['widthMode']
             : 'fixed';
         $max_width = max(320, min(2400, (int) ($attributes['maxWidth'] ?? 1200)));
         $lightbox = !array_key_exists('lightbox', $attributes) || !empty($attributes['lightbox']);
+        $expand_mode = in_array((string) ($attributes['expandMode'] ?? 'lightbox'), ['lightbox', 'masonry'], true)
+            ? (string) $attributes['expandMode']
+            : 'lightbox';
         $show_captions = !empty($attributes['showCaptions']);
 
         wp_enqueue_style('booked-widget');
         wp_enqueue_script('booked-gallery');
 
         $wrapper_attributes = get_block_wrapper_attributes([
-            'class' => sprintf('booked-gallery booked-gallery--%s', $width_mode),
+            'class' => sprintf('booked-gallery booked-gallery--%s booked-gallery--layout-%s', $width_mode, $layout_mode),
             'style' => sprintf(
                 '--booked-gallery-gap:%dpx;--booked-gallery-max-width:%dpx;--booked-gallery-ratio:%s;',
                 $gap,
@@ -607,13 +626,16 @@ class Booked_Block
         }
 
         return sprintf(
-            '<div %s data-gite-id="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-lightbox="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
+            '<div %s data-gite-id="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-layout-mode="%s" data-featured-side-count="%d" data-lightbox="%s" data-expand-mode="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
             $wrapper_attributes,
             esc_attr($gite_id),
             $columns,
             $gap,
             esc_attr($image_ratio),
+            esc_attr($layout_mode),
+            $featured_side_count,
             $lightbox ? '1' : '0',
+            esc_attr($expand_mode),
             esc_attr($width_mode),
             $max_width,
             $show_captions ? '1' : '0'

@@ -17,6 +17,20 @@
     return element;
   };
 
+  let openOverlayCount = 0;
+
+  const lockPageScroll = () => {
+    openOverlayCount += 1;
+    document.body.classList.add("booked-gallery-lightbox-is-open");
+  };
+
+  const unlockPageScroll = () => {
+    openOverlayCount = Math.max(0, openOverlayCount - 1);
+    if (openOverlayCount === 0) {
+      document.body.classList.remove("booked-gallery-lightbox-is-open");
+    }
+  };
+
   const buildApiUrl = (path) => {
     const pathValue = String(path || "");
     const queryIndex = pathValue.indexOf("?");
@@ -108,7 +122,10 @@
       columns: readNumberOption(root, "columns", 3, 1, 6),
       gap: readNumberOption(root, "gap", 16, 0, 64),
       imageRatio,
+      layoutMode: root.dataset.layoutMode === "featured" ? "featured" : "grid",
+      featuredSideCount: readNumberOption(root, "featuredSideCount", 4, 1, 8),
       lightbox: root.dataset.lightbox !== "0",
+      expandMode: root.dataset.expandMode === "masonry" ? "masonry" : "lightbox",
       widthMode,
       maxWidth: readNumberOption(root, "maxWidth", 1200, 320, 2400),
       showCaptions: root.dataset.showCaptions === "1",
@@ -117,8 +134,12 @@
 
   const applyLayoutOptions = (root, options) => {
     root.dataset.columns = String(options.columns);
+    root.dataset.layoutMode = options.layoutMode;
+    root.dataset.featuredSideCount = String(options.featuredSideCount);
     root.classList.toggle("booked-gallery--fixed", options.widthMode === "fixed");
     root.classList.toggle("booked-gallery--full", options.widthMode === "full");
+    root.classList.toggle("booked-gallery--layout-grid", options.layoutMode === "grid");
+    root.classList.toggle("booked-gallery--layout-featured", options.layoutMode === "featured");
     root.style.setProperty("--booked-gallery-gap", `${options.gap}px`);
     root.style.setProperty("--booked-gallery-ratio", RATIOS[options.imageRatio]);
     root.style.setProperty("--booked-gallery-max-width", `${options.maxWidth}px`);
@@ -147,6 +168,17 @@
     if (photo.sizes) image.sizes = photo.sizes;
     image.alt = photo.alt || photo.title || "";
     image.loading = index === 0 ? "eager" : "lazy";
+    image.decoding = "async";
+    return image;
+  };
+
+  const buildFullImage = (photo, index) => {
+    const image = createElement("img", "booked-gallery-masonry-overlay__image");
+    image.src = photo.fullUrl || photo.url;
+    if (photo.srcset) image.srcset = photo.srcset;
+    if (photo.sizes) image.sizes = photo.sizes;
+    image.alt = photo.alt || photo.title || "";
+    image.loading = index < 2 ? "eager" : "lazy";
     image.decoding = "async";
     return image;
   };
@@ -181,7 +213,7 @@
 
     const close = () => {
       document.removeEventListener("keydown", handleKeydown);
-      document.body.classList.remove("booked-gallery-lightbox-is-open");
+      unlockPageScroll();
       overlay.remove();
     };
 
@@ -211,9 +243,123 @@
     dialog.appendChild(caption);
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
-    document.body.classList.add("booked-gallery-lightbox-is-open");
+    lockPageScroll();
     renderCurrent();
     closeButton.focus();
+  };
+
+  const openMasonryOverlay = (photos) => {
+    const overlay = createElement("div", "booked-gallery-masonry-overlay");
+    const header = createElement("div", "booked-gallery-masonry-overlay__header");
+    const closeButton = createElement("button", "booked-gallery-masonry-overlay__back", "Détails");
+    const grid = createElement("div", "booked-gallery-masonry-overlay__grid");
+
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    closeButton.type = "button";
+    closeButton.setAttribute("aria-label", "Retour aux détails");
+
+    const close = () => {
+      document.removeEventListener("keydown", handleKeydown);
+      unlockPageScroll();
+      overlay.remove();
+    };
+
+    function handleKeydown(event) {
+      if (event.key !== "Escape") return;
+      if (document.querySelector(".booked-gallery-lightbox")) return;
+      close();
+    }
+
+    photos.forEach((photo, index) => {
+      const item = createElement("figure", "booked-gallery-masonry-overlay__item");
+      const media = createElement("button", "booked-gallery-masonry-overlay__media");
+      media.type = "button";
+      media.setAttribute("aria-label", photo.title ? `Agrandir ${photo.title}` : "Agrandir l'image");
+      media.addEventListener("click", () => openLightbox(photos, index));
+      media.appendChild(buildFullImage(photo, index));
+      item.appendChild(media);
+
+      const captionText = buildCaptionText(photo);
+      if (captionText) {
+        item.appendChild(createElement("figcaption", "booked-gallery-masonry-overlay__caption", captionText));
+      }
+
+      grid.appendChild(item);
+    });
+
+    closeButton.addEventListener("click", close);
+    document.addEventListener("keydown", handleKeydown);
+    header.appendChild(closeButton);
+    overlay.appendChild(header);
+    overlay.appendChild(grid);
+    document.body.appendChild(overlay);
+    lockPageScroll();
+    closeButton.focus();
+  };
+
+  const openGalleryExpansion = (photos, startIndex, options) => {
+    if (options.expandMode === "masonry") {
+      openMasonryOverlay(photos);
+      return;
+    }
+
+    openLightbox(photos, startIndex);
+  };
+
+  const buildGalleryItem = (photos, index, options, itemClassName, showCountButton) => {
+    const photo = photos[index];
+    const figure = createElement("figure", ["booked-gallery__item", itemClassName].filter(Boolean).join(" "));
+    const media = createElement(options.lightbox ? "button" : "div", "booked-gallery__media");
+
+    if (options.lightbox) {
+      const targetIndex = showCountButton ? 0 : index;
+      media.type = "button";
+      media.setAttribute("aria-label", showCountButton ? `Voir les ${photos.length} photos` : photo.title ? `Agrandir ${photo.title}` : "Agrandir l'image");
+      media.addEventListener("click", () => openGalleryExpansion(photos, targetIndex, options));
+    }
+
+    media.appendChild(buildImage(photo, index));
+
+    if (showCountButton && options.lightbox) {
+      media.appendChild(createElement("span", "booked-gallery__count-button", `Voir les ${photos.length} photos`));
+    }
+
+    figure.appendChild(media);
+
+    if (options.showCaptions) {
+      const captionText = buildCaptionText(photo);
+      if (captionText) {
+        figure.appendChild(createElement("figcaption", "booked-gallery__caption", captionText));
+      }
+    }
+
+    return figure;
+  };
+
+  const renderGridContent = (root, photos, options) => {
+    const grid = createElement("div", "booked-gallery__grid");
+    photos.forEach((photo, index) => {
+      grid.appendChild(buildGalleryItem(photos, index, options));
+    });
+    root.appendChild(grid);
+  };
+
+  const renderFeaturedContent = (root, photos, options) => {
+    const sideCount = Math.min(options.featuredSideCount, Math.max(0, photos.length - 1));
+    const wrapper = createElement("div", "booked-gallery__featured");
+    const side = createElement("div", "booked-gallery__featured-side");
+
+    wrapper.appendChild(buildGalleryItem(photos, 0, options, "booked-gallery__item--featured-main", false));
+
+    for (let offset = 0; offset < sideCount; offset += 1) {
+      const index = offset + 1;
+      const isLastVisibleSideItem = offset === sideCount - 1;
+      side.appendChild(buildGalleryItem(photos, index, options, "booked-gallery__item--featured-side", isLastVisibleSideItem));
+    }
+
+    wrapper.appendChild(side);
+    root.appendChild(wrapper);
   };
 
   const renderContent = (root, payload) => {
@@ -228,29 +374,12 @@
       return;
     }
 
-    const grid = createElement("div", "booked-gallery__grid");
-    photos.forEach((photo, index) => {
-      const figure = createElement("figure", "booked-gallery__item");
-      const media = createElement(options.lightbox ? "button" : "div", "booked-gallery__media");
-      if (options.lightbox) {
-        media.type = "button";
-        media.setAttribute("aria-label", photo.title ? `Agrandir ${photo.title}` : "Agrandir l'image");
-        media.addEventListener("click", () => openLightbox(photos, index));
-      }
-      media.appendChild(buildImage(photo, index));
-      figure.appendChild(media);
+    if (options.layoutMode === "featured" && photos.length > 1) {
+      renderFeaturedContent(root, photos, options);
+      return;
+    }
 
-      if (options.showCaptions) {
-        const captionText = buildCaptionText(photo);
-        if (captionText) {
-          figure.appendChild(createElement("figcaption", "booked-gallery__caption", captionText));
-        }
-      }
-
-      grid.appendChild(figure);
-    });
-
-    root.appendChild(grid);
+    renderGridContent(root, photos, options);
   };
 
   const renderGallery = async (root) => {

@@ -172,9 +172,21 @@
       type: "string",
       default: "4-3",
     },
+    layoutMode: {
+      type: "string",
+      default: "grid",
+    },
+    featuredSideCount: {
+      type: "number",
+      default: 4,
+    },
     lightbox: {
       type: "boolean",
       default: true,
+    },
+    expandMode: {
+      type: "string",
+      default: "lightbox",
     },
     widthMode: {
       type: "string",
@@ -196,6 +208,16 @@
     { label: __("Paysage 3:2", "booked"), value: "3-2" },
     { label: __("Large 16:9", "booked"), value: "16-9" },
     { label: __("Portrait 2:3", "booked"), value: "2-3" },
+  ];
+
+  const getGalleryLayoutOptions = () => [
+    { label: __("Grille", "booked"), value: "grid" },
+    { label: __("Image principale", "booked"), value: "featured" },
+  ];
+
+  const getGalleryExpandOptions = () => [
+    { label: __("Lightbox", "booked"), value: "lightbox" },
+    { label: __("Masonry en overlay", "booked"), value: "masonry" },
   ];
 
   const getCalendarColorControls = (attributes, setAttributes) => [
@@ -584,7 +606,10 @@
       attributes.columns,
       attributes.gap,
       attributes.imageRatio,
+      attributes.layoutMode,
+      attributes.featuredSideCount,
       attributes.lightbox,
+      attributes.expandMode,
       attributes.widthMode,
       attributes.maxWidth,
       attributes.showCaptions,
@@ -597,12 +622,15 @@
 
     return el("div", {
       ref,
-      className: `booked-gallery booked-gallery--${attributes.widthMode === "full" ? "full" : "fixed"}`,
+      className: `booked-gallery booked-gallery--${attributes.widthMode === "full" ? "full" : "fixed"} booked-gallery--layout-${attributes.layoutMode === "featured" ? "featured" : "grid"}`,
       "data-gite-id": giteId,
       "data-columns": String(attributes.columns || 3),
       "data-gap": String(attributes.gap === undefined ? 16 : attributes.gap),
       "data-image-ratio": attributes.imageRatio || "4-3",
+      "data-layout-mode": attributes.layoutMode === "featured" ? "featured" : "grid",
+      "data-featured-side-count": String(attributes.featuredSideCount || 4),
       "data-lightbox": attributes.lightbox === false ? "0" : "1",
+      "data-expand-mode": attributes.expandMode === "masonry" ? "masonry" : "lightbox",
       "data-width-mode": attributes.widthMode === "full" ? "full" : "fixed",
       "data-max-width": String(attributes.maxWidth || 1200),
       "data-show-captions": attributes.showCaptions ? "1" : "0",
@@ -1315,22 +1343,47 @@
                   onChange: (value) => setAttributes({ maxWidth: value || 1200 }),
                 })
               : null,
-            el(RangeControl, {
-              label: __("Nombre de colonnes", "booked"),
-              value: attributes.columns || 3,
-              min: 1,
-              max: 6,
-              step: 1,
-              marks: [
-                { value: 1, label: "1" },
-                { value: 2, label: "2" },
-                { value: 3, label: "3" },
-                { value: 4, label: "4" },
-                { value: 5, label: "5" },
-                { value: 6, label: "6" },
-              ],
-              onChange: (value) => setAttributes({ columns: value || 3 }),
+            el(SelectControl, {
+              label: __("Affichage", "booked"),
+              value: attributes.layoutMode || "grid",
+              options: getGalleryLayoutOptions(),
+              onChange: (layoutMode) => setAttributes({ layoutMode }),
             }),
+            (attributes.layoutMode || "grid") === "featured"
+              ? el(RangeControl, {
+                  label: __("Photos à côté", "booked"),
+                  value: attributes.featuredSideCount || 4,
+                  min: 1,
+                  max: 8,
+                  step: 1,
+                  marks: [
+                    { value: 1, label: "1" },
+                    { value: 2, label: "2" },
+                    { value: 4, label: "4" },
+                    { value: 6, label: "6" },
+                    { value: 8, label: "8" },
+                  ],
+                  onChange: (value) => setAttributes({ featuredSideCount: value || 4 }),
+                })
+              : null,
+            (attributes.layoutMode || "grid") === "grid"
+              ? el(RangeControl, {
+                  label: __("Nombre de colonnes", "booked"),
+                  value: attributes.columns || 3,
+                  min: 1,
+                  max: 6,
+                  step: 1,
+                  marks: [
+                    { value: 1, label: "1" },
+                    { value: 2, label: "2" },
+                    { value: 3, label: "3" },
+                    { value: 4, label: "4" },
+                    { value: 5, label: "5" },
+                    { value: 6, label: "6" },
+                  ],
+                  onChange: (value) => setAttributes({ columns: value || 3 }),
+                })
+              : null,
             el(RangeControl, {
               label: __("Espacement", "booked"),
               value: attributes.gap === undefined ? 16 : attributes.gap,
@@ -1346,10 +1399,18 @@
               onChange: (imageRatio) => setAttributes({ imageRatio }),
             }),
             el(ToggleControl, {
-              label: __("Lightbox", "booked"),
+              label: __("Agrandissement au clic", "booked"),
               checked: attributes.lightbox !== false,
               onChange: (lightbox) => setAttributes({ lightbox }),
             }),
+            attributes.lightbox === false
+              ? null
+              : el(SelectControl, {
+                  label: __("Mode d'agrandissement", "booked"),
+                  value: attributes.expandMode || "lightbox",
+                  options: getGalleryExpandOptions(),
+                  onChange: (expandMode) => setAttributes({ expandMode }),
+                }),
             el(ToggleControl, {
               label: __("Afficher les légendes", "booked"),
               checked: !!attributes.showCaptions,
