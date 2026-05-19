@@ -630,7 +630,12 @@
     }
 
     function handleCalendarDayClick(date) {
-      if (!selectedStart || selectedEnd) {
+      if (date === selectedEnd) {
+        selectedEnd = "";
+      } else if (date === selectedStart) {
+        selectedStart = "";
+        selectedEnd = "";
+      } else if (!selectedStart || selectedEnd) {
         selectedStart = date;
         selectedEnd = "";
       } else if (date > selectedStart) {
@@ -872,7 +877,14 @@
     };
 
     const handleDayClick = (date) => {
-      if (!selectedStart || selectedEnd) {
+      if (date === selectedEnd) {
+        selectedEnd = "";
+        quote = null;
+      } else if (date === selectedStart) {
+        selectedStart = "";
+        selectedEnd = "";
+        quote = null;
+      } else if (!selectedStart || selectedEnd) {
         selectedStart = date;
         selectedEnd = "";
         quote = null;
