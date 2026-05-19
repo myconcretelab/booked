@@ -290,7 +290,25 @@
     return getMinimumNightsFromObject(giteConfig, keysByType[type] || []);
   };
 
+  const getDefaultMinimumNights = (giteConfig) =>
+    getMinimumNightsFromObject(giteConfig, [
+      "nb_nuits_minimum_toute_annee",
+      "min_nuits_toute_annee",
+      "minimum_nights",
+      "minimum_nuits",
+      "min_nights",
+      "min_nuits",
+      "nights_minimum",
+    ]);
+
+  const getDateMinimumNights = (dateValue, periodDays, giteConfig) => {
+    const period = periodDays.get(dateValue);
+    return period?.minimumNights || getConfigMinimumNights(period?.type, giteConfig) || getDefaultMinimumNights(giteConfig);
+  };
+
   const formatMinimumNights = (nights) => `${nights} nuit${nights > 1 ? "s" : ""} minimum`;
+
+  const formatMinimumNightsRequired = (nights) => `Un minimum de ${nights} nuit${nights > 1 ? "s" : ""} est requis`;
 
   const getPeriodDays = (availability) => {
     const periodDays = new Map();
@@ -311,6 +329,12 @@
     return periodDays;
   };
 
+  const isStayBelowMinimum = (startValue, endValue, availability, giteConfig) => {
+    if (!startValue || !endValue || endValue <= startValue) return false;
+    const minimumNights = getDateMinimumNights(startValue, getPeriodDays(availability || {}), giteConfig);
+    return minimumNights > 1 && getNightCount(startValue, endValue) < minimumNights;
+  };
+
   const getDayStatus = (day, blockedDays) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -318,10 +342,11 @@
     return blockedDays.get(formatDate(day)) || "free";
   };
 
-  const renderMonth = (monthDate, blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors = true) => {
+  const renderMonth = (monthDate, blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors = true, giteConfig = null) => {
     const month = startOfMonth(monthDate);
     const monthEnd = endOfMonth(month);
     const firstWeekday = (month.getDay() + 6) % 7;
+    const selectedStartMinimumNights = selectedStart && !selectedEnd ? getDateMinimumNights(selectedStart, periodDays, giteConfig) : 0;
     const monthElement = createElement("section", "booked-widget__month");
     const title = createElement(
       "h5",
@@ -346,6 +371,14 @@
       const dateValue = formatDate(day);
       const period = showPeriodColors && status === "free" ? periodDays.get(dateValue) : null;
       const periodClass = period ? ` booked-widget__day--period booked-widget__day--period-${period.type}` : "";
+      const isTooShortStay =
+        status === "free" &&
+        selectedStart &&
+        !selectedEnd &&
+        dateValue > selectedStart &&
+        selectedStartMinimumNights > 1 &&
+        getNightCount(selectedStart, dateValue) < selectedStartMinimumNights;
+      const tooShortClass = isTooShortStay ? " booked-widget__day--too-short" : "";
       const selectionClass =
         dateValue === selectedStart || dateValue === selectedEnd
           ? " booked-widget__day--selected"
@@ -354,7 +387,7 @@
             : "";
       const button = createElement(
         "button",
-        `booked-widget__day booked-widget__day--${status}${periodClass}${selectionClass}`,
+        `booked-widget__day booked-widget__day--${status}${periodClass}${selectionClass}${tooShortClass}`,
         String(day.getDate())
       );
       button.type = "button";
@@ -364,12 +397,17 @@
         button.dataset.periodLabel = period.label;
         button.style.setProperty("--booked-period-color", periodColors[period.type] || DEFAULT_PERIOD_COLORS[period.type]);
       }
+      if (isTooShortStay) {
+        button.dataset.tooltip = formatMinimumNightsRequired(selectedStartMinimumNights);
+        button.setAttribute("aria-disabled", "true");
+        button.tabIndex = -1;
+      }
       button.disabled = status !== "free" || !onDayClick;
       button.setAttribute(
         "aria-label",
-        `${dateValue} ${status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}${period?.label ? `, ${period.label}` : ""}`
+        `${dateValue} ${status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}${period?.label ? `, ${period.label}` : ""}${isTooShortStay ? `, ${formatMinimumNightsRequired(selectedStartMinimumNights)}` : ""}`
       );
-      if (status === "free" && onDayClick) {
+      if (status === "free" && onDayClick && !isTooShortStay) {
         button.addEventListener("click", () => onDayClick(dateValue));
       }
       grid.appendChild(button);
@@ -406,7 +444,7 @@
     const months = createElement("div", "booked-widget__months");
     months.style.setProperty("--booked-month-count", String(Math.min(monthsCount, 3)));
     for (let index = 0; index < monthsCount; index += 1) {
-      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors));
+      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors, giteConfig));
     }
     target.appendChild(months);
 
@@ -596,6 +634,7 @@
         selectedStart = date;
         selectedEnd = "";
       } else if (date > selectedStart) {
+        if (isStayBelowMinimum(selectedStart, date, currentAvailability, currentGiteConfig)) return;
         selectedEnd = date;
       } else {
         selectedStart = date;
@@ -838,6 +877,7 @@
         selectedEnd = "";
         quote = null;
       } else if (date > selectedStart) {
+        if (isStayBelowMinimum(selectedStart, date, currentAvailability, giteConfig)) return;
         selectedEnd = date;
       } else {
         selectedStart = date;
