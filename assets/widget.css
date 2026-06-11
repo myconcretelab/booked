@@ -933,6 +933,22 @@
   width: 100%;
 }
 
+.booked-gallery__media::after {
+  background: rgba(0, 0, 0, var(--booked-gallery-hover-dim-opacity, 0));
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 240ms ease;
+  z-index: 1;
+}
+
+.booked-gallery:has(.booked-gallery__media:hover) .booked-gallery__media:not(:hover)::after,
+.booked-gallery:has(.booked-gallery__media:focus-visible) .booked-gallery__media:not(:focus-visible)::after {
+  opacity: 1;
+}
+
 button.booked-gallery__media {
   cursor: zoom-in;
 }

@@ -180,6 +180,10 @@
       type: "number",
       default: 4,
     },
+    hoverDimOpacity: {
+      type: "number",
+      default: 0,
+    },
     lightbox: {
       type: "boolean",
       default: true,
@@ -608,6 +612,7 @@
       attributes.imageRatio,
       attributes.layoutMode,
       attributes.featuredSideCount,
+      attributes.hoverDimOpacity,
       attributes.lightbox,
       attributes.expandMode,
       attributes.widthMode,
@@ -629,6 +634,7 @@
       "data-image-ratio": attributes.imageRatio || "4-3",
       "data-layout-mode": attributes.layoutMode === "featured" ? "featured" : "grid",
       "data-featured-side-count": String(attributes.featuredSideCount || 4),
+      "data-hover-dim-opacity": String(attributes.hoverDimOpacity || 0),
       "data-lightbox": attributes.lightbox === false ? "0" : "1",
       "data-expand-mode": attributes.expandMode === "masonry" ? "masonry" : "lightbox",
       "data-width-mode": attributes.widthMode === "full" ? "full" : "fixed",
@@ -1397,6 +1403,21 @@
               value: attributes.imageRatio || "4-3",
               options: getGalleryRatioOptions(),
               onChange: (imageRatio) => setAttributes({ imageRatio }),
+            }),
+            el(RangeControl, {
+              label: __("Noircissement au survol", "booked"),
+              value: attributes.hoverDimOpacity || 0,
+              min: 0,
+              max: 80,
+              step: 5,
+              marks: [
+                { value: 0, label: "0%" },
+                { value: 20, label: "20%" },
+                { value: 40, label: "40%" },
+                { value: 60, label: "60%" },
+                { value: 80, label: "80%" },
+              ],
+              onChange: (value) => setAttributes({ hoverDimOpacity: value || 0 }),
             }),
             el(ToggleControl, {
               label: __("Agrandissement au clic", "booked"),

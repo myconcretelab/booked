@@ -145,6 +145,10 @@ class Booked_Block
                 'type' => 'number',
                 'default' => 4,
             ],
+            'hoverDimOpacity' => [
+                'type' => 'number',
+                'default' => 0,
+            ],
             'lightbox' => [
                 'type' => 'boolean',
                 'default' => true,
@@ -453,7 +457,7 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery'],
-            '0.3.27',
+            '0.3.28',
             true
         );
         wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.20');
@@ -595,6 +599,7 @@ class Booked_Block
             ? (string) $attributes['layoutMode']
             : 'grid';
         $featured_side_count = max(1, min(8, (int) ($attributes['featuredSideCount'] ?? 4)));
+        $hover_dim_opacity = max(0, min(80, (int) ($attributes['hoverDimOpacity'] ?? 0)));
         $width_mode = in_array((string) ($attributes['widthMode'] ?? 'fixed'), ['fixed', 'full'], true)
             ? (string) $attributes['widthMode']
             : 'fixed';
@@ -611,10 +616,11 @@ class Booked_Block
         $wrapper_attributes = get_block_wrapper_attributes([
             'class' => sprintf('booked-gallery booked-gallery--%s booked-gallery--layout-%s', $width_mode, $layout_mode),
             'style' => sprintf(
-                '--booked-gallery-gap:%dpx;--booked-gallery-max-width:%dpx;--booked-gallery-ratio:%s;',
+                '--booked-gallery-gap:%dpx;--booked-gallery-max-width:%dpx;--booked-gallery-ratio:%s;--booked-gallery-hover-dim-opacity:%s;',
                 $gap,
                 $max_width,
-                $this->get_gallery_ratio_css($image_ratio)
+                $this->get_gallery_ratio_css($image_ratio),
+                rtrim(rtrim(number_format($hover_dim_opacity / 100, 2, '.', ''), '0'), '.')
             ),
         ]);
 
@@ -626,7 +632,7 @@ class Booked_Block
         }
 
         return sprintf(
-            '<div %s data-gite-id="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-layout-mode="%s" data-featured-side-count="%d" data-lightbox="%s" data-expand-mode="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
+            '<div %s data-gite-id="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-layout-mode="%s" data-featured-side-count="%d" data-hover-dim-opacity="%d" data-lightbox="%s" data-expand-mode="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
             $wrapper_attributes,
             esc_attr($gite_id),
             $columns,
@@ -634,6 +640,7 @@ class Booked_Block
             esc_attr($image_ratio),
             esc_attr($layout_mode),
             $featured_side_count,
+            $hover_dim_opacity,
             $lightbox ? '1' : '0',
             esc_attr($expand_mode),
             esc_attr($width_mode),

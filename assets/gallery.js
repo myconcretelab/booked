@@ -124,6 +124,7 @@
       imageRatio,
       layoutMode: root.dataset.layoutMode === "featured" ? "featured" : "grid",
       featuredSideCount: readNumberOption(root, "featuredSideCount", 4, 1, 8),
+      hoverDimOpacity: readNumberOption(root, "hoverDimOpacity", 0, 0, 80),
       lightbox: root.dataset.lightbox !== "0",
       expandMode: root.dataset.expandMode === "masonry" ? "masonry" : "lightbox",
       widthMode,
@@ -136,6 +137,7 @@
     root.dataset.columns = String(options.columns);
     root.dataset.layoutMode = options.layoutMode;
     root.dataset.featuredSideCount = String(options.featuredSideCount);
+    root.dataset.hoverDimOpacity = String(options.hoverDimOpacity);
     root.classList.toggle("booked-gallery--fixed", options.widthMode === "fixed");
     root.classList.toggle("booked-gallery--full", options.widthMode === "full");
     root.classList.toggle("booked-gallery--layout-grid", options.layoutMode === "grid");
@@ -143,6 +145,7 @@
     root.style.setProperty("--booked-gallery-gap", `${options.gap}px`);
     root.style.setProperty("--booked-gallery-ratio", RATIOS[options.imageRatio]);
     root.style.setProperty("--booked-gallery-max-width", `${options.maxWidth}px`);
+    root.style.setProperty("--booked-gallery-hover-dim-opacity", String(options.hoverDimOpacity / 100));
   };
 
   const normalizePhotos = (payload) =>
