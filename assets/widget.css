@@ -944,8 +944,7 @@
   z-index: 1;
 }
 
-.booked-gallery:has(.booked-gallery__media:hover) .booked-gallery__media:not(:hover)::after,
-.booked-gallery:has(.booked-gallery__media:focus-visible) .booked-gallery__media:not(:focus-visible)::after {
+.booked-gallery--has-active-media .booked-gallery__media:not(.booked-gallery__media--active)::after {
   opacity: 1;
 }
 

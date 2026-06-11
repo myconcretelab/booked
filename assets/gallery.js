@@ -340,6 +340,49 @@
     return figure;
   };
 
+  const bindGalleryHoverState = (root) => {
+    if (root.dataset.bookedGalleryHoverBound === "1") return;
+    root.dataset.bookedGalleryHoverBound = "1";
+
+    const setActiveMedia = (media) => {
+      root.querySelectorAll(".booked-gallery__media").forEach((item) => {
+        item.classList.toggle("booked-gallery__media--active", item === media);
+      });
+      root.classList.add("booked-gallery--has-active-media");
+    };
+
+    const clearActiveMedia = () => {
+      root.querySelectorAll(".booked-gallery__media").forEach((item) => item.classList.remove("booked-gallery__media--active"));
+      root.classList.remove("booked-gallery--has-active-media");
+    };
+
+    root.addEventListener("pointerover", (event) => {
+      const media = event.target.closest(".booked-gallery__media");
+      if (media && root.contains(media)) {
+        setActiveMedia(media);
+      }
+    });
+
+    root.addEventListener("focusin", (event) => {
+      const media = event.target.closest(".booked-gallery__media");
+      if (media && root.contains(media)) {
+        setActiveMedia(media);
+      }
+    });
+
+    root.addEventListener("pointerleave", () => {
+      if (!root.contains(document.activeElement)) {
+        clearActiveMedia();
+      }
+    });
+
+    root.addEventListener("focusout", (event) => {
+      if (!root.contains(event.relatedTarget)) {
+        clearActiveMedia();
+      }
+    });
+  };
+
   const renderGridContent = (root, photos, options) => {
     const grid = createElement("div", "booked-gallery__grid");
     photos.forEach((photo, index) => {
@@ -370,6 +413,7 @@
     const photos = normalizePhotos(payload);
 
     applyLayoutOptions(root, options);
+    root.classList.remove("booked-gallery--has-active-media");
     root.innerHTML = "";
 
     if (photos.length === 0) {
@@ -379,10 +423,12 @@
 
     if (options.layoutMode === "featured" && photos.length > 1) {
       renderFeaturedContent(root, photos, options);
+      bindGalleryHoverState(root);
       return;
     }
 
     renderGridContent(root, photos, options);
+    bindGalleryHoverState(root);
   };
 
   const renderGallery = async (root) => {
