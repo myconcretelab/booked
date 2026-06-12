@@ -183,7 +183,8 @@ class Booked_PhotoSync
                 'credit' => sanitize_text_field((string) ($photo['credit'] ?? '')),
                 'is_primary' => !empty($photo['is_primary']),
                 'ordre' => isset($photo['ordre']) ? (int) $photo['ordre'] : 0,
-                'hash' => sanitize_text_field((string) ($photo['hash'] ?? $photo['updated_at'] ?? md5($url))),
+                'hash' => sanitize_text_field((string) ($photo['hash'] ?? md5($url))),
+                'has_explicit_hash' => array_key_exists('hash', $photo) && (string) $photo['hash'] !== '',
             ];
         }, $photos)));
     }
@@ -241,9 +242,16 @@ class Booked_PhotoSync
     private function should_replace_attachment(int $attachment_id, array $photo): bool
     {
         $source_url = (string) get_post_meta($attachment_id, self::META_SOURCE_URL, true);
-        $hash = (string) get_post_meta($attachment_id, self::META_HASH, true);
+        if ($source_url !== $photo['url']) {
+            return true;
+        }
 
-        return $source_url !== $photo['url'] || $hash !== $photo['hash'];
+        if (empty($photo['has_explicit_hash'])) {
+            return false;
+        }
+
+        $hash = (string) get_post_meta($attachment_id, self::META_HASH, true);
+        return $hash !== $photo['hash'];
     }
 
     private function import_photo(string $gite_id, array $photo)
