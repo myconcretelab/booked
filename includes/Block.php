@@ -7,13 +7,15 @@ if (!defined('ABSPATH')) {
 class Booked_Block
 {
     private Booked_Variables $variables;
+    private Booked_ApiClient $api_client;
     private const DEFAULT_HOLIDAY_COLOR = '#22c55e';
     private const DEFAULT_BRIDGE_COLOR = '#f97316';
     private const DEFAULT_SUMMER_COLOR = '#0ea5e9';
 
-    public function __construct(Booked_Variables $variables)
+    public function __construct(Booked_Variables $variables, Booked_ApiClient $api_client)
     {
         $this->variables = $variables;
+        $this->api_client = $api_client;
     }
 
     public function register(): void
@@ -185,6 +187,93 @@ class Booked_Block
         return $ratios[$ratio] ?? $ratios['4-3'];
     }
 
+    private function get_gite_cards_attributes(): array
+    {
+        return [
+            'selectedGiteIds' => [
+                'type' => 'array',
+                'default' => [],
+                'items' => ['type' => 'string'],
+            ],
+            'layout' => [
+                'type' => 'string',
+                'default' => 'grid',
+            ],
+            'columns' => [
+                'type' => 'number',
+                'default' => 3,
+            ],
+            'imageRatio' => [
+                'type' => 'string',
+                'default' => '4-3',
+            ],
+            'showImages' => [
+                'type' => 'boolean',
+                'default' => true,
+            ],
+            'showDescription' => [
+                'type' => 'boolean',
+                'default' => true,
+            ],
+            'showStats' => [
+                'type' => 'boolean',
+                'default' => true,
+            ],
+            'showCta' => [
+                'type' => 'boolean',
+                'default' => true,
+            ],
+            'ctaLabel' => [
+                'type' => 'string',
+                'default' => 'Voir le gîte',
+            ],
+        ];
+    }
+
+    private function get_all_gite_summaries(): array
+    {
+        $cached = get_transient('booked_gite_card_summaries');
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $result = $this->api_client->request('GET', '/booked/gites');
+        if (is_wp_error($result)) {
+            return [];
+        }
+
+        $items = $result['data'] ?? $result['gites'] ?? $result;
+        if (!is_array($items)) {
+            return [];
+        }
+
+        $gites = array_values(array_filter(array_map(static function ($item) {
+            if (!is_array($item)) {
+                return null;
+            }
+
+            $id = sanitize_text_field((string) ($item['id'] ?? $item['gite_id'] ?? $item['slug'] ?? ''));
+            if ($id === '') {
+                return null;
+            }
+
+            return [
+                'id' => $id,
+                'name' => sanitize_text_field((string) ($item['nom'] ?? $item['name'] ?? $item['title'] ?? $id)),
+                'capacity' => isset($item['capacite_max']) ? (int) $item['capacite_max'] : (isset($item['capacity']) ? (int) $item['capacity'] : null),
+            ];
+        }, $items)));
+
+        set_transient('booked_gite_card_summaries', $gites, 10 * MINUTE_IN_SECONDS);
+
+        return $gites;
+    }
+
+    private function sanitize_gite_id_list($value): array
+    {
+        return array_values(array_unique(array_filter(array_map('sanitize_text_field', (array) $value))));
+    }
+
     public function register_block(): void
     {
         register_block_type('booked/widget', [
@@ -280,6 +369,25 @@ class Booked_Block
             ],
             'attributes' => $this->get_gallery_attributes(),
             'render_callback' => [$this, 'render_gallery_block'],
+        ]);
+
+        register_block_type('booked/gite-cards', [
+            'api_version' => 2,
+            'title' => 'Booked Cards gîtes',
+            'category' => 'widgets',
+            'icon' => 'screenoptions',
+            'description' => 'Cards de résumé pour comparer rapidement les gîtes sur la page d’accueil.',
+            'supports' => [
+                'align' => true,
+                'anchor' => true,
+                'className' => true,
+                'spacing' => [
+                    'margin' => true,
+                    'padding' => true,
+                ],
+            ],
+            'attributes' => $this->get_gite_cards_attributes(),
+            'render_callback' => [$this, 'render_gite_cards_block'],
         ]);
 
         register_block_type('booked/booking-card', [
@@ -452,15 +560,16 @@ class Booked_Block
         wp_enqueue_script('booked-accordion');
         wp_enqueue_script('booked-gite-info');
         wp_enqueue_script('booked-gallery');
+        wp_enqueue_script('booked-gite-cards');
 
         wp_enqueue_script(
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
-            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery'],
-            '0.3.28',
+            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards'],
+            '0.3.29',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.20');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.21');
     }
 
     public function render_heading_block(array $attributes): string
@@ -584,6 +693,74 @@ class Booked_Block
             $show_title ? '1' : '0',
             $show_section_titles ? '1' : '0',
             $show_notes ? '1' : '0'
+        );
+    }
+
+    public function render_gite_cards_block(array $attributes): string
+    {
+        $selected_gite_ids = $this->sanitize_gite_id_list($attributes['selectedGiteIds'] ?? []);
+        $gites = $this->get_all_gite_summaries();
+        $gite_ids = $selected_gite_ids;
+
+        if (empty($gite_ids)) {
+            $gite_ids = array_values(array_filter(array_map(static fn($gite) => (string) ($gite['id'] ?? ''), $gites)));
+        }
+
+        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight'], true)
+            ? (string) $attributes['layout']
+            : 'grid';
+        $columns = max(1, min(4, (int) ($attributes['columns'] ?? 3)));
+        $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9'], true)
+            ? (string) $attributes['imageRatio']
+            : '4-3';
+        $show_images = !array_key_exists('showImages', $attributes) || !empty($attributes['showImages']);
+        $show_description = !array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription']);
+        $show_stats = !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
+        $show_cta = !array_key_exists('showCta', $attributes) || !empty($attributes['showCta']);
+        $cta_label = sanitize_text_field((string) ($attributes['ctaLabel'] ?? 'Voir le gîte'));
+        if ($cta_label === '') {
+            $cta_label = 'Voir le gîte';
+        }
+
+        $gite_lookup = [];
+        foreach ($gites as $gite) {
+            $id = (string) ($gite['id'] ?? '');
+            if ($id !== '') {
+                $gite_lookup[$id] = $gite;
+            }
+        }
+
+        $metadata = array_values(array_map(static function ($gite_id) use ($gite_lookup) {
+            $gite = $gite_lookup[$gite_id] ?? [];
+
+            return [
+                'id' => $gite_id,
+                'name' => (string) ($gite['name'] ?? $gite_id),
+                'capacity' => $gite['capacity'] ?? null,
+            ];
+        }, $gite_ids));
+
+        wp_enqueue_style('booked-widget');
+        wp_enqueue_script('booked-gite-cards');
+
+        $wrapper_attributes = get_block_wrapper_attributes([
+            'class' => sprintf('booked-gite-cards booked-gite-cards--%s', $layout),
+            'style' => sprintf('--booked-gite-cards-columns:%d;--booked-gite-cards-ratio:%s;', $columns, $this->get_gallery_ratio_css($image_ratio)),
+        ]);
+
+        return sprintf(
+            '<div %s data-gite-ids="%s" data-gites="%s" data-layout="%s" data-columns="%d" data-image-ratio="%s" data-show-images="%s" data-show-description="%s" data-show-stats="%s" data-show-cta="%s" data-cta-label="%s"></div>',
+            $wrapper_attributes,
+            esc_attr(wp_json_encode($gite_ids)),
+            esc_attr(wp_json_encode($metadata)),
+            esc_attr($layout),
+            $columns,
+            esc_attr($image_ratio),
+            $show_images ? '1' : '0',
+            $show_description ? '1' : '0',
+            $show_stats ? '1' : '0',
+            $show_cta ? '1' : '0',
+            esc_attr($cta_label)
         );
     }
 

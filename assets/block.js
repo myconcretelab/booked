@@ -206,6 +206,48 @@
     },
   };
 
+  const giteCardsAttributes = {
+    selectedGiteIds: {
+      type: "array",
+      default: [],
+      items: {
+        type: "string",
+      },
+    },
+    layout: {
+      type: "string",
+      default: "grid",
+    },
+    columns: {
+      type: "number",
+      default: 3,
+    },
+    imageRatio: {
+      type: "string",
+      default: "4-3",
+    },
+    showImages: {
+      type: "boolean",
+      default: true,
+    },
+    showDescription: {
+      type: "boolean",
+      default: true,
+    },
+    showStats: {
+      type: "boolean",
+      default: true,
+    },
+    showCta: {
+      type: "boolean",
+      default: true,
+    },
+    ctaLabel: {
+      type: "string",
+      default: __("Voir le gîte", "booked"),
+    },
+  };
+
   const getGalleryRatioOptions = () => [
     { label: __("Paysage 4:3", "booked"), value: "4-3" },
     { label: __("Carré 1:1", "booked"), value: "1-1" },
@@ -222,6 +264,19 @@
   const getGalleryExpandOptions = () => [
     { label: __("Lightbox", "booked"), value: "lightbox" },
     { label: __("Masonry en overlay", "booked"), value: "masonry" },
+  ];
+
+  const getGiteCardsLayoutOptions = () => [
+    { label: __("Grille élégante", "booked"), value: "grid" },
+    { label: __("Liste compacte", "booked"), value: "compact" },
+    { label: __("Mise en avant", "booked"), value: "spotlight" },
+  ];
+
+  const getGiteCardsRatioOptions = () => [
+    { label: __("Paysage 4:3", "booked"), value: "4-3" },
+    { label: __("Carré 1:1", "booked"), value: "1-1" },
+    { label: __("Paysage 3:2", "booked"), value: "3-2" },
+    { label: __("Large 16:9", "booked"), value: "16-9" },
   ];
 
   const getCalendarColorControls = (attributes, setAttributes) => [
@@ -467,6 +522,19 @@
   const isNoSelection = (value) => normalizeIdList(value).includes(NO_SELECTION_ID);
   const withoutNoSelection = (value) => normalizeIdList(value).filter((id) => id !== NO_SELECTION_ID);
 
+  const getSelectedGiteCardIds = (selectedGiteIds, gites) => {
+    const selected = normalizeIdList(selectedGiteIds);
+    return selected.length > 0 ? selected : gites.map((gite) => gite.id).filter(Boolean);
+  };
+
+  const toggleSelectedGiteCard = (selectedGiteIds, giteId, allGiteIds) => {
+    const selected = normalizeIdList(selectedGiteIds);
+    const all = normalizeIdList(allGiteIds);
+    const effective = selected.length === 0 ? all : selected;
+    const next = effective.includes(giteId) ? effective.filter((id) => id !== giteId) : [...effective, giteId];
+    return next.length === all.length ? [] : next;
+  };
+
   const toggleSelectedId = (currentValue, id, allIds) => {
     const current = withoutNoSelection(currentValue);
     const all = normalizeIdList(allIds);
@@ -640,6 +708,54 @@
       "data-width-mode": attributes.widthMode === "full" ? "full" : "fixed",
       "data-max-width": String(attributes.maxWidth || 1200),
       "data-show-captions": attributes.showCaptions ? "1" : "0",
+    });
+  };
+
+  const GiteCardsPreview = ({ attributes, gites }) => {
+    const ref = useRef(null);
+    const selectedGiteIds = getSelectedGiteCardIds(attributes.selectedGiteIds, gites);
+    const giteMetadata = selectedGiteIds.map((giteId) => {
+      const gite = gites.find((item) => item.id === giteId) || {};
+      return {
+        id: giteId,
+        name: gite.name || giteId,
+        capacity: gite.capacity || null,
+      };
+    });
+
+    useEffect(() => {
+      if (!ref.current || selectedGiteIds.length === 0 || !window.BookedGiteCards) return;
+      window.BookedGiteCards.render(ref.current);
+    }, [
+      JSON.stringify(selectedGiteIds),
+      JSON.stringify(giteMetadata),
+      attributes.layout,
+      attributes.columns,
+      attributes.imageRatio,
+      attributes.showImages,
+      attributes.showDescription,
+      attributes.showStats,
+      attributes.showCta,
+      attributes.ctaLabel,
+    ]);
+
+    if (selectedGiteIds.length === 0) {
+      return el("div", { className: "booked-block-placeholder" }, __("Sélectionnez au moins un gîte ou rechargez la liste.", "booked"));
+    }
+
+    return el("div", {
+      ref,
+      className: `booked-gite-cards booked-gite-cards--${attributes.layout || "grid"}`,
+      "data-gite-ids": JSON.stringify(selectedGiteIds),
+      "data-gites": JSON.stringify(giteMetadata),
+      "data-layout": attributes.layout || "grid",
+      "data-columns": String(attributes.columns || 3),
+      "data-image-ratio": attributes.imageRatio || "4-3",
+      "data-show-images": attributes.showImages === false ? "0" : "1",
+      "data-show-description": attributes.showDescription === false ? "0" : "1",
+      "data-show-stats": attributes.showStats === false ? "0" : "1",
+      "data-show-cta": attributes.showCta === false ? "0" : "1",
+      "data-cta-label": attributes.ctaLabel || __("Voir le gîte", "booked"),
     });
   };
 
@@ -1240,6 +1356,141 @@
           )
         ),
         el("div", blockProps, el(BookingCardPreview, { attributes }))
+      );
+    },
+
+    save() {
+      return null;
+    },
+  });
+
+  registerBlockType("booked/gite-cards", {
+    attributes: giteCardsAttributes,
+    supports: {
+      align: true,
+      anchor: true,
+      className: true,
+      spacing: {
+        margin: true,
+        padding: true,
+      },
+    },
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-block booked-block--gite-cards" });
+      const { gites, isLoading, error, loadGites } = useGites();
+      const selectedGiteIds = normalizeIdList(attributes.selectedGiteIds);
+      const allGiteIds = gites.map((gite) => gite.id).filter(Boolean);
+      const manualIds = selectedGiteIds.join(", ");
+
+      return el(
+        Fragment,
+        null,
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Gîtes à afficher", "booked"), initialOpen: true },
+            isLoading ? el(Spinner) : null,
+            error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
+            !isLoading && !error && gites.length === 0
+              ? el("p", { className: "booked-block-help" }, __("Aucun gîte disponible.", "booked"))
+              : null,
+            gites.length > 0
+              ? el(
+                  "p",
+                  { className: "booked-block-help" },
+                  selectedGiteIds.length === 0
+                    ? __("Tous les gîtes sont affichés.", "booked")
+                    : sprintf(__("%d gîte(s) sélectionné(s).", "booked"), selectedGiteIds.length)
+                )
+              : null,
+            gites.map((gite) =>
+              el(CheckboxControl, {
+                key: gite.id,
+                label: gite.capacity ? `${gite.name} (${gite.capacity} pers.)` : gite.name,
+                checked: selectedGiteIds.length === 0 || selectedGiteIds.includes(gite.id),
+                onChange: () =>
+                  setAttributes({
+                    selectedGiteIds: toggleSelectedGiteCard(selectedGiteIds, gite.id, allGiteIds),
+                  }),
+              })
+            ),
+            selectedGiteIds.length > 0
+              ? el(Button, { variant: "secondary", onClick: () => setAttributes({ selectedGiteIds: [] }) }, __("Afficher tous les gîtes", "booked"))
+              : null,
+            el(TextControl, {
+              label: __("IDs des gîtes", "booked"),
+              value: manualIds,
+              help: __("Laisser vide pour afficher tous les gîtes disponibles.", "booked"),
+              onChange: (value) =>
+                setAttributes({
+                  selectedGiteIds: value.split(",").map((item) => item.trim()).filter(Boolean),
+                }),
+            }),
+            el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
+          ),
+          el(
+            PanelBody,
+            { title: __("Affichage", "booked"), initialOpen: true },
+            el(SelectControl, {
+              label: __("Style", "booked"),
+              value: attributes.layout || "grid",
+              options: getGiteCardsLayoutOptions(),
+              onChange: (layout) => setAttributes({ layout }),
+            }),
+            (attributes.layout || "grid") !== "compact"
+              ? el(RangeControl, {
+                  label: __("Nombre de colonnes", "booked"),
+                  value: attributes.columns || 3,
+                  min: 1,
+                  max: 4,
+                  step: 1,
+                  marks: [
+                    { value: 1, label: "1" },
+                    { value: 2, label: "2" },
+                    { value: 3, label: "3" },
+                    { value: 4, label: "4" },
+                  ],
+                  onChange: (value) => setAttributes({ columns: value || 3 }),
+                })
+              : null,
+            el(SelectControl, {
+              label: __("Format des images", "booked"),
+              value: attributes.imageRatio || "4-3",
+              options: getGiteCardsRatioOptions(),
+              onChange: (imageRatio) => setAttributes({ imageRatio }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les images", "booked"),
+              checked: attributes.showImages !== false,
+              onChange: (showImages) => setAttributes({ showImages }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher le résumé", "booked"),
+              checked: attributes.showDescription !== false,
+              onChange: (showDescription) => setAttributes({ showDescription }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les pictos", "booked"),
+              checked: attributes.showStats !== false,
+              onChange: (showStats) => setAttributes({ showStats }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher le bouton", "booked"),
+              checked: attributes.showCta !== false,
+              onChange: (showCta) => setAttributes({ showCta }),
+            }),
+            attributes.showCta === false
+              ? null
+              : el(TextControl, {
+                  label: __("Libellé du bouton", "booked"),
+                  value: attributes.ctaLabel || __("Voir le gîte", "booked"),
+                  onChange: (ctaLabel) => setAttributes({ ctaLabel }),
+                })
+          )
+        ),
+        el("div", blockProps, el(GiteCardsPreview, { attributes, gites }))
       );
     },
 

@@ -820,6 +820,233 @@
   color: #475569;
 }
 
+.booked-gite-cards {
+  display: block;
+  width: 100%;
+}
+
+.booked-gite-cards__grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(var(--booked-gite-cards-columns, 3), minmax(0, 1fr));
+}
+
+.booked-gite-cards__card {
+  background: #ffffff;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  color: #172033;
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.booked-gite-cards__card::before {
+  background: #b8905f;
+  content: "";
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 2;
+}
+
+.booked-gite-cards__card:hover {
+  border-color: #b8c5d1;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+.booked-gite-cards__media {
+  aspect-ratio: var(--booked-gite-cards-ratio, 4 / 3);
+  background: #eef2f4;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.booked-gite-cards__image {
+  display: block;
+  height: 100%;
+  inset: 0;
+  max-width: none;
+  object-fit: cover;
+  position: absolute;
+  transition: transform 260ms ease;
+  width: 100%;
+}
+
+.booked-gite-cards__card:hover .booked-gite-cards__image {
+  transform: scale(1.035);
+}
+
+.booked-gite-cards__placeholder {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(184, 144, 95, 0.16), transparent 54%),
+    #f6f7f4;
+  color: #53606d;
+  display: grid;
+  gap: 10px;
+  height: 100%;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.booked-gite-cards__placeholder .booked-gite-cards__icon {
+  height: 34px;
+  width: 34px;
+}
+
+.booked-gite-cards__body {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.booked-gite-cards__eyebrow,
+.booked-gite-cards__title,
+.booked-gite-cards__description {
+  margin: 0;
+}
+
+.booked-gite-cards__eyebrow {
+  color: #867053;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.booked-gite-cards__title {
+  color: #111827;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.booked-gite-cards__description {
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.booked-gite-cards__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+}
+
+.booked-gite-cards__stat {
+  align-items: center;
+  background: #f7f8f6;
+  border: 1px solid #e3e8e4;
+  border-radius: 999px;
+  color: #304236;
+  display: inline-flex;
+  flex: 0 1 auto;
+  font-size: 13px;
+  font-weight: 650;
+  gap: 6px;
+  line-height: 1.2;
+  min-width: 0;
+  padding: 7px 10px;
+}
+
+.booked-gite-cards__icon {
+  flex: 0 0 auto;
+  height: 17px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  width: 17px;
+}
+
+.booked-gite-cards__link {
+  align-items: center;
+  color: #0f5f57;
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 750;
+  gap: 8px;
+  justify-self: start;
+  line-height: 1.25;
+  margin-top: 2px;
+  text-decoration: none;
+}
+
+.booked-gite-cards__link:hover {
+  color: #0b4a44;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.booked-gite-cards__link-arrow {
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 180ms ease;
+}
+
+.booked-gite-cards__link:hover .booked-gite-cards__link-arrow {
+  transform: translateX(3px);
+}
+
+.booked-gite-cards--compact .booked-gite-cards__grid {
+  grid-template-columns: 1fr;
+}
+
+.booked-gite-cards--compact .booked-gite-cards__card {
+  align-items: stretch;
+  grid-template-columns: minmax(160px, 0.36fr) minmax(0, 1fr);
+}
+
+.booked-gite-cards--compact .booked-gite-cards__media {
+  aspect-ratio: auto;
+  min-height: 190px;
+}
+
+.booked-gite-cards--compact .booked-gite-cards__body {
+  align-content: center;
+  padding: 22px 24px;
+}
+
+.booked-gite-cards--spotlight[data-columns="2"] .booked-gite-cards__card--first,
+.booked-gite-cards--spotlight[data-columns="3"] .booked-gite-cards__card--first,
+.booked-gite-cards--spotlight[data-columns="4"] .booked-gite-cards__card--first {
+  grid-column: span 2;
+}
+
+.booked-gite-cards--spotlight .booked-gite-cards__card--first .booked-gite-cards__body {
+  padding: 24px;
+}
+
+.booked-gite-cards--spotlight .booked-gite-cards__card--first .booked-gite-cards__title {
+  font-size: 28px;
+}
+
+.booked-gite-cards--no-images .booked-gite-cards__body {
+  padding-top: 24px;
+}
+
+.booked-gite-cards__loading,
+.booked-gite-cards__empty {
+  color: #475569;
+  padding: 16px 0;
+}
+
 .booked-gallery {
   display: block;
   max-width: none;
@@ -1547,6 +1774,21 @@ button.booked-gallery__media:hover .booked-gallery__image {
     grid-template-columns: 1fr;
   }
 
+  .booked-gite-cards__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .booked-gite-cards--compact .booked-gite-cards__card,
+  .booked-gite-cards--spotlight .booked-gite-cards__card--first {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .booked-gite-cards--compact .booked-gite-cards__media {
+    aspect-ratio: var(--booked-gite-cards-ratio, 4 / 3);
+    min-height: 0;
+  }
+
   .booked-gallery[data-columns="3"] .booked-gallery__grid,
   .booked-gallery[data-columns="4"] .booked-gallery__grid,
   .booked-gallery[data-columns="5"] .booked-gallery__grid,
@@ -1694,6 +1936,22 @@ button.booked-gallery__media:hover .booked-gallery__image {
 }
 
 @media (max-width: 480px) {
+  .booked-gite-cards__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .booked-gite-cards__body {
+    padding: 18px;
+  }
+
+  .booked-gite-cards__title {
+    font-size: 20px;
+  }
+
+  .booked-gite-cards--spotlight .booked-gite-cards__card--first .booked-gite-cards__title {
+    font-size: 22px;
+  }
+
   .booked-gallery[data-columns] .booked-gallery__grid {
     grid-template-columns: 1fr;
   }
