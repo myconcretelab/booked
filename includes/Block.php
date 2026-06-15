@@ -274,6 +274,50 @@ class Booked_Block
         return array_values(array_unique(array_filter(array_map('sanitize_text_field', (array) $value))));
     }
 
+    private function get_gite_page_urls(array $gite_ids): array
+    {
+        $gite_ids = $this->sanitize_gite_id_list($gite_ids);
+        if (empty($gite_ids)) {
+            return [];
+        }
+
+        $post_types = get_post_types(['public' => true], 'names');
+        unset($post_types['attachment']);
+        if (empty($post_types)) {
+            $post_types = ['page'];
+        }
+
+        $query = new WP_Query([
+            'post_type' => array_values($post_types),
+            'post_status' => 'publish',
+            'posts_per_page' => -1,
+            'no_found_rows' => true,
+            'fields' => 'ids',
+            'meta_query' => [
+                [
+                    'key' => Booked_PageVariables::DEFAULT_GITE_META_KEY,
+                    'value' => $gite_ids,
+                    'compare' => 'IN',
+                ],
+            ],
+        ]);
+
+        $urls = [];
+        foreach ($query->posts as $post_id) {
+            $gite_id = sanitize_text_field((string) get_post_meta((int) $post_id, Booked_PageVariables::DEFAULT_GITE_META_KEY, true));
+            if ($gite_id === '' || isset($urls[$gite_id])) {
+                continue;
+            }
+
+            $permalink = get_permalink((int) $post_id);
+            if (is_string($permalink) && $permalink !== '') {
+                $urls[$gite_id] = esc_url_raw($permalink);
+            }
+        }
+
+        return $urls;
+    }
+
     public function register_block(): void
     {
         register_block_type('booked/widget', [
@@ -566,7 +610,7 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards'],
-            '0.3.30',
+            '0.3.31',
             true
         );
         wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.22');
@@ -740,13 +784,15 @@ class Booked_Block
             }
         }
 
-        $metadata = array_values(array_map(static function ($gite_id) use ($gite_lookup) {
+        $page_urls = $is_page_compact ? [] : $this->get_gite_page_urls($gite_ids);
+        $metadata = array_values(array_map(static function ($gite_id) use ($gite_lookup, $page_urls) {
             $gite = $gite_lookup[$gite_id] ?? [];
 
             return [
                 'id' => $gite_id,
                 'name' => (string) ($gite['name'] ?? $gite_id),
                 'capacity' => $gite['capacity'] ?? null,
+                'pageUrl' => (string) ($page_urls[$gite_id] ?? ''),
             ];
         }, $gite_ids));
 

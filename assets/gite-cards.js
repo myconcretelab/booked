@@ -212,7 +212,7 @@
       eyebrow: getText(payload.public_subtitle, payload.subtitle, payload.accroche),
       description,
       photo: getPrimaryPhoto(payload),
-      url: getText(payload.public_url, payload.url, payload.permalink, payload.link),
+      url: getText(metadata.pageUrl, metadata.url, payload.public_url, payload.url, payload.permalink, payload.link),
       stats: [
         capacity ? { icon: "people", label: "Capacité", value: `${capacity} pers.` } : null,
         bedrooms ? { icon: "bedrooms", label: "Chambres", value: String(bedrooms) } : null,
@@ -224,8 +224,12 @@
   };
 
   const renderPhoto = (gite, options) => {
-    const media = createElement("div", "booked-gite-cards__media");
+    const media = createElement(gite.url ? "a" : "div", gite.url ? "booked-gite-cards__media booked-gite-cards__media--link" : "booked-gite-cards__media");
     if (!options.showImages) return media;
+    if (gite.url) {
+      media.href = gite.url;
+      media.setAttribute("aria-label", `Voir ${gite.name}`);
+    }
 
     if (gite.photo && gite.photo.url) {
       const image = createElement("img", "booked-gite-cards__image");
@@ -274,7 +278,15 @@
       body.appendChild(createElement("p", "booked-gite-cards__eyebrow", gite.eyebrow));
     }
     if (options.layout !== "page-compact") {
-      body.appendChild(createElement("h3", "booked-gite-cards__title", gite.name));
+      const title = createElement("h3", "booked-gite-cards__title");
+      if (gite.url) {
+        const titleLink = createElement("a", "booked-gite-cards__title-link", gite.name);
+        titleLink.href = gite.url;
+        title.appendChild(titleLink);
+      } else {
+        title.textContent = gite.name;
+      }
+      body.appendChild(title);
     }
     if (options.showDescription && gite.description) {
       body.appendChild(createElement("p", "booked-gite-cards__description", gite.description));
