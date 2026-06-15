@@ -270,10 +270,12 @@
     }
 
     const body = createElement("div", "booked-gite-cards__body");
-    if (gite.eyebrow) {
+    if (options.layout !== "page-compact" && gite.eyebrow) {
       body.appendChild(createElement("p", "booked-gite-cards__eyebrow", gite.eyebrow));
     }
-    body.appendChild(createElement("h3", "booked-gite-cards__title", gite.name));
+    if (options.layout !== "page-compact") {
+      body.appendChild(createElement("h3", "booked-gite-cards__title", gite.name));
+    }
     if (options.showDescription && gite.description) {
       body.appendChild(createElement("p", "booked-gite-cards__description", gite.description));
     }
@@ -296,6 +298,7 @@
     root.classList.toggle("booked-gite-cards--compact", options.layout === "compact");
     root.classList.toggle("booked-gite-cards--grid", options.layout === "grid");
     root.classList.toggle("booked-gite-cards--spotlight", options.layout === "spotlight");
+    root.classList.toggle("booked-gite-cards--page-compact", options.layout === "page-compact");
     root.classList.toggle("booked-gite-cards--no-images", !options.showImages);
     root.style.setProperty("--booked-gite-cards-columns", String(options.columns));
     root.style.setProperty("--booked-gite-cards-ratio", options.imageRatioCss);
@@ -319,15 +322,16 @@
     };
     const columns = Number.parseInt(root.dataset.columns || "3", 10);
     const imageRatio = root.dataset.imageRatio || "4-3";
+    const layout = ["grid", "compact", "spotlight", "page-compact"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
 
     return {
-      layout: ["grid", "compact", "spotlight"].includes(root.dataset.layout) ? root.dataset.layout : "grid",
-      columns: Number.isFinite(columns) ? Math.max(1, Math.min(4, columns)) : 3,
+      layout,
+      columns: layout === "page-compact" ? 1 : Number.isFinite(columns) ? Math.max(1, Math.min(4, columns)) : 3,
       imageRatioCss: ratios[imageRatio] || ratios["4-3"],
-      showImages: root.dataset.showImages !== "0",
-      showDescription: root.dataset.showDescription !== "0",
-      showStats: root.dataset.showStats !== "0",
-      showCta: root.dataset.showCta !== "0",
+      showImages: layout !== "page-compact" && root.dataset.showImages !== "0",
+      showDescription: layout !== "page-compact" && root.dataset.showDescription !== "0",
+      showStats: layout === "page-compact" || root.dataset.showStats !== "0",
+      showCta: layout !== "page-compact" && root.dataset.showCta !== "0",
       ctaLabel: root.dataset.ctaLabel || "Voir le gîte",
     };
   };

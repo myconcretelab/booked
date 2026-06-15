@@ -270,6 +270,7 @@
     { label: __("Grille élégante", "booked"), value: "grid" },
     { label: __("Liste compacte", "booked"), value: "compact" },
     { label: __("Mise en avant", "booked"), value: "spotlight" },
+    { label: __("Compact gîte de la page", "booked"), value: "page-compact" },
   ];
 
   const getGiteCardsRatioOptions = () => [
@@ -713,7 +714,11 @@
 
   const GiteCardsPreview = ({ attributes, gites }) => {
     const ref = useRef(null);
-    const selectedGiteIds = getSelectedGiteCardIds(attributes.selectedGiteIds, gites);
+    const defaultGiteId = useDefaultGiteId();
+    const isPageCompact = (attributes.layout || "grid") === "page-compact";
+    const selectedGiteIds = isPageCompact
+      ? [defaultGiteId || normalizeIdList(attributes.selectedGiteIds)[0]].filter(Boolean)
+      : getSelectedGiteCardIds(attributes.selectedGiteIds, gites);
     const giteMetadata = selectedGiteIds.map((giteId) => {
       const gite = gites.find((item) => item.id === giteId) || {};
       return {
@@ -729,6 +734,7 @@
     }, [
       JSON.stringify(selectedGiteIds),
       JSON.stringify(giteMetadata),
+      defaultGiteId,
       attributes.layout,
       attributes.columns,
       attributes.imageRatio,
@@ -749,12 +755,12 @@
       "data-gite-ids": JSON.stringify(selectedGiteIds),
       "data-gites": JSON.stringify(giteMetadata),
       "data-layout": attributes.layout || "grid",
-      "data-columns": String(attributes.columns || 3),
+      "data-columns": String(isPageCompact ? 1 : attributes.columns || 3),
       "data-image-ratio": attributes.imageRatio || "4-3",
-      "data-show-images": attributes.showImages === false ? "0" : "1",
-      "data-show-description": attributes.showDescription === false ? "0" : "1",
-      "data-show-stats": attributes.showStats === false ? "0" : "1",
-      "data-show-cta": attributes.showCta === false ? "0" : "1",
+      "data-show-images": isPageCompact || attributes.showImages === false ? "0" : "1",
+      "data-show-description": isPageCompact || attributes.showDescription === false ? "0" : "1",
+      "data-show-stats": isPageCompact || attributes.showStats !== false ? "1" : "0",
+      "data-show-cta": isPageCompact || attributes.showCta === false ? "0" : "1",
       "data-cta-label": attributes.ctaLabel || __("Voir le gîte", "booked"),
     });
   };
@@ -1378,6 +1384,8 @@
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block booked-block--gite-cards" });
       const { gites, isLoading, error, loadGites } = useGites();
+      const defaultGiteId = useDefaultGiteId();
+      const isPageCompact = (attributes.layout || "grid") === "page-compact";
       const selectedGiteIds = normalizeIdList(attributes.selectedGiteIds);
       const allGiteIds = gites.map((gite) => gite.id).filter(Boolean);
       const manualIds = selectedGiteIds.join(", ");
@@ -1400,7 +1408,11 @@
               ? el(
                   "p",
                   { className: "booked-block-help" },
-                  selectedGiteIds.length === 0
+                  isPageCompact && defaultGiteId
+                    ? sprintf(__("Ce mode utilise le gîte de la page (%s).", "booked"), getGiteName(gites, defaultGiteId))
+                    : isPageCompact
+                    ? __("Ce mode utilise d’abord le gîte associé à la page. L’ID ci-dessous sert de secours.", "booked")
+                    : selectedGiteIds.length === 0
                     ? __("Tous les gîtes sont affichés.", "booked")
                     : sprintf(__("%d gîte(s) sélectionné(s).", "booked"), selectedGiteIds.length)
                 )
@@ -1409,7 +1421,9 @@
               el(CheckboxControl, {
                 key: gite.id,
                 label: gite.capacity ? `${gite.name} (${gite.capacity} pers.)` : gite.name,
-                checked: selectedGiteIds.length === 0 || selectedGiteIds.includes(gite.id),
+                checked: isPageCompact
+                  ? selectedGiteIds.includes(gite.id) || (selectedGiteIds.length === 0 && defaultGiteId === gite.id)
+                  : selectedGiteIds.length === 0 || selectedGiteIds.includes(gite.id),
                 onChange: () =>
                   setAttributes({
                     selectedGiteIds: toggleSelectedGiteCard(selectedGiteIds, gite.id, allGiteIds),
@@ -1417,12 +1431,18 @@
               })
             ),
             selectedGiteIds.length > 0
-              ? el(Button, { variant: "secondary", onClick: () => setAttributes({ selectedGiteIds: [] }) }, __("Afficher tous les gîtes", "booked"))
+              ? el(
+                  Button,
+                  { variant: "secondary", onClick: () => setAttributes({ selectedGiteIds: [] }) },
+                  isPageCompact ? __("Retirer le gîte de secours", "booked") : __("Afficher tous les gîtes", "booked")
+                )
               : null,
             el(TextControl, {
               label: __("IDs des gîtes", "booked"),
               value: manualIds,
-              help: __("Laisser vide pour afficher tous les gîtes disponibles.", "booked"),
+              help: isPageCompact
+                ? __("Optionnel : utilisé seulement si aucun gîte n’est associé à la page.", "booked")
+                : __("Laisser vide pour afficher tous les gîtes disponibles.", "booked"),
               onChange: (value) =>
                 setAttributes({
                   selectedGiteIds: value.split(",").map((item) => item.trim()).filter(Boolean),
@@ -1439,7 +1459,7 @@
               options: getGiteCardsLayoutOptions(),
               onChange: (layout) => setAttributes({ layout }),
             }),
-            (attributes.layout || "grid") !== "compact"
+            !["compact", "page-compact"].includes(attributes.layout || "grid")
               ? el(RangeControl, {
                   label: __("Nombre de colonnes", "booked"),
                   value: attributes.columns || 3,
@@ -1455,33 +1475,43 @@
                   onChange: (value) => setAttributes({ columns: value || 3 }),
                 })
               : null,
-            el(SelectControl, {
-              label: __("Format des images", "booked"),
-              value: attributes.imageRatio || "4-3",
-              options: getGiteCardsRatioOptions(),
-              onChange: (imageRatio) => setAttributes({ imageRatio }),
-            }),
-            el(ToggleControl, {
-              label: __("Afficher les images", "booked"),
-              checked: attributes.showImages !== false,
-              onChange: (showImages) => setAttributes({ showImages }),
-            }),
-            el(ToggleControl, {
-              label: __("Afficher le résumé", "booked"),
-              checked: attributes.showDescription !== false,
-              onChange: (showDescription) => setAttributes({ showDescription }),
-            }),
-            el(ToggleControl, {
-              label: __("Afficher les pictos", "booked"),
-              checked: attributes.showStats !== false,
-              onChange: (showStats) => setAttributes({ showStats }),
-            }),
-            el(ToggleControl, {
-              label: __("Afficher le bouton", "booked"),
-              checked: attributes.showCta !== false,
-              onChange: (showCta) => setAttributes({ showCta }),
-            }),
-            attributes.showCta === false
+            isPageCompact
+              ? el("p", { className: "booked-block-help" }, __("Ce style affiche uniquement le tableau des infos principales.", "booked"))
+              : el(SelectControl, {
+                  label: __("Format des images", "booked"),
+                  value: attributes.imageRatio || "4-3",
+                  options: getGiteCardsRatioOptions(),
+                  onChange: (imageRatio) => setAttributes({ imageRatio }),
+                }),
+            isPageCompact
+              ? null
+              : el(ToggleControl, {
+                  label: __("Afficher les images", "booked"),
+                  checked: attributes.showImages !== false,
+                  onChange: (showImages) => setAttributes({ showImages }),
+                }),
+            isPageCompact
+              ? null
+              : el(ToggleControl, {
+                  label: __("Afficher le résumé", "booked"),
+                  checked: attributes.showDescription !== false,
+                  onChange: (showDescription) => setAttributes({ showDescription }),
+                }),
+            isPageCompact
+              ? null
+              : el(ToggleControl, {
+                  label: __("Afficher les pictos", "booked"),
+                  checked: attributes.showStats !== false,
+                  onChange: (showStats) => setAttributes({ showStats }),
+                }),
+            isPageCompact
+              ? null
+              : el(ToggleControl, {
+                  label: __("Afficher le bouton", "booked"),
+                  checked: attributes.showCta !== false,
+                  onChange: (showCta) => setAttributes({ showCta }),
+                }),
+            isPageCompact || attributes.showCta === false
               ? null
               : el(TextControl, {
                   label: __("Libellé du bouton", "booked"),

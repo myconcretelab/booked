@@ -566,10 +566,10 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards'],
-            '0.3.29',
+            '0.3.30',
             true
         );
-        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.21');
+        wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.22');
     }
 
     public function render_heading_block(array $attributes): string
@@ -699,27 +699,37 @@ class Booked_Block
     public function render_gite_cards_block(array $attributes): string
     {
         $selected_gite_ids = $this->sanitize_gite_id_list($attributes['selectedGiteIds'] ?? []);
-        $gites = $this->get_all_gite_summaries();
+        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact'], true)
+            ? (string) $attributes['layout']
+            : 'grid';
+        $is_page_compact = $layout === 'page-compact';
+        $gites = $is_page_compact && empty($selected_gite_ids) ? [] : $this->get_all_gite_summaries();
         $gite_ids = $selected_gite_ids;
 
-        if (empty($gite_ids)) {
+        if ($is_page_compact) {
+            $page_gite_id = $this->get_default_gite_id();
+            if ($page_gite_id === '') {
+                $page_gite_id = $this->get_first_page_block_gite_id();
+            }
+            $gite_ids = $page_gite_id !== '' ? [$page_gite_id] : array_slice($selected_gite_ids, 0, 1);
+        } elseif (empty($gite_ids)) {
             $gite_ids = array_values(array_filter(array_map(static fn($gite) => (string) ($gite['id'] ?? ''), $gites)));
         }
 
-        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight'], true)
-            ? (string) $attributes['layout']
-            : 'grid';
         $columns = max(1, min(4, (int) ($attributes['columns'] ?? 3)));
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9'], true)
             ? (string) $attributes['imageRatio']
             : '4-3';
-        $show_images = !array_key_exists('showImages', $attributes) || !empty($attributes['showImages']);
-        $show_description = !array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription']);
-        $show_stats = !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
-        $show_cta = !array_key_exists('showCta', $attributes) || !empty($attributes['showCta']);
+        $show_images = !$is_page_compact && (!array_key_exists('showImages', $attributes) || !empty($attributes['showImages']));
+        $show_description = !$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription']));
+        $show_stats = $is_page_compact || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
+        $show_cta = !$is_page_compact && (!array_key_exists('showCta', $attributes) || !empty($attributes['showCta']));
         $cta_label = sanitize_text_field((string) ($attributes['ctaLabel'] ?? 'Voir le gîte'));
         if ($cta_label === '') {
             $cta_label = 'Voir le gîte';
+        }
+        if ($is_page_compact) {
+            $columns = 1;
         }
 
         $gite_lookup = [];
