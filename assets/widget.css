@@ -941,16 +941,23 @@
 }
 
 .booked-gite-cards__stats {
-  border-collapse: collapse;
   color: #304236;
+  display: block;
   font-size: 14px;
   line-height: 1.25;
   margin: 4px 0 0;
   width: 100%;
 }
 
+.booked-gite-cards__stats tbody {
+  display: grid;
+  gap: 0 24px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
 .booked-gite-cards__stat-row {
-  border-bottom: 1px solid #e5ebe7;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
 }
 
 .booked-gite-cards__stat-row:last-child {
@@ -960,6 +967,7 @@
 .booked-gite-cards__stat-icon,
 .booked-gite-cards__stat-label,
 .booked-gite-cards__stat-value {
+  border-bottom: 1px solid #e5ebe7;
   padding-block: 10px;
   vertical-align: middle;
 }
