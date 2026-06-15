@@ -214,11 +214,11 @@
       photo: getPrimaryPhoto(payload),
       url: getText(payload.public_url, payload.url, payload.permalink, payload.link),
       stats: [
-        capacity ? { icon: "people", label: `${capacity} pers.` } : null,
-        bedrooms ? { icon: "bedrooms", label: `${bedrooms} chambre${bedrooms > 1 ? "s" : ""}` } : null,
-        beds ? { icon: "beds", label: `${beds} lit${beds > 1 ? "s" : ""}` } : null,
-        bathrooms ? { icon: "bath", label: `${bathrooms} salle${bathrooms > 1 ? "s" : ""} d'eau` } : null,
-        surface ? { icon: "surface", label: `${surface} m2` } : null,
+        capacity ? { icon: "people", label: "Capacité", value: `${capacity} pers.` } : null,
+        bedrooms ? { icon: "bedrooms", label: "Chambres", value: String(bedrooms) } : null,
+        beds ? { icon: "beds", label: "Lits", value: String(beds) } : null,
+        bathrooms ? { icon: "bath", label: "Salles d'eau", value: String(bathrooms) } : null,
+        surface ? { icon: "surface", label: "Surface", value: `${surface} m2` } : null,
       ].filter(Boolean),
     };
   };
@@ -244,14 +244,23 @@
   };
 
   const renderStats = (stats) => {
-    const list = createElement("ul", "booked-gite-cards__stats");
+    const table = createElement("table", "booked-gite-cards__stats");
+    const body = createElement("tbody", "");
     stats.forEach((stat) => {
-      const item = createElement("li", "booked-gite-cards__stat");
-      item.appendChild(createIcon(stat.icon));
-      item.appendChild(createElement("span", "", stat.label));
-      list.appendChild(item);
+      const row = createElement("tr", "booked-gite-cards__stat-row");
+      const iconCell = createElement("td", "booked-gite-cards__stat-icon");
+      const labelCell = createElement("th", "booked-gite-cards__stat-label", stat.label);
+      const valueCell = createElement("td", "booked-gite-cards__stat-value", stat.value);
+
+      labelCell.scope = "row";
+      iconCell.appendChild(createIcon(stat.icon));
+      row.appendChild(iconCell);
+      row.appendChild(labelCell);
+      row.appendChild(valueCell);
+      body.appendChild(row);
     });
-    return list;
+    table.appendChild(body);
+    return table;
   };
 
   const renderCard = (gite, options, index) => {

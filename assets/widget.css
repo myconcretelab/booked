@@ -941,28 +941,49 @@
 }
 
 .booked-gite-cards__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  list-style: none;
-  margin: 2px 0 0;
-  padding: 0;
+  border-collapse: collapse;
+  color: #304236;
+  font-size: 14px;
+  line-height: 1.25;
+  margin: 4px 0 0;
+  width: 100%;
 }
 
-.booked-gite-cards__stat {
-  align-items: center;
-  background: #f7f8f6;
-  border: 1px solid #e3e8e4;
-  border-radius: 999px;
-  color: #304236;
-  display: inline-flex;
-  flex: 0 1 auto;
-  font-size: 13px;
-  font-weight: 650;
-  gap: 6px;
-  line-height: 1.2;
-  min-width: 0;
-  padding: 7px 10px;
+.booked-gite-cards__stat-row {
+  border-bottom: 1px solid #e5ebe7;
+}
+
+.booked-gite-cards__stat-row:last-child {
+  border-bottom: 0;
+}
+
+.booked-gite-cards__stat-icon,
+.booked-gite-cards__stat-label,
+.booked-gite-cards__stat-value {
+  padding-block: 10px;
+  vertical-align: middle;
+}
+
+.booked-gite-cards__stat-icon {
+  color: #7a8b76;
+  padding-right: 10px;
+  width: 28px;
+}
+
+.booked-gite-cards__stat-label {
+  color: #617066;
+  font-size: inherit;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding-right: 12px;
+  text-align: left;
+}
+
+.booked-gite-cards__stat-value {
+  color: #172033;
+  font-weight: 720;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .booked-gite-cards__icon {
