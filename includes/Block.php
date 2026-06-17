@@ -610,7 +610,7 @@ class Booked_Block
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
             ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards'],
-            '0.3.31',
+            '0.3.32',
             true
         );
         wp_enqueue_style('booked-block', BOOKED_PLUGIN_URL . 'assets/block.css', ['booked-widget'], '0.3.22');
@@ -743,7 +743,7 @@ class Booked_Block
     public function render_gite_cards_block(array $attributes): string
     {
         $selected_gite_ids = $this->sanitize_gite_id_list($attributes['selectedGiteIds'] ?? []);
-        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact'], true)
+        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact', 'polaroid'], true)
             ? (string) $attributes['layout']
             : 'grid';
         $is_page_compact = $layout === 'page-compact';
@@ -764,10 +764,10 @@ class Booked_Block
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9'], true)
             ? (string) $attributes['imageRatio']
             : '4-3';
-        $show_images = !$is_page_compact && (!array_key_exists('showImages', $attributes) || !empty($attributes['showImages']));
-        $show_description = !$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription']));
-        $show_stats = $is_page_compact || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
-        $show_cta = !$is_page_compact && (!array_key_exists('showCta', $attributes) || !empty($attributes['showCta']));
+        $show_images = ($layout === 'polaroid') || (!$is_page_compact && (!array_key_exists('showImages', $attributes) || !empty($attributes['showImages'])));
+        $show_description = ($layout === 'polaroid') || (!$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription'])));
+        $show_stats = $is_page_compact || $layout === 'polaroid' || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
+        $show_cta = !$is_page_compact && $layout !== 'polaroid' && (!array_key_exists('showCta', $attributes) || !empty($attributes['showCta']));
         $cta_label = sanitize_text_field((string) ($attributes['ctaLabel'] ?? 'Voir le gîte'));
         if ($cta_label === '') {
             $cta_label = 'Voir le gîte';
@@ -890,10 +890,10 @@ class Booked_Block
             return '';
         }
 
-        $rendered = $this->variables->render_text($content, $gite_id);
+        $rendered = wp_kses_post(wpautop($this->variables->render_text($content, $gite_id)));
 
         return sprintf(
-            '<p %s>%s</p>',
+            '<div %s>%s</div>',
             get_block_wrapper_attributes(['class' => 'booked-text']),
             $rendered
         );

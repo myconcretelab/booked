@@ -267,8 +267,89 @@
     return table;
   };
 
+  const getPolaroidRotation = (giteId, index) => {
+    const rotationSequence = [-2.8, 1.9, -1.4, 2.7, -2.1, 1.2, 3.1, -0.9, -3.3, 2.2, -1.8, 0.8];
+    const seed = `${giteId || ""}-${index}`;
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+    }
+    const rotation = rotationSequence[index % rotationSequence.length] + (((Math.abs(hash) % 9) - 4) / 10);
+    return `${rotation.toFixed(1)}deg`;
+  };
+
+  const renderPolaroidStats = (stats) => {
+    const list = createElement("dl", "booked-gite-cards__polaroid-stats");
+    stats.slice(0, 4).forEach((stat) => {
+      const item = createElement("div", "booked-gite-cards__polaroid-stat");
+      const label = createElement("dt", "booked-gite-cards__polaroid-stat-label");
+      const value = createElement("dd", "booked-gite-cards__polaroid-stat-value", stat.value);
+
+      label.appendChild(createIcon(stat.icon));
+      label.appendChild(createElement("span", "", stat.label));
+      item.appendChild(label);
+      item.appendChild(value);
+      list.appendChild(item);
+    });
+    return list;
+  };
+
+  const updateStatsLineState = (statsElement) => {
+    const rows = Array.from(statsElement.querySelectorAll(".booked-gite-cards__stat-row"));
+    if (rows.length === 0) return;
+
+    const firstTop = rows[0].offsetTop;
+    const isSingleLine = rows.every((row) => Math.abs(row.offsetTop - firstTop) < 2);
+    statsElement.classList.toggle("booked-gite-cards__stats--single-line", isSingleLine);
+    statsElement.classList.toggle("booked-gite-cards__stats--multi-line", !isSingleLine);
+  };
+
+  const updateStatsLineStates = (root = document) => {
+    root.querySelectorAll(".booked-gite-cards__stats").forEach(updateStatsLineState);
+  };
+
+  let statsLineUpdateFrame = 0;
+  const scheduleStatsLineStateUpdate = (root = document) => {
+    window.cancelAnimationFrame(statsLineUpdateFrame);
+    statsLineUpdateFrame = window.requestAnimationFrame(() => updateStatsLineStates(root));
+  };
+
   const renderCard = (gite, options, index) => {
     const card = createElement("article", `booked-gite-cards__card${index === 0 ? " booked-gite-cards__card--first" : ""}`);
+    if (options.layout === "polaroid") {
+      card.style.setProperty("--booked-polaroid-rotation", getPolaroidRotation(gite.id, index));
+      const polaroid = createElement("div", "booked-gite-cards__polaroid");
+      const media = renderPhoto(gite, { ...options, showImages: true });
+      media.classList.add("booked-gite-cards__polaroid-photo");
+
+      const band = createElement("div", "booked-gite-cards__polaroid-band");
+      const bandTitle = createElement("h3", "booked-gite-cards__polaroid-band-title", gite.name);
+      const bandText = createElement("p", "booked-gite-cards__polaroid-band-text", gite.description || gite.eyebrow || "");
+      const info = createElement("div", "booked-gite-cards__polaroid-info");
+
+      if (gite.url) {
+        const titleLink = createElement("a", "booked-gite-cards__title-link", gite.name);
+        titleLink.href = gite.url;
+        bandTitle.textContent = "";
+        bandTitle.appendChild(titleLink);
+      }
+      band.appendChild(bandTitle);
+      if (bandText.textContent) {
+        band.appendChild(bandText);
+      }
+      if (gite.stats.length > 0) {
+        info.appendChild(renderPolaroidStats(gite.stats));
+      }
+
+      polaroid.appendChild(media);
+      polaroid.appendChild(band);
+      polaroid.appendChild(info);
+      polaroid.appendChild(createElement("span", "booked-gite-cards__polaroid-frame"));
+      card.appendChild(polaroid);
+
+      return card;
+    }
+
     if (options.showImages) {
       card.appendChild(renderPhoto(gite, options));
     }
@@ -311,6 +392,7 @@
     root.classList.toggle("booked-gite-cards--grid", options.layout === "grid");
     root.classList.toggle("booked-gite-cards--spotlight", options.layout === "spotlight");
     root.classList.toggle("booked-gite-cards--page-compact", options.layout === "page-compact");
+    root.classList.toggle("booked-gite-cards--polaroid", options.layout === "polaroid");
     root.classList.toggle("booked-gite-cards--no-images", !options.showImages);
     root.style.setProperty("--booked-gite-cards-columns", String(options.columns));
     root.style.setProperty("--booked-gite-cards-ratio", options.imageRatioCss);
@@ -323,6 +405,7 @@
     const grid = createElement("div", "booked-gite-cards__grid");
     gites.forEach((gite, index) => grid.appendChild(renderCard(gite, options, index)));
     root.appendChild(grid);
+    scheduleStatsLineStateUpdate(root);
   };
 
   const getOptions = (root) => {
@@ -334,16 +417,16 @@
     };
     const columns = Number.parseInt(root.dataset.columns || "3", 10);
     const imageRatio = root.dataset.imageRatio || "4-3";
-    const layout = ["grid", "compact", "spotlight", "page-compact"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
+    const layout = ["grid", "compact", "spotlight", "page-compact", "polaroid"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
 
     return {
       layout,
       columns: layout === "page-compact" ? 1 : Number.isFinite(columns) ? Math.max(1, Math.min(4, columns)) : 3,
       imageRatioCss: ratios[imageRatio] || ratios["4-3"],
-      showImages: layout !== "page-compact" && root.dataset.showImages !== "0",
-      showDescription: layout !== "page-compact" && root.dataset.showDescription !== "0",
-      showStats: layout === "page-compact" || root.dataset.showStats !== "0",
-      showCta: layout !== "page-compact" && root.dataset.showCta !== "0",
+      showImages: layout === "polaroid" || (layout !== "page-compact" && root.dataset.showImages !== "0"),
+      showDescription: layout === "polaroid" || (layout !== "page-compact" && root.dataset.showDescription !== "0"),
+      showStats: layout === "page-compact" || layout === "polaroid" || root.dataset.showStats !== "0",
+      showCta: layout !== "page-compact" && layout !== "polaroid" && root.dataset.showCta !== "0",
       ctaLabel: root.dataset.ctaLabel || "Voir le gîte",
     };
   };
@@ -398,4 +481,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     window.BookedGiteCards.initAll();
   });
+
+  window.addEventListener("resize", () => scheduleStatsLineStateUpdate());
 })();
