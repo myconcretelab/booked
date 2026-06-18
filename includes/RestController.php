@@ -6,6 +6,12 @@ if (!defined('ABSPATH')) {
 
 class Booked_RestController
 {
+    private const PUBLIC_POST_BODY_LIMIT = 12000;
+    private const QUOTE_RATE_LIMIT = 30;
+    private const QUOTE_RATE_WINDOW = 60;
+    private const REQUEST_RATE_LIMIT = 5;
+    private const REQUEST_RATE_WINDOW = 10 * MINUTE_IN_SECONDS;
+
     private Booked_ApiClient $api_client;
     private Booked_Variables $variables;
     private Booked_PhotoSync $photo_sync;
@@ -119,12 +125,246 @@ class Booked_RestController
             return null;
         }
 
-        $status = (int) ($result->get_error_data()['status'] ?? 500);
-        $payload = $result->get_error_data()['payload'] ?? null;
-        return new WP_REST_Response([
-            'error' => $result->get_error_message(),
-            'details' => $payload,
-        ], $status);
+        $data = $result->get_error_data();
+        $data = is_array($data) ? $data : [];
+        $status = (int) ($data['status'] ?? 500);
+        $is_admin_context = current_user_can('manage_options');
+        $payload = $is_admin_context ? ($data['payload'] ?? null) : null;
+        $message = $result->get_error_message();
+        if (!$is_admin_context && ($status >= 500 || in_array($status, [401, 403], true))) {
+            $message = 'Service Booked temporairement indisponible.';
+        }
+
+        $response = [
+            'error' => $message,
+        ];
+        if ($payload !== null) {
+            $response['details'] = $payload;
+        }
+
+        return new WP_REST_Response($response, $status);
+    }
+
+    private function get_client_identifier(): string
+    {
+        $keys = ['REMOTE_ADDR', 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR'];
+        foreach ($keys as $key) {
+            if (empty($_SERVER[$key])) {
+                continue;
+            }
+
+            $value = (string) wp_unslash($_SERVER[$key]);
+            $ip = trim(explode(',', $value)[0]);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
+
+        return 'unknown';
+    }
+
+    private function check_rate_limit(string $scope, int $limit, int $window): ?WP_REST_Response
+    {
+        $key = 'booked_rate_' . md5($scope . '|' . $this->get_client_identifier());
+        $count = (int) get_transient($key);
+        if ($count >= $limit) {
+            return new WP_REST_Response([
+                'error' => 'Trop de requêtes. Réessayez dans quelques minutes.',
+            ], 429);
+        }
+
+        set_transient($key, $count + 1, $window);
+
+        return null;
+    }
+
+    private function validate_body_size(WP_REST_Request $request): ?WP_REST_Response
+    {
+        if (strlen((string) $request->get_body()) > self::PUBLIC_POST_BODY_LIMIT) {
+            return new WP_REST_Response(['error' => 'Requête trop volumineuse.'], 413);
+        }
+
+        return null;
+    }
+
+    private function sanitize_public_payload($value, string $key = '')
+    {
+        if ($this->is_sensitive_public_key($key)) {
+            return null;
+        }
+
+        if (is_array($value)) {
+            $items = [];
+            foreach ($value as $item_key => $item_value) {
+                $safe_value = $this->sanitize_public_payload($item_value, is_string($item_key) ? $item_key : '');
+                if ($safe_value === null) {
+                    continue;
+                }
+
+                $items[$item_key] = $safe_value;
+            }
+
+            return $this->is_list_array($items) ? array_values($items) : $items;
+        }
+
+        if (is_bool($value) || is_int($value) || is_float($value) || $value === null) {
+            return $value;
+        }
+
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $text = (string) $value;
+        if ($this->is_url_key($key)) {
+            return $this->sanitize_public_url($text);
+        }
+
+        return wp_kses_post($text);
+    }
+
+    private function is_list_array(array $value): bool
+    {
+        if ($value === []) {
+            return true;
+        }
+
+        return array_keys($value) === range(0, count($value) - 1);
+    }
+
+    private function is_sensitive_public_key(string $key): bool
+    {
+        if ($key === '') {
+            return false;
+        }
+
+        $key = strtolower($key);
+
+        return (bool) preg_match('/(^|[_-])(token|secret|password|passwd|pass|api[_-]?key|bearer|authorization|auth|private|internal|admin|owner|email|telephone|phone|tel|mobile|siret|iban|bic|stripe|paypal|notes?_internes?)([_-]|$)/', $key);
+    }
+
+    private function is_url_key(string $key): bool
+    {
+        return $key !== '' && (bool) preg_match('/(^|[_-])(url|uri|link|permalink)([_-]|$)/', strtolower($key));
+    }
+
+    private function sanitize_public_url(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $url)) {
+            return esc_url_raw($url);
+        }
+
+        if (strpos($url, '/') === 0 && strpos($url, '//') !== 0) {
+            return esc_url_raw($url);
+        }
+
+        return '';
+    }
+
+    private function sanitize_public_response($payload)
+    {
+        $sanitized = $this->sanitize_public_payload($payload);
+
+        return is_array($sanitized) ? $sanitized : [];
+    }
+
+    private function sanitize_date_param($value): string
+    {
+        $value = sanitize_text_field((string) $value);
+
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $matches)) {
+            return '';
+        }
+
+        return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]) ? $value : '';
+    }
+
+    private function sanitize_non_negative_int($value, int $max): int
+    {
+        return max(0, min($max, (int) $value));
+    }
+
+    private function sanitize_quote_options($options, int $travelers): array
+    {
+        if (!is_array($options)) {
+            $options = [];
+        }
+
+        return [
+            'draps' => [
+                'enabled' => !empty($options['draps']['enabled']),
+                'nb_lits' => $this->sanitize_non_negative_int($options['draps']['nb_lits'] ?? 0, 50),
+            ],
+            'linge_toilette' => [
+                'enabled' => !empty($options['linge_toilette']['enabled']),
+                'nb_personnes' => $this->sanitize_non_negative_int($options['linge_toilette']['nb_personnes'] ?? $travelers, 99),
+            ],
+            'menage' => [
+                'enabled' => !empty($options['menage']['enabled']),
+            ],
+            'depart_tardif' => [
+                'enabled' => !empty($options['depart_tardif']['enabled']),
+            ],
+            'chiens' => [
+                'enabled' => !empty($options['chiens']['enabled']),
+                'nb' => $this->sanitize_non_negative_int($options['chiens']['nb'] ?? 0, 10),
+            ],
+        ];
+    }
+
+    private function sanitize_quote_payload($payload)
+    {
+        if (!is_array($payload)) {
+            return new WP_Error('booked_invalid_payload', 'Payload JSON invalide.', ['status' => 400]);
+        }
+
+        $date_entree = $this->sanitize_date_param($payload['date_entree'] ?? '');
+        $date_sortie = $this->sanitize_date_param($payload['date_sortie'] ?? '');
+        if ($date_entree === '' || $date_sortie === '' || strtotime($date_sortie) <= strtotime($date_entree)) {
+            return new WP_Error('booked_invalid_dates', 'Dates de séjour invalides.', ['status' => 400]);
+        }
+
+        $adults = max(1, min(99, (int) ($payload['nb_adultes'] ?? 1)));
+        $children = $this->sanitize_non_negative_int($payload['nb_enfants_2_17'] ?? 0, 99);
+        $travelers = $adults + $children;
+
+        return [
+            'date_entree' => $date_entree,
+            'date_sortie' => $date_sortie,
+            'nb_adultes' => $adults,
+            'nb_enfants_2_17' => $children,
+            'options' => $this->sanitize_quote_options($payload['options'] ?? [], $travelers),
+        ];
+    }
+
+    private function sanitize_booking_request_payload($payload)
+    {
+        $quote = $this->sanitize_quote_payload($payload);
+        if (is_wp_error($quote)) {
+            return $quote;
+        }
+
+        $gite_id = sanitize_text_field((string) ($payload['gite_id'] ?? ''));
+        $name = sanitize_text_field((string) ($payload['hote_nom'] ?? ''));
+        $phone = sanitize_text_field((string) ($payload['telephone'] ?? ''));
+        $email = sanitize_email((string) ($payload['email'] ?? ''));
+
+        if ($gite_id === '' || $name === '' || $phone === '' || $email === '' || !is_email($email)) {
+            return new WP_Error('booked_invalid_request', 'Informations de contact invalides.', ['status' => 400]);
+        }
+
+        return array_merge($quote, [
+            'gite_id' => $gite_id,
+            'hote_nom' => $name,
+            'telephone' => $phone,
+            'email' => $email,
+            'message_client' => sanitize_textarea_field((string) ($payload['message_client'] ?? '')),
+        ]);
     }
 
     private function absolutize_remote_url(string $url): string
@@ -187,7 +427,7 @@ class Booked_RestController
         if ($error = $this->maybe_error($result)) {
             return $error;
         }
-        return new WP_REST_Response($result, 200);
+        return new WP_REST_Response($this->sanitize_public_response($result), 200);
     }
 
     public function get_content(WP_REST_Request $request)
@@ -196,7 +436,7 @@ class Booked_RestController
         if ($error = $this->maybe_error($result)) {
             return $error;
         }
-        return new WP_REST_Response($this->normalize_gite_content_response($result), 200);
+        return new WP_REST_Response($this->sanitize_public_response($this->normalize_gite_content_response($result)), 200);
     }
 
     public function get_photos(WP_REST_Request $request)
@@ -318,10 +558,16 @@ class Booked_RestController
     {
         $query = [];
         if ($request->get_param('from')) {
-            $query['from'] = sanitize_text_field((string) $request->get_param('from'));
+            $from = $this->sanitize_date_param($request->get_param('from'));
+            if ($from !== '') {
+                $query['from'] = $from;
+            }
         }
         if ($request->get_param('to')) {
-            $query['to'] = sanitize_text_field((string) $request->get_param('to'));
+            $to = $this->sanitize_date_param($request->get_param('to'));
+            if ($to !== '') {
+                $query['to'] = $to;
+            }
         }
         $path = '/booked/gites/' . rawurlencode((string) $request['id']) . '/availability';
         if (!empty($query)) {
@@ -331,29 +577,53 @@ class Booked_RestController
         if ($error = $this->maybe_error($result)) {
             return $error;
         }
-        return new WP_REST_Response($result, 200);
+        return new WP_REST_Response($this->sanitize_public_response($result), 200);
     }
 
     public function post_quote(WP_REST_Request $request)
     {
+        if ($error = $this->validate_body_size($request)) {
+            return $error;
+        }
+        if ($error = $this->check_rate_limit('quote:' . (string) $request['id'], self::QUOTE_RATE_LIMIT, self::QUOTE_RATE_WINDOW)) {
+            return $error;
+        }
+
+        $payload = $this->sanitize_quote_payload($request->get_json_params());
+        if (is_wp_error($payload)) {
+            return $this->maybe_error($payload);
+        }
+
         $result = $this->api_client->request(
             'POST',
             '/booked/gites/' . rawurlencode((string) $request['id']) . '/quote',
-            $request->get_json_params()
+            $payload
         );
         if ($error = $this->maybe_error($result)) {
             return $error;
         }
-        return new WP_REST_Response($result, 200);
+        return new WP_REST_Response($this->sanitize_public_response($result), 200);
     }
 
     public function post_request(WP_REST_Request $request)
     {
-        $result = $this->api_client->request('POST', '/booked/requests', $request->get_json_params());
+        if ($error = $this->validate_body_size($request)) {
+            return $error;
+        }
+        if ($error = $this->check_rate_limit('request', self::REQUEST_RATE_LIMIT, self::REQUEST_RATE_WINDOW)) {
+            return $error;
+        }
+
+        $payload = $this->sanitize_booking_request_payload($request->get_json_params());
+        if (is_wp_error($payload)) {
+            return $this->maybe_error($payload);
+        }
+
+        $result = $this->api_client->request('POST', '/booked/requests', $payload);
         if ($error = $this->maybe_error($result)) {
             return $error;
         }
-        return new WP_REST_Response($result, 201);
+        return new WP_REST_Response($this->sanitize_public_response($result), 201);
     }
 
     public function post_gite_photos_webhook(WP_REST_Request $request)
@@ -407,9 +677,21 @@ class Booked_RestController
         }
 
         $signature = preg_replace('/^sha256=/i', '', $signature);
-        $expected = hash_hmac('sha256', $timestamp . '.' . $request->get_body(), $secret);
+        $body = $request->get_body();
+        $expected = hash_hmac('sha256', $timestamp . '.' . $body, $secret);
 
-        return is_string($signature) && hash_equals($expected, $signature);
+        if (!is_string($signature) || !hash_equals($expected, $signature)) {
+            return false;
+        }
+
+        $replay_key = 'booked_webhook_replay_' . md5($timestamp . '.' . $body . '.' . $signature);
+        if (get_transient($replay_key)) {
+            return false;
+        }
+
+        set_transient($replay_key, 1, 10 * MINUTE_IN_SECONDS);
+
+        return true;
     }
 
     public function test_settings(WP_REST_Request $request)

@@ -197,20 +197,58 @@ class Booked_PhotoSync
         }
 
         if (preg_match('#^https?://#i', $url)) {
-            return esc_url_raw($url);
+            return $this->sanitize_remote_photo_url($url);
         }
 
         if (strpos($url, '//') === 0) {
-            return esc_url_raw((is_ssl() ? 'https:' : 'http:') . $url);
+            return $this->sanitize_remote_photo_url((is_ssl() ? 'https:' : 'http:') . $url);
         }
 
         $settings = $this->api_client->get_settings();
         $base_url = rtrim((string) ($settings['api_base_url'] ?? ''), '/');
         if ($base_url === '') {
-            return esc_url_raw($url);
+            return '';
         }
 
-        return esc_url_raw($base_url . '/' . ltrim($url, '/'));
+        return $this->sanitize_remote_photo_url($base_url . '/' . ltrim($url, '/'));
+    }
+
+    private function sanitize_remote_photo_url(string $url): string
+    {
+        $url = esc_url_raw($url, ['http', 'https']);
+        if ($url === '') {
+            return '';
+        }
+
+        if (function_exists('wp_http_validate_url') && !wp_http_validate_url($url)) {
+            return '';
+        }
+
+        $host = wp_parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            return '';
+        }
+
+        if ($this->is_private_or_local_host($host)) {
+            return '';
+        }
+
+        return $url;
+    }
+
+    private function is_private_or_local_host(string $host): bool
+    {
+        $host = strtolower(trim($host, '[]'));
+        if ($host === 'localhost' || substr($host, -6) === '.local') {
+            return true;
+        }
+
+        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
     }
 
     private function get_attachment_ids_by_photo_id(string $gite_id): array
@@ -260,13 +298,25 @@ class Booked_PhotoSync
         require_once ABSPATH . 'wp-admin/includes/media.php';
         require_once ABSPATH . 'wp-admin/includes/image.php';
 
-        $tmp = download_url($photo['url']);
+        $safe_url = $this->sanitize_remote_photo_url((string) $photo['url']);
+        if ($safe_url === '') {
+            return new WP_Error(
+                'booked_photo_url_rejected',
+                'URL photo refusée.',
+                [
+                    'source_url' => $photo['url'],
+                    'photo_id' => $photo['id'],
+                ]
+            );
+        }
+
+        $tmp = download_url($safe_url, 30);
         if (is_wp_error($tmp)) {
             return new WP_Error(
                 'booked_photo_download_failed',
                 sprintf('Téléchargement impossible: %s', $tmp->get_error_message()),
                 [
-                    'source_url' => $photo['url'],
+                    'source_url' => $safe_url,
                     'photo_id' => $photo['id'],
                     'original_code' => $tmp->get_error_code(),
                     'original_data' => $tmp->get_error_data(),
@@ -274,7 +324,7 @@ class Booked_PhotoSync
             );
         }
 
-        $path = parse_url($photo['url'], PHP_URL_PATH);
+        $path = parse_url($safe_url, PHP_URL_PATH);
         $filename = basename(is_string($path) && $path !== '' ? $path : $photo['id']);
         if (!preg_match('/\.(jpe?g|png|webp|avif)$/i', $filename)) {
             $filename .= '.jpg';
