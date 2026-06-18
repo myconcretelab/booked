@@ -39,12 +39,26 @@
     } else if (type === "beds") {
       appendSvgShape(svg, "path", { d: "M4 11V7a2 2 0 0 1 2-2h5v6" });
       appendSvgShape(svg, "path", { d: "M4 11h16a2 2 0 0 1 2 2v5H4zM4 18v2M20 18v2M7 8h3v3H7zM12 8h5v3h-5z" });
+    } else if (type === "sleeping") {
+      appendSvgShape(svg, "path", { d: "M4 11V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4" });
+      appendSvgShape(svg, "path", { d: "M4 11h16a2 2 0 0 1 2 2v5H2v-5a2 2 0 0 1 2-2zM5 18v2M19 18v2" });
+      appendSvgShape(svg, "path", { d: "M7 8h4v3H7zM13 8h4v3h-4z" });
     } else if (type === "bath") {
       appendSvgShape(svg, "path", { d: "M6 11V6a3 3 0 0 1 6 0" });
       appendSvgShape(svg, "path", { d: "M4 12h16v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM7 20l-1 2M18 20l1 2" });
     } else if (type === "surface") {
       appendSvgShape(svg, "path", { d: "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" });
       appendSvgShape(svg, "path", { d: "M8 8h8v8H8z" });
+    } else if (type === "fireplace") {
+      appendSvgShape(svg, "path", { d: "M5 19h14M7 19v-6a5 5 0 0 1 10 0v6" });
+      appendSvgShape(svg, "path", { d: "M12 16c2-1.5 3-3.2 1-6-1.5 1-2 2.2-1.8 3.4C10.1 12.7 9.5 11.6 9.5 10c-2 2.5-1.2 5.1 2.5 6z" });
+    } else if (type === "garden") {
+      appendSvgShape(svg, "path", { d: "M12 21V9" });
+      appendSvgShape(svg, "path", { d: "M12 9C8 9 6 7 5 3c4 0 6 2 7 6zM12 11c4 0 6-2 7-6-4 0-6 2-7 6z" });
+      appendSvgShape(svg, "path", { d: "M5 21h14" });
+    } else if (type === "courtyard") {
+      appendSvgShape(svg, "path", { d: "M4 20V9l8-5 8 5v11" });
+      appendSvgShape(svg, "path", { d: "M8 20v-6h8v6M4 12h16" });
     } else {
       appendSvgShape(svg, "path", { d: "M12 3l8 6v11H4V9z" });
       appendSvgShape(svg, "path", { d: "M9 20v-6h6v6" });
@@ -156,6 +170,22 @@
     return "";
   };
 
+  const getObject = (...values) => {
+    for (const value of values) {
+      if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    }
+    return {};
+  };
+
+  const getBoolean = (...values) => {
+    for (const value of values) {
+      if (value === true) return true;
+      if (typeof value === "string" && /^(1|true|oui|yes)$/i.test(value.trim())) return true;
+      if (value === 1) return true;
+    }
+    return false;
+  };
+
   const stripHtml = (value) => {
     const wrapper = document.createElement("div");
     wrapper.innerHTML = String(value || "");
@@ -199,11 +229,16 @@
   };
 
   const normalizeGite = (giteId, payload, metadata) => {
-    const capacity = getNumber(payload.capacite_max, payload.capacity, payload.capacite, metadata.capacity);
+    const webInfo = getObject(payload.public_web_info, payload.web_info, payload.informations_web);
+    const capacity = getNumber(webInfo.max_people, webInfo.nombre_personnes_maximum, webInfo.capacite_max, payload.capacite_max, payload.capacity, payload.capacite, metadata.capacity);
     const bedrooms = getNumber(payload.nb_chambres, payload.bedrooms, payload.chambres) || countGroupsMatching(payload, /chambre/i);
     const beds = getNumber(payload.nb_lits, payload.beds, payload.couchages) || countBeds(payload);
+    const sleepingCapacity = getNumber(webInfo.sleeping_capacity, webInfo.nombre_couchages, webInfo.couchages, payload.nb_couchages) || beds;
     const bathrooms = getNumber(payload.nb_salles_de_bain, payload.bathrooms, payload.salles_de_bain) || countGroupsMatching(payload, /salle d('|e )?eau|salle de bain|douche/i);
-    const surface = getNumber(payload.surface, payload.surface_m2, payload.superficie);
+    const surface = getNumber(webInfo.surface_m2, webInfo.surface, payload.surface, payload.surface_m2, payload.superficie);
+    const fireplace = getBoolean(webInfo.fireplace, webInfo.cheminee, payload.cheminee);
+    const privateGarden = getBoolean(webInfo.private_garden, webInfo.jardin_prive, payload.jardin_prive);
+    const privateCourtyard = getBoolean(webInfo.private_courtyard, webInfo.cour_privee, payload.cour_privee);
     const description = truncateText(getText(payload.public_description, payload.description_longue, payload.public_technical_description, payload.description_technique), 168);
 
     return {
@@ -214,11 +249,14 @@
       photo: getPrimaryPhoto(payload),
       url: getText(metadata.pageUrl, metadata.url, payload.public_url, payload.url, payload.permalink, payload.link),
       stats: [
-        capacity ? { icon: "people", label: "Capacité", value: `${capacity} pers.` } : null,
-        bedrooms ? { icon: "bedrooms", label: "Chambres", value: String(bedrooms) } : null,
-        beds ? { icon: "beds", label: "Lits", value: String(beds) } : null,
-        bathrooms ? { icon: "bath", label: "Salles d'eau", value: String(bathrooms) } : null,
         surface ? { icon: "surface", label: "Surface", value: `${surface} m2` } : null,
+        capacity ? { icon: "people", label: "Capacité", value: `${capacity} pers.` } : null,
+        sleepingCapacity ? { icon: "sleeping", label: "Couchages", value: String(sleepingCapacity) } : null,
+        fireplace ? { icon: "fireplace", label: "Cheminée", value: "Oui" } : null,
+        privateGarden ? { icon: "garden", label: "Jardin privé", value: "Oui" } : null,
+        privateCourtyard ? { icon: "courtyard", label: "Cour privée", value: "Oui" } : null,
+        bedrooms ? { icon: "bedrooms", label: "Chambres", value: String(bedrooms) } : null,
+        bathrooms ? { icon: "bath", label: "Salles d'eau", value: String(bathrooms) } : null,
       ].filter(Boolean),
     };
   };
