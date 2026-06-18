@@ -1739,6 +1739,46 @@
   });
 
   registerBlockType("booked/gite-info", {
+    attributes: {
+      giteId: {
+        type: "string",
+        default: "",
+      },
+      layout: {
+        type: "string",
+        default: "list",
+      },
+      cardColumns: {
+        type: "number",
+        default: 3,
+      },
+      selectedSectionIds: {
+        type: "array",
+        default: [NO_SELECTION_ID],
+        items: {
+          type: "string",
+        },
+      },
+      selectedGroupIds: {
+        type: "array",
+        default: [NO_SELECTION_ID],
+        items: {
+          type: "string",
+        },
+      },
+      showTitle: {
+        type: "boolean",
+        default: false,
+      },
+      showSectionTitles: {
+        type: "boolean",
+        default: false,
+      },
+      showNotes: {
+        type: "boolean",
+        default: true,
+      },
+    },
     edit({ attributes, setAttributes }) {
       const blockProps = useBlockProps({ className: "booked-block booked-block--gite-info" });
       const { gites, isLoading, error, loadGites } = useGites();
@@ -1794,7 +1834,7 @@
           null,
           el(
             PanelBody,
-            { title: __("Réglages Booked Infos", "booked"), initialOpen: true },
+            { title: __("Réglages Booked Infos", "booked"), initialOpen: false },
             isLoading ? el(Spinner) : null,
             error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
             el(SelectControl, {
@@ -1859,7 +1899,7 @@
           ),
           el(
             PanelBody,
-            { title: __("Sections et rubriques", "booked"), initialOpen: false },
+            { title: __("Sections et rubriques", "booked"), initialOpen: true },
             isContentLoading ? el(Spinner) : null,
             contentError ? el(Notice, { status: "error", isDismissible: false }, contentError) : null,
             !isContentLoading && !contentError && sections.length === 0
