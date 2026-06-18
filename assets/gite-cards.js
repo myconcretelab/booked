@@ -1,7 +1,7 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
   const contentRequests = new Map();
-  const CACHE_PREFIX = "booked:gite-cards:v1:";
+  const CACHE_PREFIX = "booked:gite-cards:v2:";
 
   const createElement = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -291,7 +291,7 @@
     stats.forEach((stat) => {
       const row = createElement("tr", "booked-gite-cards__stat-row");
       const iconCell = createElement("td", "booked-gite-cards__stat-icon");
-      const labelCell = createElement("th", "booked-gite-cards__stat-label", stat.label);
+      const labelCell = createElement("th", "booked-gite-cards__stat-label", `${stat.label} :`);
       const valueCell = createElement("td", "booked-gite-cards__stat-value", stat.value);
 
       labelCell.scope = "row";

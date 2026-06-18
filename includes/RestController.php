@@ -239,6 +239,9 @@ class Booked_RestController
         }
 
         $key = strtolower($key);
+        if (in_array($key, ['private_garden', 'private_courtyard'], true)) {
+            return false;
+        }
 
         return (bool) preg_match('/(^|[_-])(token|secret|password|passwd|pass|api[_-]?key|bearer|authorization|auth|private|internal|admin|owner|email|telephone|phone|tel|mobile|siret|iban|bic|stripe|paypal|notes?_internes?)([_-]|$)/', $key);
     }

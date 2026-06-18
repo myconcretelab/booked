@@ -994,7 +994,7 @@
 
 .booked-gite-cards__stat-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px auto minmax(0, 1fr);
 }
 
 .booked-gite-cards__stat-row:last-child {
@@ -1020,14 +1020,14 @@
   font-size: inherit;
   font-weight: 500;
   letter-spacing: 0;
-  padding-right: 12px;
+  padding-right: 4px;
   text-align: left;
 }
 
 .booked-gite-cards__stat-value {
   color: #172033;
   font-weight: 720;
-  text-align: right;
+  text-align: left;
   white-space: nowrap;
 }
 
