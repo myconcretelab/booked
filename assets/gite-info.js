@@ -214,12 +214,12 @@
     sections.forEach((section) => {
       const sectionElement = createElement("section", "booked-gite-info__section");
       if (options.showSectionTitles) {
-        sectionElement.appendChild(createElement("h3", "booked-gite-info__section-title", section.titre || "Infos"));
+        sectionElement.appendChild(createElement("h2", "booked-gite-info__section-title", section.titre || "Infos"));
       }
       section.groupes.forEach((group) => {
         const groupElement = createElement("article", "booked-gite-info__group");
         if (options.showGroupTitles) {
-          groupElement.appendChild(createElement("h4", "booked-gite-info__group-title", group.titre || "Rubrique"));
+          groupElement.appendChild(createElement("h3", "booked-gite-info__group-title", group.titre || "Rubrique"));
         }
         groupElement.appendChild(renderGroupContent(group, options.showNotes));
         sectionElement.appendChild(groupElement);
@@ -236,7 +236,7 @@
 
     sections.forEach((section) => {
       if (options.showSectionTitles) {
-        wrapper.appendChild(createElement("h3", "booked-gite-info__section-title", section.titre || "Infos"));
+        wrapper.appendChild(createElement("h2", "booked-gite-info__section-title", section.titre || "Infos"));
       }
       section.groupes.forEach((group) => {
         const details = createElement("details", "booked-gite-info__details booked-accordion__details");
@@ -263,14 +263,14 @@
     wrapper.style.setProperty("--booked-card-columns", String(options.cardColumns));
     sections.forEach((section) => {
       if (options.showSectionTitles) {
-        const title = createElement("h3", "booked-gite-info__section-title booked-gite-info__section-title--cards", section.titre || "Infos");
+        const title = createElement("h2", "booked-gite-info__section-title booked-gite-info__section-title--cards", section.titre || "Infos");
         wrapper.appendChild(title);
       }
       const grid = createElement("div", "booked-gite-info__cards");
       section.groupes.forEach((group) => {
         const card = createElement("article", "booked-gite-info__card");
         if (options.showGroupTitles) {
-          card.appendChild(createElement("h4", "booked-gite-info__group-title", group.titre || "Rubrique"));
+          card.appendChild(createElement("h3", "booked-gite-info__group-title", group.titre || "Rubrique"));
         }
         card.appendChild(renderGroupContent(group, options.showNotes));
         grid.appendChild(card);
@@ -307,7 +307,7 @@
 
     root.innerHTML = "";
     if (options.showTitle) {
-      root.appendChild(createElement("h2", "booked-gite-info__title", payload.public_title || payload.nom || "Infos du gîte"));
+      root.appendChild(createElement("h1", "booked-gite-info__title", payload.public_title || payload.nom || "Infos du gîte"));
     }
     const technicalDescription = renderTechnicalDescription(payload);
     if (technicalDescription) {
