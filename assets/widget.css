@@ -330,7 +330,7 @@
   font-size: 34px;
   gap: 18px;
   line-height: 1.18;
-  margin-block: 28px;
+  margin-block: var(--wp--preset--spacing--large, 48px);
   position: relative;
 }
 
@@ -607,8 +607,7 @@
   color: inherit;
 }
 
-.booked-gite-info.is-style-compact-group-titles .booked-gite-info__group-title,
-.wp-block-booked-gite-info.is-style-compact-group-titles .booked-gite-info__group-title {
+.is-style-compact-group-titles .booked-gite-info__group-title {
   font-size: var(--wp--custom--typography--font-size--h4, 16px);
   line-height: 1.3;
 }

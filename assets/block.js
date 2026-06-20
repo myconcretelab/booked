@@ -1,5 +1,5 @@
 (function (wp) {
-  const { createBlock, registerBlockType } = wp.blocks;
+  const { createBlock, registerBlockStyle, registerBlockType } = wp.blocks;
   const { BlockControls, InnerBlocks, InspectorControls, RichText, useBlockProps } = wp.blockEditor;
   const { Button, CheckboxControl, DropdownMenu, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl, ToolbarGroup } = wp.components;
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
@@ -28,6 +28,15 @@
     "boxed",
     "plain",
   ];
+
+  if (registerBlockStyle) {
+    ["core/column", "core/columns"].forEach((blockName) => {
+      registerBlockStyle(blockName, {
+        name: "compact-group-titles",
+        label: __("Titres de rubriques compacts", "booked"),
+      });
+    });
+  }
 
   const getHeadingStyleOptions = () => [
     { label: __("Traits avec repères", "booked"), value: "line-ticks" },
