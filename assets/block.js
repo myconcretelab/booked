@@ -1741,6 +1741,11 @@
   });
 
   registerBlockType("booked/gite-info", {
+    supports: {
+      color: {
+        text: true,
+      },
+    },
     attributes: {
       giteId: {
         type: "string",

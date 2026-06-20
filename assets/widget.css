@@ -566,19 +566,19 @@
 }
 
 .booked-gite-info__title {
-  color: #0f172a;
+  color: inherit;
   font-size: 28px;
   line-height: 1.2;
 }
 
 .booked-gite-info__section-title {
-  color: #0f172a;
+  color: inherit;
   font-size: 20px;
   line-height: 1.25;
 }
 
 .booked-gite-info__technical-description {
-  color: #334155;
+  color: inherit;
   display: grid;
   font-size: 16px;
   gap: 10px;
@@ -608,7 +608,7 @@
 }
 
 .booked-gite-info__group-title {
-  color: #1e293b;
+  color: inherit;
   font-size: 16px;
   line-height: 1.3;
 }
@@ -623,7 +623,7 @@
 
 .booked-gite-info__item {
   align-items: center;
-  color: #334155;
+  color: inherit;
   display: flex;
   gap: 8px;
   line-height: 1.45;
@@ -654,15 +654,21 @@
 }
 
 .booked-gite-info__item-dimensions {
-  color: #64748b;
+  color: inherit;
   font-size: 14px;
   line-height: 1.5;
 }
 
 .booked-gite-info__note {
-  color: #64748b;
+  color: inherit;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.booked-gite-info .booked-accordion__details,
+.booked-gite-info .booked-accordion__summary,
+.booked-gite-info__panel .booked-gite-info__group-content {
+  color: inherit;
 }
 
 .booked-accordion__details {
@@ -769,6 +775,10 @@
   gap: 18px;
   line-height: 1.6;
   padding: 28px 40px 52px;
+}
+
+.booked-gite-info__panel .booked-gite-info__group-content {
+  color: inherit;
 }
 
 .booked-accordion__content > :first-child {

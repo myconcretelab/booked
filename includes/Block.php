@@ -357,6 +357,11 @@ class Booked_Block
             'category' => 'widgets',
             'icon' => 'index-card',
             'description' => 'Liste d’équipements, chambres et infos publiques d’un gîte.',
+            'supports' => [
+                'color' => [
+                    'text' => true,
+                ],
+            ],
             'attributes' => [
                 'giteId' => [
                     'type' => 'string',
@@ -733,7 +738,8 @@ class Booked_Block
         wp_enqueue_script('booked-gite-info');
 
         return sprintf(
-            '<div class="booked-gite-info" data-gite-id="%s" data-layout="%s" data-card-columns="%d" data-selected-section-ids="%s" data-selected-group-ids="%s" data-show-title="%s" data-show-section-titles="%s" data-show-group-titles="%s" data-show-notes="%s"></div>',
+            '<div %s data-gite-id="%s" data-layout="%s" data-card-columns="%d" data-selected-section-ids="%s" data-selected-group-ids="%s" data-show-title="%s" data-show-section-titles="%s" data-show-group-titles="%s" data-show-notes="%s"></div>',
+            get_block_wrapper_attributes(['class' => 'booked-gite-info']),
             esc_attr($gite_id),
             esc_attr($layout),
             $card_columns,
