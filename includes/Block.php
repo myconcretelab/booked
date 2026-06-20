@@ -362,6 +362,17 @@ class Booked_Block
                     'text' => true,
                 ],
             ],
+            'styles' => [
+                [
+                    'name' => 'default',
+                    'label' => 'Par défaut',
+                    'isDefault' => true,
+                ],
+                [
+                    'name' => 'compact-group-titles',
+                    'label' => 'Titres de rubriques compacts',
+                ],
+            ],
             'attributes' => [
                 'giteId' => [
                     'type' => 'string',
