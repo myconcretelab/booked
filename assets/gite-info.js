@@ -218,7 +218,9 @@
       }
       section.groupes.forEach((group) => {
         const groupElement = createElement("article", "booked-gite-info__group");
-        groupElement.appendChild(createElement("h4", "booked-gite-info__group-title", group.titre || "Rubrique"));
+        if (options.showGroupTitles) {
+          groupElement.appendChild(createElement("h4", "booked-gite-info__group-title", group.titre || "Rubrique"));
+        }
         groupElement.appendChild(renderGroupContent(group, options.showNotes));
         sectionElement.appendChild(groupElement);
       });
@@ -267,7 +269,9 @@
       const grid = createElement("div", "booked-gite-info__cards");
       section.groupes.forEach((group) => {
         const card = createElement("article", "booked-gite-info__card");
-        card.appendChild(createElement("h4", "booked-gite-info__group-title", group.titre || "Rubrique"));
+        if (options.showGroupTitles) {
+          card.appendChild(createElement("h4", "booked-gite-info__group-title", group.titre || "Rubrique"));
+        }
         card.appendChild(renderGroupContent(group, options.showNotes));
         grid.appendChild(card);
       });
@@ -295,6 +299,7 @@
     const options = {
       showTitle: root.dataset.showTitle !== "0",
       showSectionTitles: root.dataset.showSectionTitles !== "0",
+      showGroupTitles: root.dataset.showGroupTitles !== "0",
       showNotes: root.dataset.showNotes !== "0",
       cardColumns: Number.isFinite(cardColumns) ? Math.max(1, Math.min(4, cardColumns)) : 3,
     };

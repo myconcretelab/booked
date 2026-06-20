@@ -388,6 +388,10 @@ class Booked_Block
                     'type' => 'boolean',
                     'default' => false,
                 ],
+                'showGroupTitles' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
                 'showNotes' => [
                     'type' => 'boolean',
                     'default' => true,
@@ -722,13 +726,14 @@ class Booked_Block
         $selected_group_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedGroupIds'] ?? []))));
         $show_title = !empty($attributes['showTitle']);
         $show_section_titles = !empty($attributes['showSectionTitles']);
+        $show_group_titles = !array_key_exists('showGroupTitles', $attributes) || $attributes['showGroupTitles'] !== false;
         $show_notes = !empty($attributes['showNotes']);
 
         wp_enqueue_style('booked-widget');
         wp_enqueue_script('booked-gite-info');
 
         return sprintf(
-            '<div class="booked-gite-info" data-gite-id="%s" data-layout="%s" data-card-columns="%d" data-selected-section-ids="%s" data-selected-group-ids="%s" data-show-title="%s" data-show-section-titles="%s" data-show-notes="%s"></div>',
+            '<div class="booked-gite-info" data-gite-id="%s" data-layout="%s" data-card-columns="%d" data-selected-section-ids="%s" data-selected-group-ids="%s" data-show-title="%s" data-show-section-titles="%s" data-show-group-titles="%s" data-show-notes="%s"></div>',
             esc_attr($gite_id),
             esc_attr($layout),
             $card_columns,
@@ -736,6 +741,7 @@ class Booked_Block
             esc_attr(wp_json_encode($selected_group_ids)),
             $show_title ? '1' : '0',
             $show_section_titles ? '1' : '0',
+            $show_group_titles ? '1' : '0',
             $show_notes ? '1' : '0'
         );
     }

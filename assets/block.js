@@ -645,6 +645,7 @@
       JSON.stringify(attributes.selectedGroupIds || []),
       attributes.showTitle,
       attributes.showSectionTitles,
+      attributes.showGroupTitles,
       attributes.showNotes,
     ]);
 
@@ -662,6 +663,7 @@
       "data-selected-group-ids": JSON.stringify(attributes.selectedGroupIds || []),
       "data-show-title": attributes.showTitle === false ? "0" : "1",
       "data-show-section-titles": attributes.showSectionTitles === false ? "0" : "1",
+      "data-show-group-titles": attributes.showGroupTitles === false ? "0" : "1",
       "data-show-notes": attributes.showNotes === false ? "0" : "1",
     });
   };
@@ -1774,6 +1776,10 @@
         type: "boolean",
         default: false,
       },
+      showGroupTitles: {
+        type: "boolean",
+        default: true,
+      },
       showNotes: {
         type: "boolean",
         default: true,
@@ -1889,6 +1895,11 @@
               label: __("Afficher les titres de sections", "booked"),
               checked: attributes.showSectionTitles !== false,
               onChange: (value) => setAttributes({ showSectionTitles: value }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les titres de rubriques", "booked"),
+              checked: attributes.showGroupTitles !== false,
+              onChange: (value) => setAttributes({ showGroupTitles: value }),
             }),
             el(ToggleControl, {
               label: __("Afficher les notes", "booked"),
