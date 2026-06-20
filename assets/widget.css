@@ -330,8 +330,12 @@
   font-size: 34px;
   gap: 18px;
   line-height: 1.18;
-  margin-block: var(--wp--preset--spacing--large, 48px);
   position: relative;
+}
+
+.wp-block-booked-heading.booked-heading,
+.booked-heading {
+  margin-block: var(--wp--preset--spacing--large, var(--wp--preset--spacing--60, 48px));
 }
 
 .booked-heading__text {
