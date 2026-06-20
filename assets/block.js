@@ -664,7 +664,8 @@
 
     return el("div", {
       ref,
-      className: "booked-gite-info",
+      className: ["booked-gite-info", attributes.previewClassName].filter(Boolean).join(" "),
+      style: attributes.previewStyle,
       "data-gite-id": giteId,
       "data-layout": attributes.layout || "list",
       "data-card-columns": String(attributes.cardColumns || 3),
@@ -676,6 +677,16 @@
       "data-show-notes": attributes.showNotes === false ? "0" : "1",
     });
   };
+
+  const getPreviewWrapperClassName = (blockClassName = "") =>
+    blockClassName
+      .split(/\s+/)
+      .filter((className) =>
+        className === "wp-block-booked-gite-info" ||
+        className.startsWith("has-") ||
+        className.startsWith("is-style-")
+      )
+      .join(" ");
 
   const GalleryPreview = ({ attributes, refreshKey = 0 }) => {
     const ref = useRef(null);
@@ -1756,7 +1767,6 @@
       },
     },
     styles: [
-      { name: "default", label: __("Par défaut", "booked"), isDefault: true },
       { name: "compact-group-titles", label: __("Titres de rubriques compacts", "booked") },
       { name: "circle-text", label: __("Texte en cercle", "booked") },
     ],
@@ -1967,7 +1977,17 @@
             )
           )
         ),
-        el("div", blockProps, el(GiteInfoPreview, { attributes }))
+        el(
+          "div",
+          blockProps,
+          el(GiteInfoPreview, {
+            attributes: {
+              ...attributes,
+              previewClassName: getPreviewWrapperClassName(blockProps.className),
+              previewStyle: blockProps.style,
+            },
+          })
+        )
       );
     },
 

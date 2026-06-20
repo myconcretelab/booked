@@ -364,11 +364,6 @@ class Booked_Block
             ],
             'styles' => [
                 [
-                    'name' => 'default',
-                    'label' => 'Par défaut',
-                    'isDefault' => true,
-                ],
-                [
                     'name' => 'compact-group-titles',
                     'label' => 'Titres de rubriques compacts',
                 ],
