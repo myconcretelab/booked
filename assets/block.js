@@ -1758,6 +1758,7 @@
     styles: [
       { name: "default", label: __("Par défaut", "booked"), isDefault: true },
       { name: "compact-group-titles", label: __("Titres de rubriques compacts", "booked") },
+      { name: "circle-text", label: __("Texte en cercle", "booked") },
     ],
     attributes: {
       giteId: {

@@ -612,6 +612,47 @@
   line-height: 1.3;
 }
 
+.booked-gite-info.is-style-circle-text {
+  align-items: center;
+  aspect-ratio: 1;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+  display: grid;
+  inline-size: min(100%, 420px);
+  justify-items: center;
+  margin-inline: auto;
+  overflow: hidden;
+  padding: clamp(28px, 8%, 56px);
+  text-align: center;
+}
+
+.booked-gite-info.is-style-circle-text .booked-gite-info__layout,
+.booked-gite-info.is-style-circle-text .booked-gite-info__section,
+.booked-gite-info.is-style-circle-text .booked-gite-info__group,
+.booked-gite-info.is-style-circle-text .booked-gite-info__group-content {
+  justify-items: center;
+  text-align: center;
+}
+
+.booked-gite-info.is-style-circle-text .booked-gite-info__group {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.booked-gite-info.is-style-circle-text .booked-gite-info__items {
+  justify-items: center;
+}
+
+.booked-gite-info.is-style-circle-text .booked-gite-info__item {
+  justify-content: center;
+  text-align: center;
+}
+
+.booked-gite-info.is-style-circle-text .booked-gite-info__item::before {
+  content: none;
+}
+
 .booked-gite-info__items {
   display: grid;
   gap: 8px;

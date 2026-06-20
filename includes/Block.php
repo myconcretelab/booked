@@ -372,6 +372,10 @@ class Booked_Block
                     'name' => 'compact-group-titles',
                     'label' => 'Titres de rubriques compacts',
                 ],
+                [
+                    'name' => 'circle-text',
+                    'label' => 'Texte en cercle',
+                ],
             ],
             'attributes' => [
                 'giteId' => [
