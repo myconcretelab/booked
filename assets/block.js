@@ -2433,7 +2433,7 @@
       },
       selectedGeneralInfoItemIds: {
         type: "array",
-        default: [],
+        default: [NO_SELECTION_ID],
         items: {
           type: "string",
         },
@@ -2519,7 +2519,7 @@
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
               options: getGiteOptions(gites, defaultGiteId),
-              onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID], selectedGeneralInfoItemIds: [] }),
+              onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID], selectedGeneralInfoItemIds: [NO_SELECTION_ID] }),
               help: defaultGiteId && !attributes.giteId
                 ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
                 : undefined,
@@ -2529,7 +2529,7 @@
                   label: __("ID du gîte", "booked"),
                   value: attributes.giteId || "",
                   help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
-                  onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID], selectedGeneralInfoItemIds: [] }),
+                  onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID], selectedGeneralInfoItemIds: [NO_SELECTION_ID] }),
                 })
               : null,
             el(SelectControl, {

@@ -214,6 +214,8 @@
   };
 
   const createGeneralInfoSection = (payload, selectedItemIds = []) => {
+    if (selectedItemIds.includes(NO_SELECTION_ID)) return null;
+
     const itemFilter = new Set(selectedItemIds);
     const rows = getGeneralInfoRows(payload).filter((row) => itemFilter.size === 0 || itemFilter.has(String(row.id || "")));
     if (rows.length === 0) return null;

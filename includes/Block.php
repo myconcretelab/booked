@@ -444,7 +444,7 @@ class Booked_Block
                 ],
                 'selectedGeneralInfoItemIds' => [
                     'type' => 'array',
-                    'default' => [],
+                    'default' => ['__booked_no_selection__'],
                     'items' => ['type' => 'string'],
                 ],
                 'showTitle' => [
@@ -812,7 +812,7 @@ class Booked_Block
         $card_columns = max(1, min(4, (int) ($attributes['cardColumns'] ?? 3)));
         $selected_section_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedSectionIds'] ?? []))));
         $selected_group_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedGroupIds'] ?? []))));
-        $selected_general_info_item_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedGeneralInfoItemIds'] ?? []))));
+        $selected_general_info_item_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedGeneralInfoItemIds'] ?? ['__booked_no_selection__']))));
         $show_title = !empty($attributes['showTitle']);
         $show_section_titles = !empty($attributes['showSectionTitles']);
         $show_group_titles = !array_key_exists('showGroupTitles', $attributes) || $attributes['showGroupTitles'] !== false;
