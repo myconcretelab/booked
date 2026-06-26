@@ -9,6 +9,15 @@
   const NO_SELECTION_ID = "__booked_no_selection__";
   const GENERAL_INFO_SECTION_ID = "__booked_general_info";
   const GENERAL_INFO_GROUP_ID = "__booked_general_info_details";
+  const GENERAL_INFO_ITEMS = [
+    { id: "address", label: __("Adresse", "booked") },
+    { id: "price-low", label: __("Prix basse saison", "booked") },
+    { id: "price-high", label: __("Prix haute saison", "booked") },
+    { id: "arrival", label: __("Arrivée", "booked") },
+    { id: "departure", label: __("Départ", "booked") },
+    { id: "manager", label: __("Gestionnaire", "booked") },
+    { id: "options", label: __("Options", "booked") },
+  ];
   const DEFAULT_GITE_META_KEY = "_booked_default_gite_id";
   const DEFAULT_PERIOD_COLORS = {
     holidayColor: "#22c55e",
@@ -223,8 +232,8 @@
     ]);
 
     if (address) rows.push("address");
-    if (getFirstText(payload, ["variables.prix_nuit_basse_saison"])) rows.push("low-season");
-    if (getFirstText(payload, ["variables.prix_nuit_haute_saison"])) rows.push("high-season");
+    if (getFirstText(payload, ["variables.prix_nuit_basse_saison"])) rows.push("price-low");
+    if (getFirstText(payload, ["variables.prix_nuit_haute_saison"])) rows.push("price-high");
     if (getFirstText(payload, ["variables.horaire_arrivee"])) rows.push("arrival");
     if (getFirstText(payload, ["variables.horaire_depart"])) rows.push("departure");
     if (managerName || managerPhone) rows.push("manager");
@@ -235,32 +244,10 @@
       "variables.service_chiens_par_nuit",
       "variables.service_depart_tardif_forfait",
     ].forEach((path) => {
-      if (getFirstText(payload, [path])) rows.push(path);
+      if (getFirstText(payload, [path])) rows.push("options");
     });
 
-    return rows;
-  };
-
-  const createGeneralInfoSection = (payload) => {
-    if (getGeneralInfoRows(payload).length === 0) return null;
-
-    return {
-      id: GENERAL_INFO_SECTION_ID,
-      titre: __("Informations générales", "booked"),
-      groupes: [
-        {
-          id: GENERAL_INFO_GROUP_ID,
-          titre: __("Coordonnées et tarifs", "booked"),
-        },
-      ],
-    };
-  };
-
-  const getGiteInfoDisplaySections = (payload) => {
-    const sections = payload && Array.isArray(payload.sections) ? payload.sections : [];
-    const generalInfoSection = createGeneralInfoSection(payload);
-
-    return generalInfoSection ? [generalInfoSection, ...sections] : sections;
+    return Array.from(new Set(rows));
   };
 
   const calendarColorAttributes = {
@@ -2507,13 +2494,15 @@
           });
       }, [effectiveGiteId]);
 
-      const sections = getGiteInfoDisplaySections(content);
+      const sections = content && Array.isArray(content.sections) ? content.sections : [];
+      const availableGeneralInfoItemIds = getGeneralInfoRows(content);
       const sectionIds = sections.map((section) => String(section.id || "")).filter(Boolean);
       const groupIds = sections.flatMap((section) =>
         (Array.isArray(section.groupes) ? section.groupes : []).map((group) => String(group.id || "")).filter(Boolean)
       );
       const selectedSectionIds = normalizeIdList(attributes.selectedSectionIds);
       const selectedGroupIds = normalizeIdList(attributes.selectedGroupIds);
+      const selectedGeneralInfoItemIds = normalizeIdList(attributes.selectedGeneralInfoItemIds);
 
       return el(
         Fragment,
@@ -2530,7 +2519,7 @@
               label: __("Gîte", "booked"),
               value: attributes.giteId || "",
               options: getGiteOptions(gites, defaultGiteId),
-              onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID] }),
+              onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID], selectedGeneralInfoItemIds: [] }),
               help: defaultGiteId && !attributes.giteId
                 ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
                 : undefined,
@@ -2540,7 +2529,7 @@
                   label: __("ID du gîte", "booked"),
                   value: attributes.giteId || "",
                   help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
-                  onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID] }),
+                  onChange: (value) => setAttributes({ giteId: value, selectedSectionIds: [NO_SELECTION_ID], selectedGroupIds: [NO_SELECTION_ID], selectedGeneralInfoItemIds: [] }),
                 })
               : null,
             el(SelectControl, {
@@ -2629,6 +2618,35 @@
                 );
               }
             )
+          ),
+          el(
+            PanelBody,
+            { title: __("Informations générales", "booked"), initialOpen: true },
+            isContentLoading ? el(Spinner) : null,
+            contentError ? el(Notice, { status: "error", isDismissible: false }, contentError) : null,
+            !isContentLoading && !contentError && availableGeneralInfoItemIds.length === 0
+              ? el("p", { className: "booked-block-help" }, __("Aucune information générale disponible pour ce gîte.", "booked"))
+              : null,
+            GENERAL_INFO_ITEMS
+              .filter((item) => availableGeneralInfoItemIds.includes(item.id))
+              .map((item) => {
+                const hasNoSelection = isNoSelection(selectedGeneralInfoItemIds);
+                const isSelected = !hasNoSelection && (selectedGeneralInfoItemIds.length === 0 || selectedGeneralInfoItemIds.includes(item.id));
+
+                return el(CheckboxControl, {
+                  key: item.id,
+                  label: item.label,
+                  checked: isSelected,
+                  onChange: () =>
+                    setAttributes({
+                      selectedGeneralInfoItemIds: toggleSelectedId(
+                        selectedGeneralInfoItemIds,
+                        item.id,
+                        availableGeneralInfoItemIds
+                      ),
+                    }),
+                });
+              })
           )
         ),
         el(

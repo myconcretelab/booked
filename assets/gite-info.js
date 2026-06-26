@@ -2,6 +2,7 @@
   const config = window.BookedWidgetConfig || {};
   const contentRequests = new Map();
   const CACHE_PREFIX = "booked:gite-info:v1:";
+  const NO_SELECTION_ID = "__booked_no_selection__";
   const GENERAL_INFO_SECTION_ID = "__booked_general_info";
   const GENERAL_INFO_GROUP_ID = "__booked_general_info_details";
 
@@ -394,29 +395,27 @@
     return svg;
   };
 
-  const getDisplaySections = (payload, selectedGeneralInfoItemIds = []) => {
-    const sections = Array.isArray(payload.sections) ? payload.sections : [];
-    const generalInfoSection = createGeneralInfoSection(payload, selectedGeneralInfoItemIds);
-
-    return generalInfoSection ? [generalInfoSection, ...sections] : sections;
-  };
-
   const getFilteredSections = (payload, selectedSectionIds, selectedGroupIds, selectedGeneralInfoItemIds) => {
-    const sectionFilter = new Set(selectedSectionIds);
+    const generalInfoSection = createGeneralInfoSection(payload, selectedGeneralInfoItemIds);
+    const sectionFilter = new Set(selectedSectionIds.filter((id) => id !== NO_SELECTION_ID));
     const groupFilter = new Set(selectedGroupIds);
-    const shouldFilterSections = sectionFilter.size > 0;
+    const shouldHideContentSections = selectedSectionIds.includes(NO_SELECTION_ID);
+    const shouldFilterSections = !shouldHideContentSections && sectionFilter.size > 0;
     const shouldFilterGroups = groupFilter.size > 0;
-    const sections = getDisplaySections(payload, selectedGeneralInfoItemIds);
+    const sections = Array.isArray(payload.sections) ? payload.sections : [];
+    const filteredSections = shouldHideContentSections
+      ? []
+      : sections
+        .filter((section) => !shouldFilterSections || sectionFilter.has(String(section.id || "")))
+        .map((section) => ({
+          ...section,
+          groupes: (Array.isArray(section.groupes) ? section.groupes : []).filter(
+            (group) => !shouldFilterGroups || groupFilter.has(String(group.id || ""))
+          ),
+        }))
+        .filter((section) => section.groupes.length > 0);
 
-    return sections
-      .filter((section) => !shouldFilterSections || sectionFilter.has(String(section.id || "")))
-      .map((section) => ({
-        ...section,
-        groupes: (Array.isArray(section.groupes) ? section.groupes : []).filter(
-          (group) => !shouldFilterGroups || groupFilter.has(String(group.id || ""))
-        ),
-      }))
-      .filter((section) => section.groupes.length > 0);
+    return generalInfoSection ? [generalInfoSection, ...filteredSections] : filteredSections;
   };
 
   const renderItems = (items) => {
