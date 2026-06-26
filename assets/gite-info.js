@@ -164,10 +164,6 @@
       "tel_gestionnaire",
     ]);
 
-    if (address) {
-      rows.push({ id: "address", kind: "general_info", icon: "address", label: "Adresse", value: address, href: createMapsUrl(address) });
-    }
-
     [
       ["price-low", "Prix basse saison", "variables.prix_nuit_basse_saison"],
       ["price-high", "Prix haute saison", "variables.prix_nuit_haute_saison"],
@@ -175,6 +171,10 @@
       const value = getFirstText(payload, [path]);
       if (value) rows.push({ id, kind: "general_info", icon: "", label, value, emphasis: true });
     });
+
+    if (address) {
+      rows.push({ id: "address", kind: "general_info", icon: "address", label: "Adresse", value: address, href: createMapsUrl(address) });
+    }
 
     [
       ["arrival", "Arrivée", "variables.horaire_arrivee", "arrival"],
