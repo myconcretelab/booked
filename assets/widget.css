@@ -729,6 +729,22 @@
   font-weight: 700;
 }
 
+.booked-gite-info__item--general-info.booked-gite-info__item--emphasis {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.booked-gite-info__item--emphasis .booked-gite-info__item-value {
+  font-size: 1.08em;
+  font-weight: 700;
+}
+
+.booked-gite-info__item--emphasis .booked-gite-info__info-icon {
+  stroke-width: 2.1;
+}
+
 .booked-gite-info__item--general-options {
   display: block;
   padding: 0;
