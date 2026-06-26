@@ -225,6 +225,8 @@
     if (address) rows.push("address");
     if (getFirstText(payload, ["variables.prix_nuit_basse_saison"])) rows.push("low-season");
     if (getFirstText(payload, ["variables.prix_nuit_haute_saison"])) rows.push("high-season");
+    if (getFirstText(payload, ["variables.horaire_arrivee"])) rows.push("arrival");
+    if (getFirstText(payload, ["variables.horaire_depart"])) rows.push("departure");
     if (managerName || managerPhone) rows.push("manager");
     [
       "variables.service_menage_forfait",

@@ -73,6 +73,52 @@
 
   const createMapsUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
+  const createInfoIcon = (name, className = "") => {
+    const iconName = String(name || "info").replace(/[^a-z0-9_-]/gi, "");
+    const svg = createSvgElement("svg", {
+      class: ["booked-gite-info__info-icon", `booked-gite-info__info-icon--${iconName}`, className].filter(Boolean).join(" "),
+      viewBox: "0 0 24 24",
+      fill: "none",
+      "aria-hidden": "true",
+      focusable: "false",
+    });
+    const path = (d) => appendSvgShape(svg, "path", { d });
+    const circle = (attributes) => appendSvgShape(svg, "circle", attributes);
+
+    if (name === "address") {
+      path("M12 21s7-5.1 7-11a7 7 0 0 0-14 0c0 5.9 7 11 7 11z");
+      circle({ cx: "12", cy: "10", r: "2.4" });
+    } else if (name === "price") {
+      path("M15.5 7.5a4.8 4.8 0 1 0 0 9M6 10h8M6 14h8");
+    } else if (name === "arrival") {
+      path("M4 12h11M11 8l4 4-4 4M19 5v14");
+    } else if (name === "departure") {
+      path("M20 12H9M13 8l-4 4 4 4M5 5v14");
+    } else if (name === "manager") {
+      circle({ cx: "12", cy: "8", r: "3" });
+      path("M5 20a7 7 0 0 1 14 0");
+    } else if (name === "cleaning") {
+      path("M6 19l8-8M12 7l5 5M4 21l4-4M15 4l5 5M14 5l5 5");
+    } else if (name === "sheets") {
+      path("M4 8h16v10H4zM4 11h16M8 8v3M16 8v3");
+    } else if (name === "towels") {
+      path("M7 4h9a3 3 0 0 1 0 6H7zM7 10h10v10H7zM10 14h4");
+    } else if (name === "pets") {
+      circle({ cx: "8", cy: "9", r: "1.5" });
+      circle({ cx: "12", cy: "7", r: "1.5" });
+      circle({ cx: "16", cy: "9", r: "1.5" });
+      path("M7 17a5 5 0 0 1 10 0c0 2-2 3-5 3s-5-1-5-3z");
+    } else if (name === "late-checkout") {
+      circle({ cx: "12", cy: "12", r: "8" });
+      path("M12 8v5l3 2");
+    } else {
+      circle({ cx: "12", cy: "12", r: "8" });
+      path("M12 11v5M12 8h.01");
+    }
+
+    return svg;
+  };
+
   const getManagerName = (payload) => {
     const firstName = getFirstText(payload, [
       "gestionnaire.prenom",
@@ -118,7 +164,7 @@
     ]);
 
     if (address) {
-      rows.push({ kind: "general_info", label: "Adresse", value: address, href: createMapsUrl(address) });
+      rows.push({ kind: "general_info", icon: "address", label: "Adresse", value: address, href: createMapsUrl(address) });
     }
 
     [
@@ -126,28 +172,41 @@
       ["Prix haute saison", "variables.prix_nuit_haute_saison"],
     ].forEach(([label, path]) => {
       const value = getFirstText(payload, [path]);
-      if (value) rows.push({ kind: "general_info", label, value });
+      if (value) rows.push({ kind: "general_info", icon: "price", label, value });
+    });
+
+    [
+      ["Arrivée", "variables.horaire_arrivee", "arrival"],
+      ["Départ", "variables.horaire_depart", "departure"],
+    ].forEach(([label, path, icon]) => {
+      const value = getFirstText(payload, [path]);
+      if (value) rows.push({ kind: "general_info", icon, label, value });
     });
 
     if (managerName || managerPhone) {
       rows.push({
         kind: "general_info",
+        icon: "manager",
         label: "Gestionnaire",
         value: [managerName, managerPhone].filter(Boolean).join(" - "),
         obfuscate: Boolean(managerPhone),
       });
     }
 
+    const options = [];
     [
-      ["Ménage", "variables.service_menage_forfait"],
-      ["Draps", "variables.service_draps_par_lit"],
-      ["Linge de toilette", "variables.service_linge_toilette_par_personne"],
-      ["Chiens", "variables.service_chiens_par_nuit"],
-      ["Départ tardif", "variables.service_depart_tardif_forfait"],
-    ].forEach(([label, path]) => {
+      ["Ménage", "variables.service_menage_forfait", "cleaning"],
+      ["Draps", "variables.service_draps_par_lit", "sheets"],
+      ["Linge de toilette", "variables.service_linge_toilette_par_personne", "towels"],
+      ["Chiens", "variables.service_chiens_par_nuit", "pets"],
+      ["Départ tardif", "variables.service_depart_tardif_forfait", "late-checkout"],
+    ].forEach(([label, path, icon]) => {
       const value = getFirstText(payload, [path]);
-      if (value) rows.push({ kind: "general_info", label, value });
+      if (value) options.push({ icon, label, value });
     });
+    if (options.length > 0) {
+      rows.push({ kind: "general_options", label: "Options", options });
+    }
 
     return rows;
   };
@@ -272,11 +331,26 @@
       if (!label || !value) return null;
       return {
         kind: "general-info",
+        icon: getText(item.icon),
         label,
         value,
         href: getText(item.href),
         obfuscate: Boolean(item.obfuscate),
       };
+    }
+
+    if (item && typeof item === "object" && !Array.isArray(item) && item.kind === "general_options") {
+      const options = (Array.isArray(item.options) ? item.options : []).map((option) => ({
+        icon: getText(option.icon),
+        label: getText(option.label),
+        value: getText(option.value),
+      })).filter((option) => option.label && option.value);
+
+      return options.length > 0 ? {
+        kind: "general-options",
+        label: getText(item.label) || "Options",
+        options,
+      } : null;
     }
 
     if (!item || typeof item !== "object" || Array.isArray(item) || item.kind !== "bed") {
@@ -350,6 +424,7 @@
       if (kind === "bed") {
         itemElement.appendChild(createBedIcon(item.type));
       } else if (kind === "general-info") {
+        itemElement.appendChild(createInfoIcon(item.icon || "info"));
         itemElement.appendChild(createElement("span", "booked-gite-info__item-label", item.label));
         const valueElement = item.href && !item.obfuscate
           ? createElement("a", "booked-gite-info__item-value", item.value)
@@ -363,6 +438,18 @@
           valueElement.classList.add("booked-gite-info__item-value--obfuscated");
           appendObfuscatedText(valueElement, item.value);
         }
+        itemElement.appendChild(valueElement);
+        list.appendChild(itemElement);
+        return;
+      } else if (kind === "general-options") {
+        const valueElement = createElement("span", "booked-gite-info__options");
+        item.options.forEach((option) => {
+          const optionElement = createElement("span", "booked-gite-info__option");
+          optionElement.appendChild(createInfoIcon(option.icon || "info", "booked-gite-info__option-icon"));
+          optionElement.appendChild(createElement("span", "booked-gite-info__option-label", option.label));
+          optionElement.appendChild(createElement("span", "booked-gite-info__option-value", option.value));
+          valueElement.appendChild(optionElement);
+        });
         itemElement.appendChild(valueElement);
         list.appendChild(itemElement);
         return;
