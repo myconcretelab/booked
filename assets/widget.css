@@ -677,17 +677,17 @@
   line-height: 1.45;
 }
 
-.booked-gite-info__item:not(.booked-gite-info__item--bed) {
+.booked-gite-info__item:not(.booked-gite-info__item--bed):not(.booked-gite-info__item--general-info) {
   display: block;
   padding: 0 0 0.58em 1.35em;
   position: relative;
 }
 
-.booked-gite-info__item:not(.booked-gite-info__item--bed):last-child {
+.booked-gite-info__item:not(.booked-gite-info__item--bed):not(.booked-gite-info__item--general-info):last-child {
   padding-bottom: 0;
 }
 
-.booked-gite-info__item:not(.booked-gite-info__item--bed)::before {
+.booked-gite-info__item:not(.booked-gite-info__item--bed):not(.booked-gite-info__item--general-info)::before {
   background: transparent;
   border: 1px solid currentColor;
   border-radius: 999px;
@@ -701,7 +701,7 @@
   width: var(--booked-gite-info-marker-size);
 }
 
-.booked-gite-info__item:not(.booked-gite-info__item--bed):not(:last-child)::after {
+.booked-gite-info__item:not(.booked-gite-info__item--bed):not(.booked-gite-info__item--general-info):not(:last-child)::after {
   background: currentColor;
   bottom: calc(-0.58em + 3px);
   content: "";
@@ -715,6 +715,35 @@
 .booked-gite-info__item--bed {
   align-items: center;
   display: flex;
+}
+
+.booked-gite-info__item--general-info {
+  align-items: baseline;
+  display: grid;
+  gap: 4px 16px;
+  grid-template-columns: minmax(120px, 0.42fr) minmax(0, 1fr);
+  padding: 0;
+}
+
+.booked-gite-info__item--general-info .booked-gite-info__item-label {
+  font-weight: 700;
+}
+
+.booked-gite-info__item-value {
+  color: inherit;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.booked-gite-info__item-value--obfuscated {
+  display: inline-flex;
+  flex-wrap: wrap;
+}
+
+a.booked-gite-info__item-value {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
 }
 
 .booked-gite-info__bed-icon {
@@ -882,6 +911,10 @@
   content: none;
 }
 
+.booked-gite-info__panel .booked-gite-info__item--general-info {
+  grid-template-columns: minmax(150px, 0.35fr) minmax(0, 1fr);
+}
+
 .booked-gite-info__layout--cards {
   gap: 18px;
 }
@@ -907,6 +940,10 @@
 .booked-gite-info__card .booked-gite-info__item {
   font-size: 17px;
   line-height: 1.45;
+}
+
+.booked-gite-info__card .booked-gite-info__item--general-info {
+  grid-template-columns: 1fr;
 }
 
 .booked-gite-info__loading,
@@ -2377,6 +2414,11 @@ button.booked-gallery__media:hover .booked-gallery__image {
   }
 
   .booked-gite-info__cards {
+    grid-template-columns: 1fr;
+  }
+
+  .booked-gite-info__item--general-info,
+  .booked-gite-info__panel .booked-gite-info__item--general-info {
     grid-template-columns: 1fr;
   }
 

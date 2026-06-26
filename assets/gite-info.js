@@ -2,6 +2,8 @@
   const config = window.BookedWidgetConfig || {};
   const contentRequests = new Map();
   const CACHE_PREFIX = "booked:gite-info:v1:";
+  const GENERAL_INFO_SECTION_ID = "__booked_general_info";
+  const GENERAL_INFO_GROUP_ID = "__booked_general_info_details";
 
   const BED_LABELS = {
     single: "Lit 90",
@@ -31,6 +33,141 @@
   };
 
   const getText = (value) => String(value || "").trim();
+
+  const appendObfuscatedText = (element, value) => {
+    const text = getText(value);
+    element.setAttribute("aria-label", text);
+    text.match(/.{1,3}/g).forEach((part) => {
+      const span = createElement("span", "", part);
+      span.setAttribute("aria-hidden", "true");
+      element.appendChild(span);
+    });
+  };
+
+  const getPathValue = (source, path) => {
+    if (!source || typeof source !== "object") return "";
+
+    return String(path || "").split(".").reduce((current, key) => {
+      if (current === null || current === undefined) return undefined;
+      if (Array.isArray(current)) {
+        const index = Number.parseInt(key, 10);
+        return Number.isFinite(index) ? current[index] : undefined;
+      }
+      return Object.prototype.hasOwnProperty.call(Object(current), key) ? current[key] : undefined;
+    }, source);
+  };
+
+  const getFirstText = (source, paths) => {
+    for (const path of paths) {
+      const value = getPathValue(source, path);
+      if (Array.isArray(value)) {
+        const text = value.map(getText).filter(Boolean).join(", ");
+        if (text) return text;
+        continue;
+      }
+      const text = getText(value);
+      if (text) return text;
+    }
+    return "";
+  };
+
+  const createMapsUrl = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+
+  const getManagerName = (payload) => {
+    const firstName = getFirstText(payload, [
+      "gestionnaire.prenom",
+      "manager.prenom",
+      "variables.gestionnaire_prenom",
+      "variables.manager_prenom",
+    ]);
+    const lastName = getFirstText(payload, [
+      "gestionnaire.nom",
+      "manager.nom",
+      "variables.gestionnaire_nom",
+      "variables.manager_nom",
+    ]);
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+    return fullName || getFirstText(payload, [
+      "gestionnaire.nom_complet",
+      "gestionnaire.name",
+      "manager.nom_complet",
+      "manager.name",
+      "variables.gestionnaire_nom_complet",
+      "variables.manager_name",
+    ]);
+  };
+
+  const getGeneralInfoRows = (payload) => {
+    const rows = [];
+    const address = getFirstText(payload, ["variables.adresse_complete", "adresse_complete"]);
+    const managerName = getManagerName(payload);
+    const managerPhone = getFirstText(payload, [
+      "gestionnaire.telephone",
+      "gestionnaire.tel",
+      "gestionnaire.phone",
+      "manager.telephone",
+      "manager.tel",
+      "manager.phone",
+      "variables.gestionnaire_telephone",
+      "variables.gestionnaire_tel",
+      "variables.manager_telephone",
+      "variables.manager_phone",
+      "telephone_gestionnaire",
+      "tel_gestionnaire",
+    ]);
+
+    if (address) {
+      rows.push({ kind: "general_info", label: "Adresse", value: address, href: createMapsUrl(address) });
+    }
+
+    [
+      ["Prix basse saison", "variables.prix_nuit_basse_saison"],
+      ["Prix haute saison", "variables.prix_nuit_haute_saison"],
+    ].forEach(([label, path]) => {
+      const value = getFirstText(payload, [path]);
+      if (value) rows.push({ kind: "general_info", label, value });
+    });
+
+    if (managerName || managerPhone) {
+      rows.push({
+        kind: "general_info",
+        label: "Gestionnaire",
+        value: [managerName, managerPhone].filter(Boolean).join(" - "),
+        obfuscate: Boolean(managerPhone),
+      });
+    }
+
+    [
+      ["Ménage", "variables.service_menage_forfait"],
+      ["Draps", "variables.service_draps_par_lit"],
+      ["Linge de toilette", "variables.service_linge_toilette_par_personne"],
+      ["Chiens", "variables.service_chiens_par_nuit"],
+      ["Départ tardif", "variables.service_depart_tardif_forfait"],
+    ].forEach(([label, path]) => {
+      const value = getFirstText(payload, [path]);
+      if (value) rows.push({ kind: "general_info", label, value });
+    });
+
+    return rows;
+  };
+
+  const createGeneralInfoSection = (payload) => {
+    const rows = getGeneralInfoRows(payload);
+    if (rows.length === 0) return null;
+
+    return {
+      id: GENERAL_INFO_SECTION_ID,
+      titre: "Informations générales",
+      groupes: [
+        {
+          id: GENERAL_INFO_GROUP_ID,
+          titre: "Coordonnées et tarifs",
+          items: rows,
+        },
+      ],
+    };
+  };
 
   const createSvgElement = (tag, attributes = {}) => {
     const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -129,13 +266,27 @@
   };
 
   const formatItem = (item) => {
+    if (item && typeof item === "object" && !Array.isArray(item) && item.kind === "general_info") {
+      const label = getText(item.label);
+      const value = getText(item.value);
+      if (!label || !value) return null;
+      return {
+        kind: "general-info",
+        label,
+        value,
+        href: getText(item.href),
+        obfuscate: Boolean(item.obfuscate),
+      };
+    }
+
     if (!item || typeof item !== "object" || Array.isArray(item) || item.kind !== "bed") {
       const label = String(item || "").trim();
-      return label ? { label, type: "" } : null;
+      return label ? { kind: "text", label, type: "" } : null;
     }
     const count = Number.isFinite(Number(item.count)) ? Math.max(1, Math.round(Number(item.count))) : 1;
     const label = BED_LABELS[item.type] || "Lit";
     return {
+      kind: "bed",
       label: count > 1 ? `${count} x ${label}` : label,
       dimensions: BED_DIMENSIONS[item.type] || "",
       type: String(item.type || "bed"),
@@ -166,12 +317,19 @@
     return svg;
   };
 
+  const getDisplaySections = (payload) => {
+    const sections = Array.isArray(payload.sections) ? payload.sections : [];
+    const generalInfoSection = createGeneralInfoSection(payload);
+
+    return generalInfoSection ? [generalInfoSection, ...sections] : sections;
+  };
+
   const getFilteredSections = (payload, selectedSectionIds, selectedGroupIds) => {
     const sectionFilter = new Set(selectedSectionIds);
     const groupFilter = new Set(selectedGroupIds);
     const shouldFilterSections = sectionFilter.size > 0;
     const shouldFilterGroups = groupFilter.size > 0;
-    const sections = Array.isArray(payload.sections) ? payload.sections : [];
+    const sections = getDisplaySections(payload);
 
     return sections
       .filter((section) => !shouldFilterSections || sectionFilter.has(String(section.id || "")))
@@ -187,9 +345,27 @@
   const renderItems = (items) => {
     const list = createElement("ul", "booked-gite-info__items");
     (Array.isArray(items) ? items : []).map(formatItem).filter(Boolean).forEach((item) => {
-      const itemElement = createElement("li", `booked-gite-info__item${item.type ? " booked-gite-info__item--bed" : ""}`);
-      if (item.type) {
+      const kind = item.kind || (item.type ? "bed" : "text");
+      const itemElement = createElement("li", `booked-gite-info__item booked-gite-info__item--${kind}`);
+      if (kind === "bed") {
         itemElement.appendChild(createBedIcon(item.type));
+      } else if (kind === "general-info") {
+        itemElement.appendChild(createElement("span", "booked-gite-info__item-label", item.label));
+        const valueElement = item.href && !item.obfuscate
+          ? createElement("a", "booked-gite-info__item-value", item.value)
+          : createElement("span", "booked-gite-info__item-value", item.obfuscate ? undefined : item.value);
+        if (item.href) {
+          valueElement.href = item.href;
+          valueElement.target = "_blank";
+          valueElement.rel = "noopener noreferrer";
+        }
+        if (item.obfuscate) {
+          valueElement.classList.add("booked-gite-info__item-value--obfuscated");
+          appendObfuscatedText(valueElement, item.value);
+        }
+        itemElement.appendChild(valueElement);
+        list.appendChild(itemElement);
+        return;
       }
       itemElement.appendChild(createElement("span", "booked-gite-info__item-label", item.label));
       if (item.dimensions) {

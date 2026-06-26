@@ -7,6 +7,8 @@
   const apiFetch = wp.apiFetch;
   const EDITOR_CACHE_PREFIX = "booked:block-api:v1:";
   const NO_SELECTION_ID = "__booked_no_selection__";
+  const GENERAL_INFO_SECTION_ID = "__booked_general_info";
+  const GENERAL_INFO_GROUP_ID = "__booked_general_info_details";
   const DEFAULT_GITE_META_KEY = "_booked_default_gite_id";
   const DEFAULT_PERIOD_COLORS = {
     holidayColor: "#22c55e",
@@ -148,6 +150,116 @@
       value: gite.id,
     })),
   ];
+
+  const getPathValue = (source, path) => {
+    if (!source || typeof source !== "object") return "";
+
+    return String(path || "").split(".").reduce((current, key) => {
+      if (current === null || current === undefined) return undefined;
+      if (Array.isArray(current)) {
+        const index = Number.parseInt(key, 10);
+        return Number.isFinite(index) ? current[index] : undefined;
+      }
+      return Object.prototype.hasOwnProperty.call(Object(current), key) ? current[key] : undefined;
+    }, source);
+  };
+
+  const getFirstText = (source, paths) => {
+    for (const path of paths) {
+      const value = getPathValue(source, path);
+      if (Array.isArray(value)) {
+        const text = value.map((item) => String(item || "").trim()).filter(Boolean).join(", ");
+        if (text) return text;
+        continue;
+      }
+      const text = String(value || "").trim();
+      if (text) return text;
+    }
+    return "";
+  };
+
+  const getManagerName = (payload) => {
+    const firstName = getFirstText(payload, [
+      "gestionnaire.prenom",
+      "manager.prenom",
+      "variables.gestionnaire_prenom",
+      "variables.manager_prenom",
+    ]);
+    const lastName = getFirstText(payload, [
+      "gestionnaire.nom",
+      "manager.nom",
+      "variables.gestionnaire_nom",
+      "variables.manager_nom",
+    ]);
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+    return fullName || getFirstText(payload, [
+      "gestionnaire.nom_complet",
+      "gestionnaire.name",
+      "manager.nom_complet",
+      "manager.name",
+      "variables.gestionnaire_nom_complet",
+      "variables.manager_name",
+    ]);
+  };
+
+  const getGeneralInfoRows = (payload) => {
+    const rows = [];
+    const address = getFirstText(payload, ["variables.adresse_complete", "adresse_complete"]);
+    const managerName = getManagerName(payload);
+    const managerPhone = getFirstText(payload, [
+      "gestionnaire.telephone",
+      "gestionnaire.tel",
+      "gestionnaire.phone",
+      "manager.telephone",
+      "manager.tel",
+      "manager.phone",
+      "variables.gestionnaire_telephone",
+      "variables.gestionnaire_tel",
+      "variables.manager_telephone",
+      "variables.manager_phone",
+      "telephone_gestionnaire",
+      "tel_gestionnaire",
+    ]);
+
+    if (address) rows.push("address");
+    if (getFirstText(payload, ["variables.prix_nuit_basse_saison"])) rows.push("low-season");
+    if (getFirstText(payload, ["variables.prix_nuit_haute_saison"])) rows.push("high-season");
+    if (managerName || managerPhone) rows.push("manager");
+    [
+      "variables.service_menage_forfait",
+      "variables.service_draps_par_lit",
+      "variables.service_linge_toilette_par_personne",
+      "variables.service_chiens_par_nuit",
+      "variables.service_depart_tardif_forfait",
+    ].forEach((path) => {
+      if (getFirstText(payload, [path])) rows.push(path);
+    });
+
+    return rows;
+  };
+
+  const createGeneralInfoSection = (payload) => {
+    if (getGeneralInfoRows(payload).length === 0) return null;
+
+    return {
+      id: GENERAL_INFO_SECTION_ID,
+      titre: __("Informations générales", "booked"),
+      groupes: [
+        {
+          id: GENERAL_INFO_GROUP_ID,
+          titre: __("Coordonnées et tarifs", "booked"),
+        },
+      ],
+    };
+  };
+
+  const getGiteInfoDisplaySections = (payload) => {
+    const sections = payload && Array.isArray(payload.sections) ? payload.sections : [];
+    const generalInfoSection = createGeneralInfoSection(payload);
+
+    return generalInfoSection ? [generalInfoSection, ...sections] : sections;
+  };
 
   const calendarColorAttributes = {
     holidayColor: {
@@ -2384,7 +2496,7 @@
           });
       }, [effectiveGiteId]);
 
-      const sections = content && Array.isArray(content.sections) ? content.sections : [];
+      const sections = getGiteInfoDisplaySections(content);
       const sectionIds = sections.map((section) => String(section.id || "")).filter(Boolean);
       const groupIds = sections.flatMap((section) =>
         (Array.isArray(section.groupes) ? section.groupes : []).map((group) => String(group.id || "")).filter(Boolean)
