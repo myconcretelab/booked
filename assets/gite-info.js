@@ -164,27 +164,28 @@
     ]);
 
     if (address) {
-      rows.push({ kind: "general_info", icon: "address", label: "Adresse", value: address, href: createMapsUrl(address) });
+      rows.push({ id: "address", kind: "general_info", icon: "address", label: "Adresse", value: address, href: createMapsUrl(address) });
     }
 
     [
-      ["Prix basse saison", "variables.prix_nuit_basse_saison"],
-      ["Prix haute saison", "variables.prix_nuit_haute_saison"],
-    ].forEach(([label, path]) => {
+      ["price-low", "Prix basse saison", "variables.prix_nuit_basse_saison"],
+      ["price-high", "Prix haute saison", "variables.prix_nuit_haute_saison"],
+    ].forEach(([id, label, path]) => {
       const value = getFirstText(payload, [path]);
-      if (value) rows.push({ kind: "general_info", icon: "price", label, value, emphasis: true });
+      if (value) rows.push({ id, kind: "general_info", icon: "price", label, value, emphasis: true });
     });
 
     [
-      ["Arrivée", "variables.horaire_arrivee", "arrival"],
-      ["Départ", "variables.horaire_depart", "departure"],
-    ].forEach(([label, path, icon]) => {
+      ["arrival", "Arrivée", "variables.horaire_arrivee", "arrival"],
+      ["departure", "Départ", "variables.horaire_depart", "departure"],
+    ].forEach(([id, label, path, icon]) => {
       const value = getFirstText(payload, [path]);
-      if (value) rows.push({ kind: "general_info", icon, label, value });
+      if (value) rows.push({ id, kind: "general_info", icon, label, value });
     });
 
     if (managerName || managerPhone) {
       rows.push({
+        id: "manager",
         kind: "general_info",
         icon: "manager",
         label: "Gestionnaire",
@@ -205,14 +206,15 @@
       if (value) options.push({ icon, label, value });
     });
     if (options.length > 0) {
-      rows.push({ kind: "general_options", label: "Options", options });
+      rows.push({ id: "options", kind: "general_options", label: "Options", options });
     }
 
     return rows;
   };
 
-  const createGeneralInfoSection = (payload) => {
-    const rows = getGeneralInfoRows(payload);
+  const createGeneralInfoSection = (payload, selectedItemIds = []) => {
+    const itemFilter = new Set(selectedItemIds);
+    const rows = getGeneralInfoRows(payload).filter((row) => itemFilter.size === 0 || itemFilter.has(String(row.id || "")));
     if (rows.length === 0) return null;
 
     return {
@@ -392,19 +394,19 @@
     return svg;
   };
 
-  const getDisplaySections = (payload) => {
+  const getDisplaySections = (payload, selectedGeneralInfoItemIds = []) => {
     const sections = Array.isArray(payload.sections) ? payload.sections : [];
-    const generalInfoSection = createGeneralInfoSection(payload);
+    const generalInfoSection = createGeneralInfoSection(payload, selectedGeneralInfoItemIds);
 
     return generalInfoSection ? [generalInfoSection, ...sections] : sections;
   };
 
-  const getFilteredSections = (payload, selectedSectionIds, selectedGroupIds) => {
+  const getFilteredSections = (payload, selectedSectionIds, selectedGroupIds, selectedGeneralInfoItemIds) => {
     const sectionFilter = new Set(selectedSectionIds);
     const groupFilter = new Set(selectedGroupIds);
     const shouldFilterSections = sectionFilter.size > 0;
     const shouldFilterGroups = groupFilter.size > 0;
-    const sections = getDisplaySections(payload);
+    const sections = getDisplaySections(payload, selectedGeneralInfoItemIds);
 
     return sections
       .filter((section) => !shouldFilterSections || sectionFilter.has(String(section.id || "")))
@@ -561,6 +563,7 @@
   const renderContent = (root, payload) => {
     const selectedSectionIds = parseList(root.dataset.selectedSectionIds);
     const selectedGroupIds = parseList(root.dataset.selectedGroupIds);
+    const selectedGeneralInfoItemIds = parseList(root.dataset.selectedGeneralInfoItemIds);
     const layout = ["list", "accordion", "cards"].includes(root.dataset.layout) ? root.dataset.layout : "list";
     const cardColumns = Number.parseInt(root.dataset.cardColumns || "3", 10);
     const options = {
@@ -570,7 +573,7 @@
       showNotes: root.dataset.showNotes !== "0",
       cardColumns: Number.isFinite(cardColumns) ? Math.max(1, Math.min(4, cardColumns)) : 3,
     };
-    const sections = getFilteredSections(payload, selectedSectionIds, selectedGroupIds);
+    const sections = getFilteredSections(payload, selectedSectionIds, selectedGroupIds, selectedGeneralInfoItemIds);
 
     root.innerHTML = "";
     if (options.showTitle) {

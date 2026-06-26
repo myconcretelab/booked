@@ -887,6 +887,7 @@
       attributes.cardColumns,
       JSON.stringify(attributes.selectedSectionIds || []),
       JSON.stringify(attributes.selectedGroupIds || []),
+      JSON.stringify(attributes.selectedGeneralInfoItemIds || []),
       attributes.showTitle,
       attributes.showSectionTitles,
       attributes.showGroupTitles,
@@ -906,6 +907,7 @@
       "data-card-columns": String(attributes.cardColumns || 3),
       "data-selected-section-ids": JSON.stringify(attributes.selectedSectionIds || []),
       "data-selected-group-ids": JSON.stringify(attributes.selectedGroupIds || []),
+      "data-selected-general-info-item-ids": JSON.stringify(attributes.selectedGeneralInfoItemIds || []),
       "data-show-title": attributes.showTitle === false ? "0" : "1",
       "data-show-section-titles": attributes.showSectionTitles === false ? "0" : "1",
       "data-show-group-titles": attributes.showGroupTitles === false ? "0" : "1",
@@ -2438,6 +2440,13 @@
       selectedGroupIds: {
         type: "array",
         default: [NO_SELECTION_ID],
+        items: {
+          type: "string",
+        },
+      },
+      selectedGeneralInfoItemIds: {
+        type: "array",
+        default: [],
         items: {
           type: "string",
         },

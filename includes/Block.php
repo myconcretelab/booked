@@ -442,6 +442,11 @@ class Booked_Block
                     'default' => ['__booked_no_selection__'],
                     'items' => ['type' => 'string'],
                 ],
+                'selectedGeneralInfoItemIds' => [
+                    'type' => 'array',
+                    'default' => [],
+                    'items' => ['type' => 'string'],
+                ],
                 'showTitle' => [
                     'type' => 'boolean',
                     'default' => false,
@@ -807,6 +812,7 @@ class Booked_Block
         $card_columns = max(1, min(4, (int) ($attributes['cardColumns'] ?? 3)));
         $selected_section_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedSectionIds'] ?? []))));
         $selected_group_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedGroupIds'] ?? []))));
+        $selected_general_info_item_ids = array_values(array_filter(array_map('sanitize_text_field', (array) ($attributes['selectedGeneralInfoItemIds'] ?? []))));
         $show_title = !empty($attributes['showTitle']);
         $show_section_titles = !empty($attributes['showSectionTitles']);
         $show_group_titles = !array_key_exists('showGroupTitles', $attributes) || $attributes['showGroupTitles'] !== false;
@@ -816,13 +822,14 @@ class Booked_Block
         wp_enqueue_script('booked-gite-info');
 
         return sprintf(
-            '<div %s data-gite-id="%s" data-layout="%s" data-card-columns="%d" data-selected-section-ids="%s" data-selected-group-ids="%s" data-show-title="%s" data-show-section-titles="%s" data-show-group-titles="%s" data-show-notes="%s"></div>',
+            '<div %s data-gite-id="%s" data-layout="%s" data-card-columns="%d" data-selected-section-ids="%s" data-selected-group-ids="%s" data-selected-general-info-item-ids="%s" data-show-title="%s" data-show-section-titles="%s" data-show-group-titles="%s" data-show-notes="%s"></div>',
             get_block_wrapper_attributes(['class' => 'booked-gite-info']),
             esc_attr($gite_id),
             esc_attr($layout),
             $card_columns,
             esc_attr(wp_json_encode($selected_section_ids)),
             esc_attr(wp_json_encode($selected_group_ids)),
+            esc_attr(wp_json_encode($selected_general_info_item_ids)),
             $show_title ? '1' : '0',
             $show_section_titles ? '1' : '0',
             $show_group_titles ? '1' : '0',
