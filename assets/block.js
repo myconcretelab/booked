@@ -1,6 +1,6 @@
 (function (wp) {
   const { createBlock, registerBlockStyle, registerBlockType } = wp.blocks;
-  const { BlockControls, InnerBlocks, InspectorControls, RichText, useBlockProps } = wp.blockEditor;
+  const { BlockControls, InnerBlocks, InspectorControls, MediaUpload, MediaUploadCheck, RichText, useBlockProps } = wp.blockEditor;
   const { Button, CheckboxControl, DropdownMenu, Notice, PanelBody, RangeControl, SelectControl, Spinner, TextControl, ToggleControl, ToolbarGroup } = wp.components;
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
   const { __, sprintf } = wp.i18n;
@@ -215,6 +215,52 @@
     },
   };
 
+  const imageCarouselAttributes = {
+    images: {
+      type: "array",
+      default: [],
+      items: {
+        type: "object",
+      },
+    },
+    imageRatio: {
+      type: "string",
+      default: "4-3",
+    },
+    objectFit: {
+      type: "string",
+      default: "cover",
+    },
+    transitionEffect: {
+      type: "string",
+      default: "slide",
+    },
+    showDots: {
+      type: "boolean",
+      default: true,
+    },
+    showArrows: {
+      type: "boolean",
+      default: true,
+    },
+    autoplay: {
+      type: "boolean",
+      default: false,
+    },
+    pauseOnHover: {
+      type: "boolean",
+      default: true,
+    },
+    interval: {
+      type: "number",
+      default: 4500,
+    },
+    showCaptions: {
+      type: "boolean",
+      default: false,
+    },
+  };
+
   const giteCardsAttributes = {
     selectedGiteIds: {
       type: "array",
@@ -273,6 +319,18 @@
   const getGalleryExpandOptions = () => [
     { label: __("Lightbox", "booked"), value: "lightbox" },
     { label: __("Masonry en overlay", "booked"), value: "masonry" },
+  ];
+
+  const getImageCarouselTransitionOptions = () => [
+    { label: __("Slide", "booked"), value: "slide" },
+    { label: __("Fondu", "booked"), value: "fade" },
+    { label: __("Zoom doux", "booked"), value: "zoom" },
+    { label: __("Volet", "booked"), value: "wipe" },
+  ];
+
+  const getImageCarouselFitOptions = () => [
+    { label: __("Recadrer", "booked"), value: "cover" },
+    { label: __("Contenir", "booked"), value: "contain" },
   ];
 
   const getGiteCardsLayoutOptions = () => [
@@ -420,6 +478,69 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+
+  const stripHtml = (value) => {
+    const element = document.createElement("div");
+    element.innerHTML = String(value || "");
+    return element.textContent || element.innerText || "";
+  };
+
+  const getMediaText = (value) => {
+    if (!value) return "";
+    if (typeof value === "object") {
+      return stripHtml(value.raw || value.rendered || "");
+    }
+    return stripHtml(value);
+  };
+
+  const getSizedImageUrl = (image) => {
+    const source = image || {};
+    const sizes = source.sizes ? source.sizes : {};
+    return (
+      (sizes.large && sizes.large.url) ||
+      (sizes.full && sizes.full.url) ||
+      source.url ||
+      source.source_url ||
+      ""
+    );
+  };
+
+  const normalizeCarouselImages = (value) =>
+    (Array.isArray(value) ? value : [])
+      .map((item) => {
+        const image = item || {};
+        return {
+          id: Number(image.id || image.ID || 0),
+          url: String(getSizedImageUrl(image) || ""),
+          fullUrl: String((image.sizes && image.sizes.full && image.sizes.full.url) || image.fullUrl || image.url || image.source_url || ""),
+          alt: getMediaText(image.alt || image.alt_text || ""),
+          caption: getMediaText(image.caption || ""),
+          title: getMediaText(image.title || ""),
+          width: Number(image.width || 0),
+          height: Number(image.height || 0),
+        };
+      })
+      .filter((image) => image.url);
+
+  const getImageCarouselRatioCss = (ratio) => ({
+    "1-1": "1 / 1",
+    "4-3": "4 / 3",
+    "3-2": "3 / 2",
+    "16-9": "16 / 9",
+    "2-3": "2 / 3",
+  }[ratio] || "4 / 3");
+
+  const getImageCarouselEffect = (effect) =>
+    ["slide", "fade", "zoom", "wipe"].includes(effect) ? effect : "slide";
+
+  const getImageCarouselObjectFit = (objectFit) => (objectFit === "contain" ? "contain" : "cover");
+
+  const getImageCarouselClassName = (attributes) =>
+    [
+      "booked-image-carousel",
+      `booked-image-carousel--effect-${getImageCarouselEffect(attributes.transitionEffect)}`,
+      `booked-image-carousel--fit-${getImageCarouselObjectFit(attributes.objectFit)}`,
+    ].join(" ");
 
   const stripTokenBraces = (token) => String(token || "").replace(/^\{\{\s*|\s*\}\}$/g, "").toLowerCase();
 
@@ -788,6 +909,416 @@
       "data-cta-label": attributes.ctaLabel || __("Voir le gîte", "booked"),
     });
   };
+
+  const ImageCarouselPreview = ({ attributes, mediaButton }) => {
+    const images = normalizeCarouselImages(attributes.images || []);
+    const [activeIndex, setActiveIndex] = useState(0);
+    const total = images.length;
+    const effect = getImageCarouselEffect(attributes.transitionEffect);
+    const objectFit = getImageCarouselObjectFit(attributes.objectFit);
+
+    useEffect(() => {
+      if (activeIndex >= total) {
+        setActiveIndex(0);
+      }
+    }, [activeIndex, total]);
+
+    useEffect(() => {
+      if (!attributes.autoplay || total < 2) return undefined;
+      const interval = Math.max(1500, Math.min(20000, Number(attributes.interval || 4500)));
+      const timer = window.setInterval(() => {
+        setActiveIndex((index) => (index + 1) % total);
+      }, interval);
+      return () => window.clearInterval(timer);
+    }, [attributes.autoplay, attributes.interval, total]);
+
+    if (total === 0) {
+      return el(
+        "div",
+        { className: "booked-block-placeholder booked-image-carousel-editor-placeholder" },
+        el("p", null, __("Sélectionnez plusieurs photos pour créer une image défilante.", "booked")),
+        mediaButton || null
+      );
+    }
+
+    const move = (offset) => setActiveIndex((index) => (index + offset + total) % total);
+
+    return el(
+      "figure",
+      {
+        className: `${getImageCarouselClassName({ ...attributes, transitionEffect: effect, objectFit })} booked-image-carousel--editor-preview`,
+        "data-effect": effect,
+        "data-autoplay": attributes.autoplay ? "1" : "0",
+        "data-interval": String(attributes.interval || 4500),
+        "data-pause-on-hover": attributes.pauseOnHover === false ? "0" : "1",
+        style: {
+          "--booked-image-carousel-ratio": getImageCarouselRatioCss(attributes.imageRatio),
+        },
+      },
+      el(
+        "div",
+        { className: "booked-image-carousel__viewport" },
+        el(
+          "div",
+          { className: "booked-image-carousel__track" },
+          images.map((image, index) =>
+            el(
+              "div",
+              {
+                key: `${image.id || image.url}-${index}`,
+                className: `booked-image-carousel__slide${index === activeIndex ? " booked-image-carousel__slide--active" : ""}`,
+                "aria-hidden": index === activeIndex ? "false" : "true",
+                style: {
+                  "--booked-carousel-offset": String(index - activeIndex),
+                },
+              },
+              el("img", {
+                className: "booked-image-carousel__image",
+                src: image.url,
+                alt: image.alt || "",
+                loading: index === 0 ? "eager" : "lazy",
+                decoding: "async",
+              }),
+              attributes.showCaptions && image.caption
+                ? el("span", { className: "booked-image-carousel__caption" }, image.caption)
+                : null
+            )
+          )
+        ),
+        attributes.showArrows !== false && total > 1
+          ? [
+              el(Button, {
+                key: "previous",
+                className: "booked-image-carousel__arrow booked-image-carousel__arrow--previous",
+                label: __("Photo précédente", "booked"),
+                onClick: () => move(-1),
+              }, "‹"),
+              el(Button, {
+                key: "next",
+                className: "booked-image-carousel__arrow booked-image-carousel__arrow--next",
+                label: __("Photo suivante", "booked"),
+                onClick: () => move(1),
+              }, "›"),
+            ]
+          : null
+      ),
+      attributes.showDots !== false && total > 1
+        ? el(
+            "div",
+            { className: "booked-image-carousel__dots", "aria-label": __("Navigation des photos", "booked") },
+            images.map((image, index) =>
+              el(Button, {
+                key: `${image.id || image.url}-dot-${index}`,
+                className: `booked-image-carousel__dot${index === activeIndex ? " booked-image-carousel__dot--active" : ""}`,
+                label: sprintf(__("Afficher la photo %d", "booked"), index + 1),
+                "aria-current": index === activeIndex ? "true" : "false",
+                onClick: () => setActiveIndex(index),
+              })
+            )
+          )
+        : null
+    );
+  };
+
+  registerBlockType("booked/image-carousel", {
+    attributes: imageCarouselAttributes,
+    supports: {
+      align: true,
+      anchor: true,
+      className: true,
+      spacing: {
+        margin: true,
+        padding: true,
+      },
+    },
+    transforms: {
+      from: [
+        {
+          type: "block",
+          blocks: ["core/image"],
+          transform: ({ id, url, alt, caption, title }) =>
+            createBlock("booked/image-carousel", {
+              images: normalizeCarouselImages([{ id, url, alt, caption, title }]),
+            }),
+        },
+        {
+          type: "block",
+          blocks: ["core/gallery"],
+          isMatch: ({ images }) => Array.isArray(images) && images.length > 0,
+          transform: ({ images }) =>
+            createBlock("booked/image-carousel", {
+              images: normalizeCarouselImages(images),
+            }),
+        },
+      ],
+      to: [
+        {
+          type: "block",
+          blocks: ["core/image"],
+          isMatch: ({ images }) => normalizeCarouselImages(images).length > 0,
+          transform: ({ images }) => {
+            const image = normalizeCarouselImages(images)[0];
+            return createBlock("core/image", {
+              id: image.id || undefined,
+              url: image.url,
+              alt: image.alt,
+              caption: image.caption,
+            });
+          },
+        },
+      ],
+    },
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-block booked-block--image-carousel" });
+      const images = normalizeCarouselImages(attributes.images || []);
+      const imageIds = images.map((image) => image.id).filter(Boolean);
+      const updateImages = (selectedImages) => setAttributes({ images: normalizeCarouselImages(selectedImages) });
+      const renderMediaButton = (label, variant = "secondary", className = "") =>
+        el(
+          MediaUploadCheck,
+          null,
+          el(MediaUpload, {
+            allowedTypes: ["image"],
+            gallery: true,
+            multiple: true,
+            value: imageIds,
+            onSelect: updateImages,
+            render: ({ open }) =>
+              el(Button, { variant, className, onClick: open }, label),
+          })
+        );
+
+      return el(
+        Fragment,
+        null,
+        el(
+          BlockControls,
+          null,
+          el(
+            ToolbarGroup,
+            null,
+            renderMediaButton(images.length > 0 ? __("Modifier les photos", "booked") : __("Choisir les photos", "booked"))
+          )
+        ),
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Photos", "booked"), initialOpen: true },
+            images.length > 0
+              ? el(
+                  "p",
+                  { className: "booked-block-help" },
+                  sprintf(__("%d photo(s) sélectionnée(s).", "booked"), images.length)
+                )
+              : el("p", { className: "booked-block-help" }, __("Aucune photo sélectionnée.", "booked")),
+            images.length > 0
+              ? el(
+                  "div",
+                  { className: "booked-image-carousel-editor-thumbs" },
+                  images.slice(0, 12).map((image, index) =>
+                    el("img", {
+                      key: `${image.id || image.url}-thumb-${index}`,
+                      src: image.url,
+                      alt: image.alt || "",
+                    })
+                  )
+                )
+              : null,
+            renderMediaButton(images.length > 0 ? __("Remplacer ou réordonner", "booked") : __("Choisir les photos", "booked"), "primary"),
+            images.length > 0
+              ? el(
+                  Button,
+                  {
+                    variant: "secondary",
+                    isDestructive: true,
+                    onClick: () => setAttributes({ images: [] }),
+                  },
+                  __("Retirer les photos", "booked")
+                )
+              : null
+          ),
+          el(
+            PanelBody,
+            { title: __("Affichage", "booked"), initialOpen: true },
+            el(SelectControl, {
+              label: __("Format", "booked"),
+              value: attributes.imageRatio || "4-3",
+              options: getGalleryRatioOptions(),
+              onChange: (imageRatio) => setAttributes({ imageRatio }),
+            }),
+            el(SelectControl, {
+              label: __("Ajustement des photos", "booked"),
+              value: attributes.objectFit || "cover",
+              options: getImageCarouselFitOptions(),
+              onChange: (objectFit) => setAttributes({ objectFit }),
+            }),
+            el(SelectControl, {
+              label: __("Transition", "booked"),
+              value: attributes.transitionEffect || "slide",
+              options: getImageCarouselTransitionOptions(),
+              onChange: (transitionEffect) => setAttributes({ transitionEffect }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les points", "booked"),
+              checked: attributes.showDots !== false,
+              onChange: (showDots) => setAttributes({ showDots }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les flèches au survol", "booked"),
+              checked: attributes.showArrows !== false,
+              onChange: (showArrows) => setAttributes({ showArrows }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher les légendes", "booked"),
+              checked: !!attributes.showCaptions,
+              onChange: (showCaptions) => setAttributes({ showCaptions }),
+            })
+          ),
+          el(
+            PanelBody,
+            { title: __("Diaporama", "booked"), initialOpen: false },
+            el(ToggleControl, {
+              label: __("Lecture automatique", "booked"),
+              checked: !!attributes.autoplay,
+              onChange: (autoplay) => setAttributes({ autoplay }),
+            }),
+            attributes.autoplay
+              ? el(RangeControl, {
+                  label: __("Rythme en secondes", "booked"),
+                  value: Math.round((attributes.interval || 4500) / 1000),
+                  min: 2,
+                  max: 12,
+                  step: 1,
+                  onChange: (value) => setAttributes({ interval: (value || 5) * 1000 }),
+                })
+              : null,
+            attributes.autoplay
+              ? el(ToggleControl, {
+                  label: __("Pause au survol", "booked"),
+                  checked: attributes.pauseOnHover !== false,
+                  onChange: (pauseOnHover) => setAttributes({ pauseOnHover }),
+                })
+              : null
+          )
+        ),
+        el(
+          "div",
+          blockProps,
+          el(ImageCarouselPreview, {
+            attributes,
+            mediaButton: renderMediaButton(__("Choisir les photos", "booked"), "primary"),
+          })
+        )
+      );
+    },
+    save({ attributes }) {
+      const images = normalizeCarouselImages(attributes.images || []);
+      const total = images.length;
+      const effect = getImageCarouselEffect(attributes.transitionEffect);
+      const objectFit = getImageCarouselObjectFit(attributes.objectFit);
+
+      if (total === 0) {
+        return null;
+      }
+
+      const blockProps = useBlockProps.save({
+        className: getImageCarouselClassName({ ...attributes, transitionEffect: effect, objectFit }),
+        style: {
+          "--booked-image-carousel-ratio": getImageCarouselRatioCss(attributes.imageRatio),
+        },
+      });
+
+      return el(
+        "figure",
+        {
+          ...blockProps,
+          role: "region",
+          "aria-roledescription": "carousel",
+          "aria-label": __("Image défilante", "booked"),
+          tabIndex: total > 1 ? 0 : undefined,
+          "data-effect": effect,
+          "data-autoplay": attributes.autoplay ? "1" : "0",
+          "data-interval": String(attributes.interval || 4500),
+          "data-pause-on-hover": attributes.pauseOnHover === false ? "0" : "1",
+          "data-image-count": String(total),
+        },
+        el(
+          "div",
+          { className: "booked-image-carousel__viewport" },
+          el(
+            "div",
+            { className: "booked-image-carousel__track" },
+            images.map((image, index) =>
+              el(
+                "div",
+                {
+                  key: `${image.id || image.url}-${index}`,
+                  className: `booked-image-carousel__slide${index === 0 ? " booked-image-carousel__slide--active" : ""}`,
+                  "aria-hidden": index === 0 ? "false" : "true",
+                  style: {
+                    "--booked-carousel-offset": String(index),
+                  },
+                },
+                el("img", {
+                  className: "booked-image-carousel__image",
+                  src: image.url,
+                  alt: image.alt || "",
+                  width: image.width || undefined,
+                  height: image.height || undefined,
+                  loading: index === 0 ? undefined : "lazy",
+                  decoding: "async",
+                }),
+                attributes.showCaptions && image.caption
+                  ? el("span", { className: "booked-image-carousel__caption" }, image.caption)
+                  : null
+              )
+            )
+          ),
+          attributes.showArrows !== false && total > 1
+            ? [
+                el(
+                  "button",
+                  {
+                    key: "previous",
+                    className: "booked-image-carousel__arrow booked-image-carousel__arrow--previous",
+                    type: "button",
+                    "aria-label": __("Photo précédente", "booked"),
+                  },
+                  "‹"
+                ),
+                el(
+                  "button",
+                  {
+                    key: "next",
+                    className: "booked-image-carousel__arrow booked-image-carousel__arrow--next",
+                    type: "button",
+                    "aria-label": __("Photo suivante", "booked"),
+                  },
+                  "›"
+                ),
+              ]
+            : null
+        ),
+        attributes.showDots !== false && total > 1
+          ? el(
+              "div",
+              { className: "booked-image-carousel__dots", "aria-label": __("Navigation des photos", "booked") },
+              images.map((image, index) =>
+                el("button", {
+                  key: `${image.id || image.url}-dot-${index}`,
+                  className: `booked-image-carousel__dot${index === 0 ? " booked-image-carousel__dot--active" : ""}`,
+                  type: "button",
+                  "aria-label": sprintf(__("Afficher la photo %d", "booked"), index + 1),
+                  "aria-current": index === 0 ? "true" : "false",
+                })
+              )
+            )
+          : null
+      );
+    },
+  });
 
   registerBlockType("booked/accordion", {
     attributes: {

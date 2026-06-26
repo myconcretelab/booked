@@ -1455,6 +1455,204 @@
   padding: 16px 0;
 }
 
+.booked-image-carousel {
+  --booked-image-carousel-ratio: 4 / 3;
+  color: inherit;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  max-width: 100%;
+}
+
+.booked-image-carousel__viewport {
+  aspect-ratio: var(--booked-image-carousel-ratio);
+  background: #f1f5f9;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.booked-image-carousel__track {
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.booked-image-carousel__slide {
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  transition:
+    opacity 520ms ease,
+    transform 520ms ease,
+    clip-path 520ms ease;
+  visibility: hidden;
+}
+
+.booked-image-carousel__slide--active {
+  opacity: 1;
+  visibility: visible;
+  z-index: 2;
+}
+
+.booked-image-carousel__image {
+  display: block;
+  height: 100%;
+  user-select: none;
+  width: 100%;
+}
+
+.booked-image-carousel--fit-cover .booked-image-carousel__image {
+  object-fit: cover;
+}
+
+.booked-image-carousel--fit-contain .booked-image-carousel__image {
+  object-fit: contain;
+}
+
+.booked-image-carousel--effect-slide .booked-image-carousel__slide {
+  opacity: 1;
+  transform: translateX(calc(var(--booked-carousel-offset, 1) * 100%));
+  visibility: visible;
+}
+
+.booked-image-carousel--effect-slide .booked-image-carousel__slide--active {
+  transform: translateX(0);
+}
+
+.booked-image-carousel--effect-fade .booked-image-carousel__slide {
+  transform: none;
+}
+
+.booked-image-carousel--effect-zoom .booked-image-carousel__slide {
+  transform: scale(1.04);
+}
+
+.booked-image-carousel--effect-zoom .booked-image-carousel__slide--active {
+  transform: scale(1);
+}
+
+.booked-image-carousel--effect-wipe .booked-image-carousel__slide {
+  clip-path: inset(0 100% 0 0);
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+}
+
+.booked-image-carousel--effect-wipe .booked-image-carousel__slide--active {
+  clip-path: inset(0);
+}
+
+.booked-image-carousel__caption {
+  background: linear-gradient(transparent, rgb(15 23 42 / 70%));
+  bottom: 0;
+  box-sizing: border-box;
+  color: #ffffff;
+  display: block;
+  font-size: 14px;
+  left: 0;
+  line-height: 1.4;
+  padding: 42px 18px 14px;
+  position: absolute;
+  right: 0;
+  text-align: left;
+  z-index: 3;
+}
+
+.booked-image-carousel__arrow {
+  align-items: center;
+  appearance: none;
+  background: rgb(15 23 42 / 32%);
+  border: 1px solid rgb(255 255 255 / 34%);
+  border-radius: 999px;
+  box-shadow: 0 8px 22px rgb(15 23 42 / 12%);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: 24px;
+  height: 38px;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0;
+  padding: 0 0 2px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: opacity 160ms ease, background 160ms ease;
+  width: 38px;
+  z-index: 4;
+}
+
+.booked-image-carousel__arrow:hover,
+.booked-image-carousel__arrow:focus-visible {
+  background: rgb(15 23 42 / 54%);
+  opacity: 1;
+}
+
+.booked-image-carousel__arrow:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.booked-image-carousel:hover .booked-image-carousel__arrow,
+.booked-image-carousel:focus-within .booked-image-carousel__arrow {
+  opacity: 0.72;
+}
+
+.booked-image-carousel__arrow--previous {
+  left: 14px;
+}
+
+.booked-image-carousel__arrow--next {
+  right: 14px;
+}
+
+.booked-image-carousel__dots {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  min-height: 18px;
+}
+
+.booked-image-carousel__dot {
+  appearance: none;
+  background: color-mix(in srgb, currentColor 28%, transparent);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 7px;
+  padding: 0;
+  transition: background 160ms ease, transform 160ms ease, width 160ms ease;
+  width: 7px;
+}
+
+.booked-image-carousel__dot--active {
+  background: currentColor;
+  transform: scale(1.08);
+  width: 18px;
+}
+
+.booked-image-carousel__dot:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (hover: none) {
+  .booked-image-carousel__arrow {
+    opacity: 0.58;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booked-image-carousel__slide,
+  .booked-image-carousel__arrow,
+  .booked-image-carousel__dot {
+    transition: none;
+  }
+}
+
 .booked-gallery {
   display: block;
   max-width: none;

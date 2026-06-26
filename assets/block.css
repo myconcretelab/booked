@@ -40,6 +40,40 @@
   min-height: 180px;
 }
 
+.booked-block--image-carousel {
+  min-height: 180px;
+}
+
+.booked-image-carousel-editor-placeholder {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.booked-image-carousel-editor-placeholder p {
+  margin: 0;
+}
+
+.booked-image-carousel-editor-thumbs {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 0 12px;
+}
+
+.booked-image-carousel-editor-thumbs img {
+  aspect-ratio: 1;
+  background: #f1f5f9;
+  display: block;
+  height: auto;
+  object-fit: cover;
+  width: 100%;
+}
+
+.booked-image-carousel--editor-preview .booked-image-carousel__arrow {
+  opacity: 0.72;
+}
+
 .booked-text__editor {
   margin: 0;
 }

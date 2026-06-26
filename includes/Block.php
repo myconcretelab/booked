@@ -174,6 +174,53 @@ class Booked_Block
         ];
     }
 
+    private function get_image_carousel_attributes(): array
+    {
+        return [
+            'images' => [
+                'type' => 'array',
+                'default' => [],
+                'items' => ['type' => 'object'],
+            ],
+            'imageRatio' => [
+                'type' => 'string',
+                'default' => '4-3',
+            ],
+            'objectFit' => [
+                'type' => 'string',
+                'default' => 'cover',
+            ],
+            'transitionEffect' => [
+                'type' => 'string',
+                'default' => 'slide',
+            ],
+            'showDots' => [
+                'type' => 'boolean',
+                'default' => true,
+            ],
+            'showArrows' => [
+                'type' => 'boolean',
+                'default' => true,
+            ],
+            'autoplay' => [
+                'type' => 'boolean',
+                'default' => false,
+            ],
+            'pauseOnHover' => [
+                'type' => 'boolean',
+                'default' => true,
+            ],
+            'interval' => [
+                'type' => 'number',
+                'default' => 4500,
+            ],
+            'showCaptions' => [
+                'type' => 'boolean',
+                'default' => false,
+            ],
+        ];
+    }
+
     private function get_gallery_ratio_css(string $ratio): string
     {
         $ratios = [
@@ -434,6 +481,26 @@ class Booked_Block
             'render_callback' => [$this, 'render_gallery_block'],
         ]);
 
+        register_block_type('booked/image-carousel', [
+            'api_version' => 2,
+            'title' => 'Booked Image défilante',
+            'category' => 'media',
+            'icon' => 'format-gallery',
+            'description' => 'Bloc image avec plusieurs photos, points de navigation, flèches discrètes et diaporama.',
+            'supports' => [
+                'align' => true,
+                'anchor' => true,
+                'className' => true,
+                'spacing' => [
+                    'margin' => true,
+                    'padding' => true,
+                ],
+            ],
+            'attributes' => $this->get_image_carousel_attributes(),
+            'style' => 'booked-widget',
+            'script' => 'booked-image-carousel',
+        ]);
+
         register_block_type('booked/gite-cards', [
             'api_version' => 2,
             'title' => 'Booked Cards gîtes',
@@ -624,11 +691,12 @@ class Booked_Block
         wp_enqueue_script('booked-gite-info');
         wp_enqueue_script('booked-gallery');
         wp_enqueue_script('booked-gite-cards');
+        wp_enqueue_script('booked-image-carousel');
 
         wp_enqueue_script(
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
-            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards'],
+            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards', 'booked-image-carousel'],
             BOOKED_VERSION,
             true
         );

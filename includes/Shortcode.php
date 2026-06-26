@@ -24,6 +24,7 @@ class Booked_Shortcode
         wp_register_script('booked-gite-info', BOOKED_PLUGIN_URL . 'assets/gite-info.js', ['booked-widget', 'booked-accordion'], BOOKED_VERSION, true);
         wp_register_script('booked-gallery', BOOKED_PLUGIN_URL . 'assets/gallery.js', ['booked-widget'], BOOKED_VERSION, true);
         wp_register_script('booked-gite-cards', BOOKED_PLUGIN_URL . 'assets/gite-cards.js', ['booked-widget'], BOOKED_VERSION, true);
+        wp_register_script('booked-image-carousel', BOOKED_PLUGIN_URL . 'assets/image-carousel.js', [], BOOKED_VERSION, true);
         wp_localize_script('booked-widget', 'BookedWidgetConfig', [
             'restUrl' => esc_url_raw(rest_url('booked/v1')),
             'debug' => !empty(get_option(BOOKED_OPTION_KEY, [])['debug_mode']),
