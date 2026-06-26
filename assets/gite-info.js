@@ -172,7 +172,7 @@
       ["price-high", "Prix haute saison", "variables.prix_nuit_haute_saison"],
     ].forEach(([id, label, path]) => {
       const value = getFirstText(payload, [path]);
-      if (value) rows.push({ id, kind: "general_info", icon: "price", label, value, emphasis: true });
+      if (value) rows.push({ id, kind: "general_info", icon: "", label, value, emphasis: true });
     });
 
     [
@@ -430,7 +430,9 @@
       if (kind === "bed") {
         itemElement.appendChild(createBedIcon(item.type));
       } else if (kind === "general-info") {
-        itemElement.appendChild(createInfoIcon(item.icon || "info"));
+        if (item.icon) {
+          itemElement.appendChild(createInfoIcon(item.icon));
+        }
         itemElement.appendChild(createElement("span", "booked-gite-info__item-label", item.label));
         const valueElement = item.href && !item.obfuscate
           ? createElement("a", "booked-gite-info__item-value", item.value)
