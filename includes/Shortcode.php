@@ -28,6 +28,7 @@ class Booked_Shortcode
         wp_localize_script('booked-widget', 'BookedWidgetConfig', [
             'restUrl' => esc_url_raw(rest_url('booked/v1')),
             'debug' => !empty(get_option(BOOKED_OPTION_KEY, [])['debug_mode']),
+            'woodFrameBaseUrl' => esc_url_raw(get_stylesheet_directory_uri() . '/assets/images/'),
         ]);
     }
 

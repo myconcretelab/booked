@@ -246,6 +246,10 @@ class Booked_Block
                 'type' => 'string',
                 'default' => 'grid',
             ],
+            'woodFrameAssignments' => [
+                'type' => 'object',
+                'default' => [],
+            ],
             'columns' => [
                 'type' => 'number',
                 'default' => 3,
@@ -840,7 +844,7 @@ class Booked_Block
     public function render_gite_cards_block(array $attributes): string
     {
         $selected_gite_ids = $this->sanitize_gite_id_list($attributes['selectedGiteIds'] ?? []);
-        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact', 'polaroid'], true)
+        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact', 'polaroid', 'wood-frames'], true)
             ? (string) $attributes['layout']
             : 'grid';
         $is_page_compact = $layout === 'page-compact';
@@ -861,10 +865,20 @@ class Booked_Block
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9'], true)
             ? (string) $attributes['imageRatio']
             : '4-3';
-        $show_images = ($layout === 'polaroid') || (!$is_page_compact && (!array_key_exists('showImages', $attributes) || !empty($attributes['showImages'])));
-        $show_description = ($layout === 'polaroid') || (!$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription'])));
-        $show_stats = $is_page_compact || $layout === 'polaroid' || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
-        $show_cta = !$is_page_compact && $layout !== 'polaroid' && (!array_key_exists('showCta', $attributes) || !empty($attributes['showCta']));
+        $is_composed_layout = in_array($layout, ['polaroid', 'wood-frames'], true);
+        $show_images = $is_composed_layout || (!$is_page_compact && (!array_key_exists('showImages', $attributes) || !empty($attributes['showImages'])));
+        $show_description = $is_composed_layout || (!$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription'])));
+        $show_stats = $is_page_compact || $is_composed_layout || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
+        $show_cta = !$is_page_compact && !$is_composed_layout && (!array_key_exists('showCta', $attributes) || !empty($attributes['showCta']));
+        $allowed_frames = ['rustic', 'dark', 'patina', 'ornate'];
+        $wood_frame_assignments = [];
+        foreach ((array) ($attributes['woodFrameAssignments'] ?? []) as $gite_id => $frame) {
+            $gite_id = sanitize_text_field((string) $gite_id);
+            $frame = sanitize_key((string) $frame);
+            if ($gite_id !== '' && in_array($frame, $allowed_frames, true)) {
+                $wood_frame_assignments[$gite_id] = $frame;
+            }
+        }
         $cta_label = sanitize_text_field((string) ($attributes['ctaLabel'] ?? 'Voir le gîte'));
         if ($cta_label === '') {
             $cta_label = 'Voir le gîte';
@@ -902,7 +916,7 @@ class Booked_Block
         ]);
 
         return sprintf(
-            '<div %s data-gite-ids="%s" data-gites="%s" data-layout="%s" data-columns="%d" data-image-ratio="%s" data-show-images="%s" data-show-description="%s" data-show-stats="%s" data-show-cta="%s" data-cta-label="%s"></div>',
+            '<div %s data-gite-ids="%s" data-gites="%s" data-layout="%s" data-columns="%d" data-image-ratio="%s" data-show-images="%s" data-show-description="%s" data-show-stats="%s" data-show-cta="%s" data-cta-label="%s" data-wood-frame-assignments="%s"></div>',
             $wrapper_attributes,
             esc_attr(wp_json_encode($gite_ids)),
             esc_attr(wp_json_encode($metadata)),
@@ -913,7 +927,8 @@ class Booked_Block
             $show_description ? '1' : '0',
             $show_stats ? '1' : '0',
             $show_cta ? '1' : '0',
-            esc_attr($cta_label)
+            esc_attr($cta_label),
+            esc_attr(wp_json_encode($wood_frame_assignments))
         );
     }
 

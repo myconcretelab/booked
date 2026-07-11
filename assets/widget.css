@@ -1503,6 +1503,121 @@ a.booked-gite-info__item-value {
   text-align: right;
 }
 
+.booked-gite-cards--wood-frames .booked-gite-cards__grid {
+  align-items: start;
+  gap: 34px 28px;
+}
+
+.booked-gite-cards--wood-frames .booked-gite-cards__card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.booked-gite-cards--wood-frames .booked-gite-cards__card::before {
+  content: none;
+}
+
+.booked-gite-cards__wood-frame {
+  aspect-ratio: 0.91;
+  filter: drop-shadow(0 8px 8px rgba(28, 19, 11, 0.3));
+  margin-inline: auto;
+  max-width: 420px;
+  position: relative;
+  transition: filter 180ms ease, transform 180ms ease;
+  width: 100%;
+}
+
+.booked-gite-cards--wood-frames .booked-gite-cards__card:hover .booked-gite-cards__wood-frame {
+  filter: drop-shadow(0 11px 10px rgba(28, 19, 11, 0.34));
+  transform: translateY(-3px);
+}
+
+.booked-gite-cards__wood-content {
+  background: #f3eee3;
+  display: grid;
+  grid-template-rows: minmax(0, 1.45fr) minmax(0, 0.72fr);
+  inset: 11% 12.2% 11.5%;
+  overflow: hidden;
+  position: absolute;
+  z-index: 1;
+}
+
+.booked-gite-cards__wood-frame--dark .booked-gite-cards__wood-content {
+  inset: 14.2% 14% 13.5%;
+}
+
+.booked-gite-cards__wood-frame--patina .booked-gite-cards__wood-content {
+  inset: 14.8% 16.7% 15.2%;
+}
+
+.booked-gite-cards__wood-photo.booked-gite-cards__media {
+  aspect-ratio: auto;
+  border-radius: 0;
+  min-height: 0;
+}
+
+.booked-gite-cards__wood-details {
+  align-content: center;
+  background: rgba(247, 241, 228, 0.97);
+  color: #30271d;
+  display: grid;
+  gap: 5px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 10px;
+}
+
+.booked-gite-cards__wood-details .booked-gite-cards__polaroid-band-title {
+  color: #30271d;
+}
+
+.booked-gite-cards__wood-details .booked-gite-cards__polaroid-band-text {
+  color: #665846;
+  -webkit-line-clamp: 1;
+}
+
+.booked-gite-cards__wood-details .booked-gite-cards__polaroid-stats {
+  gap: 2px 9px;
+}
+
+.booked-gite-cards__wood-frame-image {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 5;
+}
+
+.booked-gite-cards__wood-frame--ornate {
+  aspect-ratio: 1466 / 943;
+  max-width: 680px;
+}
+
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-content {
+  grid-template-columns: minmax(0, 1.45fr) minmax(170px, 0.8fr);
+  grid-template-rows: 1fr;
+  inset: 23.3% 14.8% 22.8%;
+}
+
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-details {
+  padding: 12px 14px;
+}
+
+@media (max-width: 640px) {
+  .booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-details {
+    gap: 2px;
+    padding: 7px 8px;
+  }
+
+  .booked-gite-cards__wood-frame--ornate .booked-gite-cards__polaroid-band-text {
+    display: none;
+  }
+}
+
 .booked-gite-cards--page-compact .booked-gite-cards__grid {
   grid-template-columns: 1fr;
 }

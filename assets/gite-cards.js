@@ -153,6 +153,15 @@
     }
   };
 
+  const parseJsonObject = (value) => {
+    try {
+      const parsed = JSON.parse(value || "{}");
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  };
+
   const getNumber = (...values) => {
     for (const value of values) {
       if (value === null || value === undefined || value === "") continue;
@@ -332,6 +341,44 @@
     return list;
   };
 
+  const woodFrameFiles = {
+    rustic: "cadre-bois-rustique.png",
+    dark: "cadre-bois-rustique-sombre.png",
+    patina: "cadre-bois-rustique-patine.png",
+    ornate: "cadre-bois-orne.png",
+  };
+
+  const renderWoodFrame = (gite, options, index) => {
+    const sequence = ["rustic", "dark", "patina", "ornate"];
+    const requestedFrame = options.woodFrameAssignments[gite.id];
+    const frame = woodFrameFiles[requestedFrame] ? requestedFrame : sequence[index % sequence.length];
+    const composition = createElement("div", `booked-gite-cards__wood-frame booked-gite-cards__wood-frame--${frame}`);
+    const content = createElement("div", "booked-gite-cards__wood-content");
+    const media = renderPhoto(gite, { ...options, showImages: true });
+    const details = createElement("div", "booked-gite-cards__wood-details");
+    const title = createElement("h3", "booked-gite-cards__polaroid-band-title", gite.name);
+    const description = createElement("p", "booked-gite-cards__polaroid-band-text", gite.description || gite.eyebrow || "");
+    const overlay = createElement("span", "booked-gite-cards__wood-frame-image");
+    const baseUrl = String(config.woodFrameBaseUrl || "").replace(/\/?$/, "/");
+
+    if (gite.url) {
+      const link = createElement("a", "booked-gite-cards__title-link", gite.name);
+      link.href = gite.url;
+      title.textContent = "";
+      title.appendChild(link);
+    }
+    details.appendChild(title);
+    if (description.textContent) details.appendChild(description);
+    if (gite.stats.length > 0) details.appendChild(renderPolaroidStats(gite.stats));
+    media.classList.add("booked-gite-cards__wood-photo");
+    overlay.style.backgroundImage = `url("${baseUrl}${woodFrameFiles[frame]}")`;
+    content.appendChild(media);
+    content.appendChild(details);
+    composition.appendChild(content);
+    composition.appendChild(overlay);
+    return composition;
+  };
+
   const updateStatsLineState = (statsElement) => {
     const rows = Array.from(statsElement.querySelectorAll(".booked-gite-cards__stat-row"));
     if (rows.length === 0) return;
@@ -354,6 +401,10 @@
 
   const renderCard = (gite, options, index) => {
     const card = createElement("article", `booked-gite-cards__card${index === 0 ? " booked-gite-cards__card--first" : ""}`);
+    if (options.layout === "wood-frames") {
+      card.appendChild(renderWoodFrame(gite, options, index));
+      return card;
+    }
     if (options.layout === "polaroid") {
       card.style.setProperty("--booked-polaroid-rotation", getPolaroidRotation(gite.id, index));
       const polaroid = createElement("div", "booked-gite-cards__polaroid");
@@ -431,6 +482,7 @@
     root.classList.toggle("booked-gite-cards--spotlight", options.layout === "spotlight");
     root.classList.toggle("booked-gite-cards--page-compact", options.layout === "page-compact");
     root.classList.toggle("booked-gite-cards--polaroid", options.layout === "polaroid");
+    root.classList.toggle("booked-gite-cards--wood-frames", options.layout === "wood-frames");
     root.classList.toggle("booked-gite-cards--no-images", !options.showImages);
     root.style.setProperty("--booked-gite-cards-columns", String(options.columns));
     root.style.setProperty("--booked-gite-cards-ratio", options.imageRatioCss);
@@ -455,17 +507,19 @@
     };
     const columns = Number.parseInt(root.dataset.columns || "3", 10);
     const imageRatio = root.dataset.imageRatio || "4-3";
-    const layout = ["grid", "compact", "spotlight", "page-compact", "polaroid"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
+    const layout = ["grid", "compact", "spotlight", "page-compact", "polaroid", "wood-frames"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
+    const isComposedLayout = layout === "polaroid" || layout === "wood-frames";
 
     return {
       layout,
       columns: layout === "page-compact" ? 1 : Number.isFinite(columns) ? Math.max(1, Math.min(4, columns)) : 3,
       imageRatioCss: ratios[imageRatio] || ratios["4-3"],
-      showImages: layout === "polaroid" || (layout !== "page-compact" && root.dataset.showImages !== "0"),
-      showDescription: layout === "polaroid" || (layout !== "page-compact" && root.dataset.showDescription !== "0"),
-      showStats: layout === "page-compact" || layout === "polaroid" || root.dataset.showStats !== "0",
-      showCta: layout !== "page-compact" && layout !== "polaroid" && root.dataset.showCta !== "0",
+      showImages: isComposedLayout || (layout !== "page-compact" && root.dataset.showImages !== "0"),
+      showDescription: isComposedLayout || (layout !== "page-compact" && root.dataset.showDescription !== "0"),
+      showStats: layout === "page-compact" || isComposedLayout || root.dataset.showStats !== "0",
+      showCta: layout !== "page-compact" && !isComposedLayout && root.dataset.showCta !== "0",
       ctaLabel: root.dataset.ctaLabel || "Voir le gîte",
+      woodFrameAssignments: parseJsonObject(root.dataset.woodFrameAssignments),
     };
   };
 

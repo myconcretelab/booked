@@ -374,6 +374,10 @@
       type: "string",
       default: "grid",
     },
+    woodFrameAssignments: {
+      type: "object",
+      default: {},
+    },
     columns: {
       type: "number",
       default: 3,
@@ -439,7 +443,15 @@
     { label: __("Liste compacte", "booked"), value: "compact" },
     { label: __("Mise en avant", "booked"), value: "spotlight" },
     { label: __("Polaroid", "booked"), value: "polaroid" },
+    { label: __("Cadres en bois", "booked"), value: "wood-frames" },
     { label: __("Compact gîte de la page", "booked"), value: "page-compact" },
+  ];
+
+  const getWoodFrameOptions = () => [
+    { label: __("Bois rustique", "booked"), value: "rustic" },
+    { label: __("Bois sombre", "booked"), value: "dark" },
+    { label: __("Bois patiné", "booked"), value: "patina" },
+    { label: __("Bois orné (paysage)", "booked"), value: "ornate" },
   ];
 
   const getGiteCardsRatioOptions = () => [
@@ -964,6 +976,8 @@
     const defaultGiteId = useDefaultGiteId();
     const isPageCompact = (attributes.layout || "grid") === "page-compact";
     const isPolaroid = (attributes.layout || "grid") === "polaroid";
+    const isWoodFrames = (attributes.layout || "grid") === "wood-frames";
+    const isComposedLayout = isPolaroid || isWoodFrames;
     const selectedGiteIds = isPageCompact
       ? [defaultGiteId || normalizeIdList(attributes.selectedGiteIds)[0]].filter(Boolean)
       : getSelectedGiteCardIds(attributes.selectedGiteIds, gites);
@@ -991,6 +1005,7 @@
       attributes.showStats,
       attributes.showCta,
       attributes.ctaLabel,
+      JSON.stringify(attributes.woodFrameAssignments || {}),
     ]);
 
     if (selectedGiteIds.length === 0) {
@@ -1005,11 +1020,12 @@
       "data-layout": attributes.layout || "grid",
       "data-columns": String(isPageCompact ? 1 : attributes.columns || 3),
       "data-image-ratio": attributes.imageRatio || "4-3",
-      "data-show-images": isPolaroid || (!isPageCompact && attributes.showImages !== false) ? "1" : "0",
-      "data-show-description": isPolaroid || (!isPageCompact && attributes.showDescription !== false) ? "1" : "0",
-      "data-show-stats": isPageCompact || isPolaroid || attributes.showStats !== false ? "1" : "0",
-      "data-show-cta": !isPageCompact && !isPolaroid && attributes.showCta !== false ? "1" : "0",
+      "data-show-images": isComposedLayout || (!isPageCompact && attributes.showImages !== false) ? "1" : "0",
+      "data-show-description": isComposedLayout || (!isPageCompact && attributes.showDescription !== false) ? "1" : "0",
+      "data-show-stats": isPageCompact || isComposedLayout || attributes.showStats !== false ? "1" : "0",
+      "data-show-cta": !isPageCompact && !isComposedLayout && attributes.showCta !== false ? "1" : "0",
       "data-cta-label": attributes.ctaLabel || __("Voir le gîte", "booked"),
+      "data-wood-frame-assignments": JSON.stringify(attributes.woodFrameAssignments || {}),
     });
   };
 
@@ -2045,6 +2061,8 @@
       const defaultGiteId = useDefaultGiteId();
       const isPageCompact = (attributes.layout || "grid") === "page-compact";
       const isPolaroid = (attributes.layout || "grid") === "polaroid";
+      const isWoodFrames = (attributes.layout || "grid") === "wood-frames";
+      const isComposedLayout = isPolaroid || isWoodFrames;
       const selectedGiteIds = normalizeIdList(attributes.selectedGiteIds);
       const allGiteIds = gites.map((gite) => gite.id).filter(Boolean);
       const manualIds = selectedGiteIds.join(", ");
@@ -2118,6 +2136,24 @@
               options: getGiteCardsLayoutOptions(),
               onChange: (layout) => setAttributes({ layout }),
             }),
+            isWoodFrames
+              ? el(
+                  "div",
+                  { className: "booked-wood-frame-controls" },
+                  el("p", { className: "booked-block-help" }, __("Choisissez le cadre utilisé pour chaque gîte. Le cadre orné adopte automatiquement la mise en page paysage.", "booked")),
+                  getSelectedGiteCardIds(attributes.selectedGiteIds, gites).map((giteId, index) =>
+                    el(SelectControl, {
+                      key: giteId,
+                      label: getGiteName(gites, giteId),
+                      value: (attributes.woodFrameAssignments || {})[giteId] || getWoodFrameOptions()[index % 4].value,
+                      options: getWoodFrameOptions(),
+                      onChange: (frame) => setAttributes({
+                        woodFrameAssignments: { ...(attributes.woodFrameAssignments || {}), [giteId]: frame },
+                      }),
+                    })
+                  )
+                )
+              : null,
             !["compact", "page-compact"].includes(attributes.layout || "grid")
               ? el(RangeControl, {
                   label: __("Nombre de colonnes", "booked"),
@@ -2134,11 +2170,11 @@
                   onChange: (value) => setAttributes({ columns: value || 3 }),
                 })
               : null,
-            isPageCompact || isPolaroid
+            isPageCompact || isComposedLayout
               ? el(
                   "p",
                   { className: "booked-block-help" },
-                  isPolaroid
+                  isComposedLayout
                     ? __("Ce style utilise l’image, le résumé et les infos dans une composition fixe.", "booked")
                     : __("Ce style affiche uniquement le tableau des infos principales.", "booked")
                 )
@@ -2148,35 +2184,35 @@
                   options: getGiteCardsRatioOptions(),
                   onChange: (imageRatio) => setAttributes({ imageRatio }),
                 }),
-            isPageCompact || isPolaroid
+            isPageCompact || isComposedLayout
               ? null
               : el(ToggleControl, {
                   label: __("Afficher les images", "booked"),
                   checked: attributes.showImages !== false,
                   onChange: (showImages) => setAttributes({ showImages }),
                 }),
-            isPageCompact || isPolaroid
+            isPageCompact || isComposedLayout
               ? null
               : el(ToggleControl, {
                   label: __("Afficher le résumé", "booked"),
                   checked: attributes.showDescription !== false,
                   onChange: (showDescription) => setAttributes({ showDescription }),
                 }),
-            isPageCompact || isPolaroid
+            isPageCompact || isComposedLayout
               ? null
               : el(ToggleControl, {
                   label: __("Afficher les pictos", "booked"),
                   checked: attributes.showStats !== false,
                   onChange: (showStats) => setAttributes({ showStats }),
                 }),
-            isPageCompact || isPolaroid
+            isPageCompact || isComposedLayout
               ? null
               : el(ToggleControl, {
                   label: __("Afficher le bouton", "booked"),
                   checked: attributes.showCta !== false,
                   onChange: (showCta) => setAttributes({ showCta }),
                 }),
-            isPageCompact || isPolaroid || attributes.showCta === false
+            isPageCompact || isComposedLayout || attributes.showCta === false
               ? null
               : el(TextControl, {
                   label: __("Libellé du bouton", "booked"),
