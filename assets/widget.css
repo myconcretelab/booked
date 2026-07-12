@@ -1531,15 +1531,6 @@ a.booked-gite-info__item-value {
   width: 100%;
 }
 
-.booked-gite-cards--wood-frames .booked-gite-cards__card:hover .booked-gite-cards__wood-frame {
-  filter: drop-shadow(0 11px 10px rgba(28, 19, 11, 0.34));
-  transform: rotate(var(--booked-wood-frame-rotation, 0deg)) translateY(-5px) scale(1.01);
-}
-
-.booked-gite-cards--wood-frames .booked-gite-cards__card:hover .booked-gite-cards__image {
-  transform: none;
-}
-
 .booked-gite-cards__wood-content {
   background: #f3eee3;
   display: grid;
