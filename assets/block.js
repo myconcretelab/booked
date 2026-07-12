@@ -419,6 +419,7 @@
   const getGalleryLayoutOptions = () => [
     { label: __("Grille", "booked"), value: "grid" },
     { label: __("Image principale", "booked"), value: "featured" },
+    { label: __("Cadre bois et Polaroids", "booked"), value: "frames" },
   ];
 
   const getGalleryExpandOptions = () => [
@@ -955,12 +956,12 @@
 
     return el("div", {
       ref,
-      className: `booked-gallery booked-gallery--${attributes.widthMode === "full" ? "full" : "fixed"} booked-gallery--layout-${attributes.layoutMode === "featured" ? "featured" : "grid"}`,
+      className: `booked-gallery booked-gallery--${attributes.widthMode === "full" ? "full" : "fixed"} booked-gallery--layout-${["featured", "frames"].includes(attributes.layoutMode) ? attributes.layoutMode : "grid"}`,
       "data-gite-id": giteId,
       "data-columns": String(attributes.columns || 3),
       "data-gap": String(attributes.gap === undefined ? 16 : attributes.gap),
       "data-image-ratio": attributes.imageRatio || "4-3",
-      "data-layout-mode": attributes.layoutMode === "featured" ? "featured" : "grid",
+      "data-layout-mode": ["featured", "frames"].includes(attributes.layoutMode) ? attributes.layoutMode : "grid",
       "data-featured-side-count": String(attributes.featuredSideCount || 4),
       "data-hover-dim-opacity": String(attributes.hoverDimOpacity || 0),
       "data-lightbox": attributes.lightbox === false ? "0" : "1",

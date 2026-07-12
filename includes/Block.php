@@ -940,7 +940,7 @@ class Booked_Block
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9', '2-3'], true)
             ? (string) $attributes['imageRatio']
             : '4-3';
-        $layout_mode = in_array((string) ($attributes['layoutMode'] ?? 'grid'), ['grid', 'featured'], true)
+        $layout_mode = in_array((string) ($attributes['layoutMode'] ?? 'grid'), ['grid', 'featured', 'frames'], true)
             ? (string) $attributes['layoutMode']
             : 'grid';
         $featured_side_count = max(1, min(8, (int) ($attributes['featuredSideCount'] ?? 4)));

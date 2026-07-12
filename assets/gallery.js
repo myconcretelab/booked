@@ -122,7 +122,7 @@
       columns: readNumberOption(root, "columns", 3, 1, 6),
       gap: readNumberOption(root, "gap", 16, 0, 64),
       imageRatio,
-      layoutMode: root.dataset.layoutMode === "featured" ? "featured" : "grid",
+      layoutMode: ["featured", "frames"].includes(root.dataset.layoutMode) ? root.dataset.layoutMode : "grid",
       featuredSideCount: readNumberOption(root, "featuredSideCount", 4, 1, 8),
       hoverDimOpacity: readNumberOption(root, "hoverDimOpacity", 0, 0, 80),
       lightbox: root.dataset.lightbox !== "0",
@@ -142,6 +142,7 @@
     root.classList.toggle("booked-gallery--full", options.widthMode === "full");
     root.classList.toggle("booked-gallery--layout-grid", options.layoutMode === "grid");
     root.classList.toggle("booked-gallery--layout-featured", options.layoutMode === "featured");
+    root.classList.toggle("booked-gallery--layout-frames", options.layoutMode === "frames");
     root.style.setProperty("--booked-gallery-gap", `${options.gap}px`);
     root.style.setProperty("--booked-gallery-ratio", RATIOS[options.imageRatio]);
     root.style.setProperty("--booked-gallery-max-width", `${options.maxWidth}px`);
@@ -408,6 +409,38 @@
     root.appendChild(wrapper);
   };
 
+  const getStableRotation = (photo, index, range, offset = 0) => {
+    const seed = `${photo.id || photo.url || ""}-${index}`;
+    let hash = 0;
+    for (let position = 0; position < seed.length; position += 1) {
+      hash = ((hash << 5) - hash + seed.charCodeAt(position)) | 0;
+    }
+    const normalized = (Math.abs(hash) % 1000) / 999;
+    return `${(offset + (normalized * 2 - 1) * range).toFixed(2)}deg`;
+  };
+
+  const renderFramesContent = (root, photos, options) => {
+    const wrapper = createElement("div", "booked-gallery__frames");
+    const main = buildGalleryItem(photos, 0, options, "booked-gallery__frames-main", false);
+    const mainFrame = createElement("span", "booked-gallery__wood-frame-overlay");
+    const baseUrl = String(config.woodFrameBaseUrl || "").replace(/\/?$/, "/");
+    main.style.setProperty("--booked-gallery-frame-rotation", getStableRotation(photos[0], 0, 0.9));
+    mainFrame.style.backgroundImage = `url("${baseUrl}cadre-bois-orne.png")`;
+    main.appendChild(mainFrame);
+    wrapper.appendChild(main);
+
+    const polaroids = createElement("div", "booked-gallery__frames-polaroids");
+    photos.slice(1, 5).forEach((photo, offset) => {
+      const index = offset + 1;
+      const item = buildGalleryItem(photos, index, options, "booked-gallery__frames-polaroid", index === Math.min(4, photos.length - 1));
+      item.style.setProperty("--booked-gallery-polaroid-rotation", getStableRotation(photo, index, 8.5));
+      item.appendChild(createElement("span", "booked-gallery__polaroid-frame-overlay"));
+      polaroids.appendChild(item);
+    });
+    wrapper.appendChild(polaroids);
+    root.appendChild(wrapper);
+  };
+
   const renderContent = (root, payload) => {
     const options = getOptions(root);
     const photos = normalizePhotos(payload);
@@ -418,6 +451,11 @@
 
     if (photos.length === 0) {
       root.appendChild(createElement("div", "booked-gallery__empty", "Aucune image disponible."));
+      return;
+    }
+
+    if (options.layoutMode === "frames") {
+      renderFramesContent(root, photos, options);
       return;
     }
 

@@ -2041,6 +2041,112 @@ button.booked-gallery__media {
   outline-offset: 3px;
 }
 
+.booked-gallery--layout-frames,
+.booked-gallery--layout-frames .booked-gallery__frames {
+  height: 100%;
+}
+
+.booked-gallery__frames {
+  align-items: center;
+  box-sizing: border-box;
+  display: grid;
+  gap: clamp(8px, 1.8vw, 28px);
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.92fr);
+  margin-inline: auto;
+  max-width: min(94vw, 1800px);
+  padding: clamp(18px, 3vh, 42px) clamp(12px, 3vw, 48px);
+}
+
+.booked-gallery__frames-main {
+  aspect-ratio: 1466 / 943;
+  filter: drop-shadow(0 10px 10px rgb(28 19 11 / 28%));
+  position: relative;
+  transform: rotate(var(--booked-gallery-frame-rotation, 0deg));
+}
+
+.booked-gallery__frames-main .booked-gallery__media {
+  aspect-ratio: auto;
+  inset: 23.3% 14.8% 22.8%;
+  position: absolute;
+  width: auto;
+  z-index: 1;
+}
+
+.booked-gallery__frames-main .booked-gallery__media::before {
+  box-shadow:
+    inset 0 0 24px rgb(24 15 7 / 62%),
+    inset 0 0 7px rgb(10 7 3 / 78%);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.booked-gallery__wood-frame-overlay,
+.booked-gallery__polaroid-frame-overlay {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 4;
+}
+
+.booked-gallery__frames-polaroids {
+  align-items: center;
+  display: grid;
+  gap: clamp(2px, 1vw, 16px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.booked-gallery__frames-polaroid {
+  aspect-ratio: 749 / 900;
+  filter: drop-shadow(0 9px 7px rgb(20 16 12 / 38%));
+  position: relative;
+  transform: rotate(var(--booked-gallery-polaroid-rotation, 0deg));
+  transform-origin: 50% 58%;
+  transition: filter 180ms ease, transform 180ms ease;
+}
+
+.booked-gallery__frames-polaroid:hover,
+.booked-gallery__frames-polaroid:focus-within {
+  filter: drop-shadow(0 13px 9px rgb(20 16 12 / 44%));
+  transform: rotate(var(--booked-gallery-polaroid-rotation, 0deg)) translateY(-6px) scale(1.035);
+  z-index: 6;
+}
+
+.booked-gallery__frames-polaroid .booked-gallery__media {
+  aspect-ratio: auto;
+  height: 68.4%;
+  left: 6.9%;
+  position: absolute;
+  top: 9.2%;
+  width: 86.2%;
+  z-index: 1;
+}
+
+.booked-gallery__polaroid-frame-overlay {
+  background-image: url("images/polaroid-frame.png");
+}
+
+.booked-gallery--layout-frames button.booked-gallery__media:hover .booked-gallery__image {
+  transform: none;
+}
+
+@media (max-width: 781px) {
+  .booked-gallery__frames {
+    gap: 2px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(145px, .75fr);
+    padding: 14px 6px;
+  }
+
+  .booked-gallery__frames-polaroids {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .booked-gallery__media > .booked-gallery__image {
   display: block;
   height: 100%;
