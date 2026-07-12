@@ -419,6 +419,17 @@
     return `${(offset + (normalized * 2 - 1) * range).toFixed(2)}deg`;
   };
 
+  const getAlternatingPolaroidRotation = (photo, index) => {
+    const seed = `${photo.id || photo.url || ""}-${index}`;
+    let hash = 0;
+    for (let position = 0; position < seed.length; position += 1) {
+      hash = ((hash << 5) - hash + seed.charCodeAt(position)) | 0;
+    }
+    const magnitude = 3.5 + ((Math.abs(hash) % 1000) / 999) * 5.5;
+    const direction = index % 2 === 0 ? -1 : 1;
+    return `${(direction * magnitude).toFixed(2)}deg`;
+  };
+
   const renderFramesContent = (root, photos, options) => {
     const wrapper = createElement("div", "booked-gallery__frames");
     const main = buildGalleryItem(photos, 0, options, "booked-gallery__frames-main", false);
@@ -433,7 +444,7 @@
     photos.slice(1, 5).forEach((photo, offset) => {
       const index = offset + 1;
       const item = buildGalleryItem(photos, index, options, "booked-gallery__frames-polaroid", index === Math.min(4, photos.length - 1));
-      item.style.setProperty("--booked-gallery-polaroid-rotation", getStableRotation(photo, index, 8.5));
+      item.style.setProperty("--booked-gallery-polaroid-rotation", getAlternatingPolaroidRotation(photo, index));
       item.appendChild(createElement("span", "booked-gallery__polaroid-frame-overlay"));
       polaroids.appendChild(item);
     });
