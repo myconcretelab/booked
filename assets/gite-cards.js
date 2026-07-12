@@ -357,7 +357,6 @@
     const media = renderPhoto(gite, { ...options, showImages: true });
     const details = createElement("div", "booked-gite-cards__wood-details");
     const title = createElement("h3", "booked-gite-cards__polaroid-band-title", gite.name);
-    const description = createElement("p", "booked-gite-cards__polaroid-band-text", gite.description || gite.eyebrow || "");
     const overlay = createElement("span", "booked-gite-cards__wood-frame-image");
     const baseUrl = String(config.woodFrameBaseUrl || "").replace(/\/?$/, "/");
 
@@ -370,7 +369,6 @@
       title.appendChild(link);
     }
     details.appendChild(title);
-    if (description.textContent) details.appendChild(description);
     if (gite.stats.length > 0) details.appendChild(renderPolaroidStats(gite.stats));
     media.classList.add("booked-gite-cards__wood-photo");
     overlay.style.backgroundImage = `url("${baseUrl}${woodFrameFiles[frame]}")`;
