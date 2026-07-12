@@ -2061,7 +2061,7 @@ button.booked-gallery__media {
   aspect-ratio: 1466 / 943;
   filter: drop-shadow(0 10px 10px rgb(28 19 11 / 28%));
   position: relative;
-  transform: translateY(-4%) rotate(var(--booked-gallery-frame-rotation, 0deg));
+  transform: translateY(-12%) rotate(var(--booked-gallery-frame-rotation, 0deg));
 }
 
 .booked-gallery__frames-main .booked-gallery__media {
@@ -2105,7 +2105,7 @@ button.booked-gallery__media {
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
-  bottom: -8%;
+  bottom: -18%;
   display: flex;
   justify-content: center;
   left: 50%;
@@ -2191,8 +2191,12 @@ button.booked-gallery__media {
   }
 
   .booked-gallery__brass-plaque {
-    bottom: -9%;
+    bottom: -16%;
     width: 34%;
+  }
+
+  .booked-gallery__frames-main {
+    transform: translateY(-10%) rotate(var(--booked-gallery-frame-rotation, 0deg));
   }
 }
 
