@@ -1533,8 +1533,6 @@ a.booked-gite-info__item-value {
 
 .booked-gite-cards__wood-content {
   background: #f3eee3;
-  display: grid;
-  grid-template-rows: minmax(0, 1.45fr) minmax(0, 0.72fr);
   inset: 11% 12.2% 11.5%;
   overflow: hidden;
   position: absolute;
@@ -1563,31 +1561,92 @@ a.booked-gite-info__item-value {
 .booked-gite-cards__wood-photo.booked-gite-cards__media {
   aspect-ratio: auto;
   border-radius: 0;
+  height: 100%;
+  inset: 0;
   min-height: 0;
+  position: absolute;
+  width: 100%;
 }
 
 .booked-gite-cards__wood-details {
   align-content: center;
-  background: rgba(247, 241, 228, 0.97);
-  color: #30271d;
+  background: linear-gradient(180deg, rgb(28 20 13 / 20%), rgb(28 20 13 / 90%));
+  color: #fffaf0;
   display: grid;
   gap: 5px;
-  min-height: 0;
+  inset: 0;
   overflow: hidden;
-  padding: 8px 10px;
+  opacity: 0;
+  padding: clamp(12px, 5%, 24px);
+  pointer-events: none;
+  position: absolute;
+  transform: translateY(12px);
+  transition: opacity 260ms ease, transform 300ms cubic-bezier(.22, 1, .36, 1), visibility 0s linear 300ms;
+  visibility: hidden;
+  z-index: 3;
 }
 
-.booked-gite-cards__wood-details .booked-gite-cards__polaroid-band-title {
-  color: #30271d;
-}
-
-.booked-gite-cards__wood-details .booked-gite-cards__polaroid-band-text {
-  color: #665846;
-  -webkit-line-clamp: 1;
+.booked-gite-cards__wood-frame:hover .booked-gite-cards__wood-details,
+.booked-gite-cards__wood-frame:focus-within .booked-gite-cards__wood-details {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition-delay: 0s;
+  visibility: visible;
 }
 
 .booked-gite-cards__wood-details .booked-gite-cards__polaroid-stats {
   gap: 2px 9px;
+}
+
+.booked-gite-cards__wood-details .booked-gite-cards__polaroid-stat-label,
+.booked-gite-cards__wood-details .booked-gite-cards__polaroid-stat-value {
+  color: inherit;
+  text-shadow: 0 1px 5px rgb(0 0 0 / 72%);
+}
+
+.booked-gite-cards__wood-plaque {
+  align-items: center;
+  aspect-ratio: 1160 / 340;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  bottom: 3.2%;
+  display: flex;
+  justify-content: center;
+  left: 50%;
+  padding: 2.8% 9.5% 3.2%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: clamp(130px, 48%, 230px);
+  z-index: 7;
+}
+
+.booked-gite-cards__wood-plaque-text {
+  color: rgb(68 48 18 / 82%);
+  display: -webkit-box;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(9px, 2.7cqw, 15px);
+  font-weight: 700;
+  letter-spacing: .055em;
+  line-height: 1.05;
+  max-width: 78%;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow:
+    0 1px 0 rgb(255 240 174 / 58%),
+    0 -1px 0 rgb(44 27 7 / 82%),
+    1px 0 0 rgb(255 232 148 / 25%),
+    -1px 0 0 rgb(51 31 8 / 38%);
+  text-transform: uppercase;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.booked-gite-cards__wood-plaque-link {
+  color: inherit;
+  text-decoration: none;
 }
 
 .booked-gite-cards__wood-frame-image {
@@ -1606,23 +1665,33 @@ a.booked-gite-info__item-value {
 }
 
 .booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-content {
-  grid-template-columns: minmax(0, 1.45fr) minmax(170px, 0.8fr);
-  grid-template-rows: 1fr;
   inset: 23.3% 14.8% 22.8%;
 }
 
-.booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-details {
-  padding: 12px 14px;
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-plaque {
+  bottom: -13%;
+  width: clamp(150px, 30%, 250px);
 }
 
 @media (max-width: 640px) {
-  .booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-details {
+  .booked-gite-cards__wood-details {
     gap: 2px;
-    padding: 7px 8px;
+    padding: 8px;
   }
+}
 
-  .booked-gite-cards__wood-frame--ornate .booked-gite-cards__polaroid-band-text {
-    display: none;
+@media (hover: none) {
+  .booked-gite-cards__wood-details {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    visibility: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booked-gite-cards__wood-details {
+    transition: none;
   }
 }
 

@@ -356,26 +356,29 @@
     const content = createElement("div", "booked-gite-cards__wood-content");
     const media = renderPhoto(gite, { ...options, showImages: true });
     const details = createElement("div", "booked-gite-cards__wood-details");
-    const title = createElement("h3", "booked-gite-cards__polaroid-band-title", gite.name);
     const overlay = createElement("span", "booked-gite-cards__wood-frame-image");
+    const plaque = createElement("div", "booked-gite-cards__wood-plaque");
+    const plaqueText = createElement("span", "booked-gite-cards__wood-plaque-text", gite.name);
     const baseUrl = String(config.woodFrameBaseUrl || "").replace(/\/?$/, "/");
 
     composition.style.setProperty("--booked-wood-frame-rotation", getPolaroidRotation(gite.id, index));
 
     if (gite.url) {
-      const link = createElement("a", "booked-gite-cards__title-link", gite.name);
+      const link = createElement("a", "booked-gite-cards__wood-plaque-link", gite.name);
       link.href = gite.url;
-      title.textContent = "";
-      title.appendChild(link);
+      plaqueText.textContent = "";
+      plaqueText.appendChild(link);
     }
-    details.appendChild(title);
     if (gite.stats.length > 0) details.appendChild(renderPolaroidStats(gite.stats));
     media.classList.add("booked-gite-cards__wood-photo");
     overlay.style.backgroundImage = `url("${baseUrl}${woodFrameFiles[frame]}")`;
+    plaque.style.backgroundImage = `url("${baseUrl}cartel-laiton.png")`;
+    plaque.appendChild(plaqueText);
     content.appendChild(media);
     content.appendChild(details);
     composition.appendChild(content);
     composition.appendChild(overlay);
+    composition.appendChild(plaque);
     return composition;
   };
 
