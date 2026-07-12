@@ -935,6 +935,13 @@ class Booked_Block
     public function render_gallery_block(array $attributes): string
     {
         $gite_id = $this->resolve_gite_id($attributes, true);
+        $gite_name = '';
+        foreach ($this->get_all_gite_summaries() as $gite) {
+            if ((string) ($gite['id'] ?? '') === $gite_id) {
+                $gite_name = (string) ($gite['name'] ?? '');
+                break;
+            }
+        }
         $columns = max(1, min(6, (int) ($attributes['columns'] ?? 3)));
         $gap = max(0, min(64, (int) ($attributes['gap'] ?? 16)));
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9', '2-3'], true)
@@ -977,9 +984,10 @@ class Booked_Block
         }
 
         return sprintf(
-            '<div %s data-gite-id="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-layout-mode="%s" data-featured-side-count="%d" data-hover-dim-opacity="%d" data-lightbox="%s" data-expand-mode="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
+            '<div %s data-gite-id="%s" data-gite-name="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-layout-mode="%s" data-featured-side-count="%d" data-hover-dim-opacity="%d" data-lightbox="%s" data-expand-mode="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
             $wrapper_attributes,
             esc_attr($gite_id),
+            esc_attr($gite_name),
             $columns,
             $gap,
             esc_attr($image_ratio),

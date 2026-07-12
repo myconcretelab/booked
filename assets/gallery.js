@@ -438,10 +438,11 @@
     main.style.setProperty("--booked-gallery-frame-rotation", getStableRotation(photos[0], 0, 0.9));
     mainFrame.style.backgroundImage = `url("${baseUrl}cadre-bois-orne.png")`;
     main.appendChild(mainFrame);
-    if (photos[0].title) {
+    const giteName = String(root.dataset.giteName || "").trim();
+    if (giteName) {
       const plaque = createElement("div", "booked-gallery__brass-plaque");
       plaque.style.backgroundImage = `url("${baseUrl}cartel-laiton.png")`;
-      plaque.appendChild(createElement("span", "booked-gallery__brass-plaque-text", photos[0].title));
+      plaque.appendChild(createElement("span", "booked-gallery__brass-plaque-text", giteName));
       main.appendChild(plaque);
     }
     wrapper.appendChild(main);
