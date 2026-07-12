@@ -2061,7 +2061,7 @@ button.booked-gallery__media {
   aspect-ratio: 1466 / 943;
   filter: drop-shadow(0 10px 10px rgb(28 19 11 / 28%));
   position: relative;
-  transform: rotate(var(--booked-gallery-frame-rotation, 0deg));
+  transform: translateY(-4%) rotate(var(--booked-gallery-frame-rotation, 0deg));
 }
 
 .booked-gallery__frames-main .booked-gallery__media {
@@ -2070,6 +2070,11 @@ button.booked-gallery__media {
   position: absolute;
   width: auto;
   z-index: 1;
+}
+
+.booked-gallery__frames-main .booked-gallery__media,
+.booked-gallery__frames-main .booked-gallery__wood-frame-overlay {
+  transform: translateY(-4%);
 }
 
 .booked-gallery__frames-main .booked-gallery__media::before {
@@ -2100,14 +2105,14 @@ button.booked-gallery__media {
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
-  bottom: -6.5%;
+  bottom: -8%;
   display: flex;
   justify-content: center;
   left: 50%;
   padding: 2.8% 9.5% 3.2%;
   position: absolute;
   transform: translateX(-50%);
-  width: clamp(190px, 40%, 430px);
+  width: clamp(150px, 28%, 310px);
   z-index: 7;
 }
 
@@ -2186,8 +2191,8 @@ button.booked-gallery__media {
   }
 
   .booked-gallery__brass-plaque {
-    bottom: -8%;
-    width: 46%;
+    bottom: -9%;
+    width: 34%;
   }
 }
 
