@@ -352,9 +352,9 @@
     const sequence = ["rustic", "dark", "patina", "ornate"];
     const requestedFrame = options.woodFrameAssignments[gite.id];
     const frame = woodFrameFiles[requestedFrame] ? requestedFrame : sequence[index % sequence.length];
-    const composition = createElement("div", `booked-gite-cards__wood-frame booked-gite-cards__wood-frame--${frame}`);
+    const composition = createElement(gite.url ? "a" : "div", `booked-gite-cards__wood-frame booked-gite-cards__wood-frame--${frame}`);
     const content = createElement("div", "booked-gite-cards__wood-content");
-    const media = renderPhoto(gite, { ...options, showImages: true });
+    const media = renderPhoto({ ...gite, url: "" }, { ...options, showImages: true });
     const details = createElement("div", "booked-gite-cards__wood-details");
     const overlay = createElement("span", "booked-gite-cards__wood-frame-image");
     const plaque = createElement("div", "booked-gite-cards__wood-plaque");
@@ -364,10 +364,8 @@
     composition.style.setProperty("--booked-wood-frame-rotation", getPolaroidRotation(gite.id, index));
 
     if (gite.url) {
-      const link = createElement("a", "booked-gite-cards__wood-plaque-link", gite.name);
-      link.href = gite.url;
-      plaqueText.textContent = "";
-      plaqueText.appendChild(link);
+      composition.href = gite.url;
+      composition.setAttribute("aria-label", `Voir ${gite.name}`);
     }
     if (gite.stats.length > 0) details.appendChild(renderPolaroidStats(gite.stats));
     media.classList.add("booked-gite-cards__wood-photo");

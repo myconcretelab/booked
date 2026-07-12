@@ -1523,6 +1523,8 @@ a.booked-gite-info__item-value {
 
 .booked-gite-cards__wood-frame {
   aspect-ratio: 0.91;
+  color: inherit;
+  display: block;
   filter: drop-shadow(0 8px 8px rgba(28, 19, 11, 0.3));
   margin-inline: auto;
   max-width: 420px;
@@ -1531,6 +1533,15 @@ a.booked-gite-info__item-value {
   transform-origin: 50% 55%;
   transition: filter 180ms ease, transform 180ms ease;
   width: 100%;
+}
+
+a.booked-gite-cards__wood-frame {
+  text-decoration: none;
+}
+
+a.booked-gite-cards__wood-frame:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 5px;
 }
 
 .booked-gite-cards__wood-content {
@@ -1591,7 +1602,6 @@ a.booked-gite-info__item-value {
 .booked-gite-cards__wood-frame:hover .booked-gite-cards__wood-details,
 .booked-gite-cards__wood-frame:focus-within .booked-gite-cards__wood-details {
   opacity: 1;
-  pointer-events: auto;
   transform: translateY(0);
   transition-delay: 0s;
   visibility: visible;
@@ -1614,17 +1624,19 @@ a.booked-gite-info__item-value {
 }
 
 .booked-gite-cards__wood-details .booked-gite-cards__polaroid-stat-label {
-  font-size: clamp(13px, 1.5vw, 18px);
-  gap: 8px;
+  font-size: clamp(11px, 1.25vw, 15px);
+  font-weight: 500;
+  gap: 7px;
 }
 
 .booked-gite-cards__wood-details .booked-gite-cards__polaroid-stat-label .booked-gite-cards__icon {
-  height: clamp(18px, 2vw, 24px);
-  width: clamp(18px, 2vw, 24px);
+  height: clamp(16px, 1.7vw, 21px);
+  width: clamp(16px, 1.7vw, 21px);
 }
 
 .booked-gite-cards__wood-details .booked-gite-cards__polaroid-stat-value {
-  font-size: clamp(17px, 2vw, 24px);
+  font-size: clamp(14px, 1.6vw, 19px);
+  font-weight: 600;
 }
 
 .booked-gite-cards__wood-plaque {
@@ -1692,6 +1704,27 @@ a.booked-gite-info__item-value {
   inset: 23.3% 14.8% 22.8%;
 }
 
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-details {
+  padding: clamp(8px, 3%, 16px);
+}
+
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__polaroid-stats {
+  gap: 4px;
+}
+
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__polaroid-stat-label {
+  font-size: clamp(10px, 1.1vw, 13px);
+}
+
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__polaroid-stat-label .booked-gite-cards__icon {
+  height: clamp(14px, 1.4vw, 18px);
+  width: clamp(14px, 1.4vw, 18px);
+}
+
+.booked-gite-cards__wood-frame--ornate .booked-gite-cards__polaroid-stat-value {
+  font-size: clamp(13px, 1.4vw, 17px);
+}
+
 .booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-plaque {
   max-width: 52%;
   right: 9%;
@@ -1711,7 +1744,6 @@ a.booked-gite-info__item-value {
 @media (hover: none) {
   .booked-gite-cards__wood-details {
     opacity: 1;
-    pointer-events: auto;
     transform: none;
     visibility: visible;
   }
