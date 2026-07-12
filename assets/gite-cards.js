@@ -372,7 +372,7 @@
     if (gite.stats.length > 0) details.appendChild(renderPolaroidStats(gite.stats));
     media.classList.add("booked-gite-cards__wood-photo");
     overlay.style.backgroundImage = `url("${baseUrl}${woodFrameFiles[frame]}")`;
-    plaque.style.backgroundImage = `url("${baseUrl}cartel-laiton.png")`;
+    plaque.style.borderImageSource = `url("${baseUrl}cartel-laiton.png")`;
     plaque.appendChild(plaqueText);
     content.appendChild(media);
     content.appendChild(details);
