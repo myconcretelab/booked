@@ -1608,26 +1608,26 @@ a.booked-gite-info__item-value {
 .booked-gite-cards__wood-plaque {
   align-items: center;
   border-color: transparent;
-  border-image-slice: 48 190 fill;
-  border-image-width: 12px 34px;
+  border-image-slice: 0 190 fill;
+  border-image-width: 0 26px;
   border-style: solid;
-  border-width: 12px 34px;
+  border-width: 0 26px;
   bottom: 3.2%;
   box-sizing: border-box;
   display: flex;
   justify-content: center;
-  left: 50%;
+  max-width: 72%;
   min-height: 46px;
   padding: 2px 3px 3px;
   position: absolute;
-  transform: translateX(-50%);
-  width: clamp(128px, 40%, 188px);
+  right: 5.5%;
+  width: max-content;
   z-index: 7;
 }
 
 .booked-gite-cards__wood-plaque-text {
   color: rgb(68 48 18 / 82%);
-  display: -webkit-box;
+  display: block;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(8px, 2.25cqw, 13px);
   font-weight: 700;
@@ -1643,8 +1643,7 @@ a.booked-gite-info__item-value {
     1px 0 0 rgb(255 232 148 / 25%),
     -1px 0 0 rgb(51 31 8 / 38%);
   text-transform: uppercase;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
 }
 
 .booked-gite-cards__wood-plaque-link {
@@ -1673,7 +1672,8 @@ a.booked-gite-info__item-value {
 
 .booked-gite-cards__wood-frame--ornate .booked-gite-cards__wood-plaque {
   bottom: -11%;
-  width: clamp(138px, 25%, 205px);
+  max-width: 52%;
+  right: 9%;
 }
 
 @media (max-width: 640px) {
