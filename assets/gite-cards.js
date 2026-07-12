@@ -361,6 +361,8 @@
     const overlay = createElement("span", "booked-gite-cards__wood-frame-image");
     const baseUrl = String(config.woodFrameBaseUrl || "").replace(/\/?$/, "/");
 
+    composition.style.setProperty("--booked-wood-frame-rotation", getPolaroidRotation(gite.id, index));
+
     if (gite.url) {
       const link = createElement("a", "booked-gite-cards__title-link", gite.name);
       link.href = gite.url;
