@@ -71,9 +71,15 @@
     getHeadingStyle(
       attributes.headingStyle || (typeof attributes.style === "string" ? attributes.style : "")
     );
+  const getRibbonWidth = (width) => (width === "full" ? "full" : "inline");
   const getHeadingTextAlign = (textAlign) => (["left", "center", "right"].includes(textAlign) ? textAlign : "center");
-  const getHeadingClassName = (attributes) =>
-    `booked-heading booked-heading--${getHeadingStyleAttribute(attributes)} booked-heading--align-${getHeadingTextAlign(attributes.textAlign)}`;
+  const getHeadingClassName = (attributes) => {
+    const headingStyle = getHeadingStyleAttribute(attributes);
+    const ribbonWidthClass = headingStyle === "ribbon"
+      ? ` booked-heading--ribbon-width-${getRibbonWidth(attributes.ribbonWidth)}`
+      : "";
+    return `booked-heading booked-heading--${headingStyle} booked-heading--align-${getHeadingTextAlign(attributes.textAlign)}${ribbonWidthClass}`;
+  };
 
   const normalizeGites = (payload) => {
     const items = payload && Array.isArray(payload.gites) ? payload.gites : [];
@@ -1592,6 +1598,10 @@
         type: "string",
         default: "center",
       },
+      ribbonWidth: {
+        type: "string",
+        default: "inline",
+      },
     },
     supports: {
       align: true,
@@ -1654,6 +1664,17 @@
               options: getHeadingStyleOptions(),
               onChange: (headingStyle) => setAttributes({ headingStyle }),
             }),
+            getHeadingStyleAttribute(attributes) === "ribbon"
+              ? el(SelectControl, {
+                  label: __("Largeur du ruban", "booked"),
+                  value: getRibbonWidth(attributes.ribbonWidth),
+                  options: [
+                    { label: __("Ajustée au texte", "booked"), value: "inline" },
+                    { label: __("Pleine largeur", "booked"), value: "full" },
+                  ],
+                  onChange: (ribbonWidth) => setAttributes({ ribbonWidth }),
+                })
+              : null,
             el(SelectControl, {
               label: __("Niveau", "booked"),
               value: String(attributes.level || 2),

@@ -631,6 +631,10 @@ class Booked_Block
                     'type' => 'string',
                     'default' => 'center',
                 ],
+                'ribbonWidth' => [
+                    'type' => 'string',
+                    'default' => 'inline',
+                ],
             ],
             'supports' => [
                 'align' => true,
@@ -756,13 +760,15 @@ class Booked_Block
         $align = in_array((string) ($attributes['textAlign'] ?? 'center'), ['left', 'center', 'right'], true)
             ? (string) $attributes['textAlign']
             : 'center';
+        $ribbon_width = ($attributes['ribbonWidth'] ?? 'inline') === 'full' ? 'full' : 'inline';
+        $ribbon_width_class = $style === 'ribbon' ? sprintf(' booked-heading--ribbon-width-%s', $ribbon_width) : '';
 
         wp_enqueue_style('booked-widget');
 
         return sprintf(
             '<div %s><span class="booked-heading__line booked-heading__line--before" aria-hidden="true"></span><h%d class="booked-heading__text">%s</h%d><span class="booked-heading__line booked-heading__line--after" aria-hidden="true"></span></div>',
             get_block_wrapper_attributes([
-                'class' => sprintf('booked-heading booked-heading--%s booked-heading--align-%s', $style, $align),
+                'class' => sprintf('booked-heading booked-heading--%s booked-heading--align-%s%s', $style, $align, $ribbon_width_class),
             ]),
             $level,
             $rendered_content,
