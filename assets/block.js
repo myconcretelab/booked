@@ -67,9 +67,13 @@
 
   const getHeadingTagName = (level) => `h${[2, 3, 4].includes(Number(level)) ? Number(level) : 2}`;
   const getHeadingStyle = (style) => (HEADING_STYLES.includes(style) ? style : "line-ticks");
+  const getHeadingStyleAttribute = (attributes) =>
+    getHeadingStyle(
+      attributes.headingStyle || (typeof attributes.style === "string" ? attributes.style : "")
+    );
   const getHeadingTextAlign = (textAlign) => (["left", "center", "right"].includes(textAlign) ? textAlign : "center");
   const getHeadingClassName = (attributes) =>
-    `booked-heading booked-heading--${getHeadingStyle(attributes.style)} booked-heading--align-${getHeadingTextAlign(attributes.textAlign)}`;
+    `booked-heading booked-heading--${getHeadingStyleAttribute(attributes)} booked-heading--align-${getHeadingTextAlign(attributes.textAlign)}`;
 
   const normalizeGites = (payload) => {
     const items = payload && Array.isArray(payload.gites) ? payload.gites : [];
@@ -1576,9 +1580,13 @@
         type: "number",
         default: 2,
       },
-      style: {
+      headingStyle: {
         type: "string",
-        default: "line-ticks",
+      },
+      // Accept legacy decorative strings during migration alongside Gutenberg's
+      // native color, spacing and typography style object.
+      style: {
+        type: ["object", "string"],
       },
       textAlign: {
         type: "string",
@@ -1624,6 +1632,12 @@
       const blockProps = useBlockProps({ className: getHeadingClassName(attributes) });
       const tagName = getHeadingTagName(attributes.level);
 
+      useEffect(() => {
+        if (typeof attributes.style === "string" && HEADING_STYLES.includes(attributes.style)) {
+          setAttributes({ headingStyle: attributes.style, style: {} });
+        }
+      }, []);
+
       return el(
         Fragment,
         null,
@@ -1635,9 +1649,9 @@
             { title: __("Réglages du titre", "booked"), initialOpen: true },
             el(SelectControl, {
               label: __("Style", "booked"),
-              value: getHeadingStyle(attributes.style),
+              value: getHeadingStyleAttribute(attributes),
               options: getHeadingStyleOptions(),
-              onChange: (style) => setAttributes({ style }),
+              onChange: (headingStyle) => setAttributes({ headingStyle }),
             }),
             el(SelectControl, {
               label: __("Niveau", "booked"),

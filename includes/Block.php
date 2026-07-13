@@ -619,9 +619,13 @@ class Booked_Block
                     'type' => 'number',
                     'default' => 2,
                 ],
-                'style' => [
+                'headingStyle' => [
                     'type' => 'string',
-                    'default' => 'line-ticks',
+                ],
+                // Gutenberg owns `style` for color, spacing and typography;
+                // strings remain accepted temporarily for legacy blocks.
+                'style' => [
+                    'type' => ['object', 'string'],
                 ],
                 'textAlign' => [
                     'type' => 'string',
@@ -736,8 +740,10 @@ class Booked_Block
             'boxed',
             'plain',
         ];
-        $style = in_array((string) ($attributes['style'] ?? 'line-ticks'), $allowed_styles, true)
-            ? (string) $attributes['style']
+        $legacy_style = is_string($attributes['style'] ?? null) ? $attributes['style'] : '';
+        $heading_style = (string) ($attributes['headingStyle'] ?? $legacy_style);
+        $style = in_array($heading_style, $allowed_styles, true)
+            ? $heading_style
             : 'line-ticks';
         $align = in_array((string) ($attributes['textAlign'] ?? 'center'), ['left', 'center', 'right'], true)
             ? (string) $attributes['textAlign']
