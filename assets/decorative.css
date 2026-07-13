@@ -50,9 +50,9 @@
   --booked-frame-width-left: clamp(39px, 6.5vw, 75px);
 }
 
-.booked-cartel {
+.booked-cartel,
+:is(.wp-block-heading, p).is-style-cartel {
   --booked-cartel-end-width: 26px;
-  align-items: center;
   border-color: transparent;
   border-image-slice: 0 190 fill;
   border-image-source: url("images/cartel-laiton.png");
@@ -60,15 +60,19 @@
   border-style: solid;
   border-width: 0 var(--booked-cartel-end-width);
   box-sizing: border-box;
+}
+
+.booked-cartel {
+  align-items: center;
   display: flex;
   justify-content: center;
   min-height: 46px;
   padding: 2px 3px 3px;
 }
 
-.booked-cartel__text {
+.booked-cartel__text,
+:is(.wp-block-heading, p).is-style-cartel {
   color: rgb(68 48 18 / 82%);
-  display: block;
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 700;
   letter-spacing: .055em;
@@ -81,4 +85,27 @@
     1px 0 0 rgb(255 232 148 / 25%),
     -1px 0 0 rgb(51 31 8 / 38%);
   text-transform: uppercase;
+}
+
+.booked-cartel__text {
+  display: block;
+}
+
+:is(.wp-block-heading, p).is-style-cartel {
+  line-height: 1.15;
+  max-width: 100%;
+  padding: .6em .35em .68em;
+  width: fit-content;
+}
+
+:is(.wp-block-heading, p).is-style-cartel.has-text-align-left {
+  margin-inline: 0 auto;
+}
+
+:is(.wp-block-heading, p).is-style-cartel.has-text-align-center {
+  margin-inline: auto;
+}
+
+:is(.wp-block-heading, p).is-style-cartel.has-text-align-right {
+  margin-inline: auto 0;
 }

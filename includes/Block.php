@@ -382,11 +382,13 @@ class Booked_Block
             ]);
         }
 
-        wp_enqueue_block_style('core/image', [
-            'handle' => 'booked-decorative',
-            'src' => BOOKED_PLUGIN_URL . 'assets/decorative.css',
-            'ver' => BOOKED_VERSION,
-        ]);
+        foreach (['core/image', 'core/heading', 'core/paragraph'] as $block_name) {
+            wp_enqueue_block_style($block_name, [
+                'handle' => 'booked-decorative',
+                'src' => BOOKED_PLUGIN_URL . 'assets/decorative.css',
+                'ver' => BOOKED_VERSION,
+            ]);
+        }
 
         register_block_type('booked/widget', [
             'api_version' => 2,
