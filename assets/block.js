@@ -1685,7 +1685,7 @@
             className: "booked-heading__text",
             value: attributes.content || "",
             placeholder: __("Votre titre...", "booked"),
-            allowedFormats: ["core/bold"],
+            allowedFormats: ["core/bold", "core/text-color"],
             onChange: (content) => setAttributes({ content }),
           }),
           el("span", { className: "booked-heading__line booked-heading__line--after", "aria-hidden": "true" })

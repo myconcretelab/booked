@@ -726,6 +726,10 @@ class Booked_Block
         $rendered_content = wp_kses($content, [
             'strong' => [],
             'b' => [],
+            'mark' => [
+                'class' => true,
+                'style' => true,
+            ],
         ]);
 
         $level = max(2, min(4, (int) ($attributes['level'] ?? 2)));
