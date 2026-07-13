@@ -1,0 +1,84 @@
+/* Shared decorative primitives. Component-specific layout stays in widget.css. */
+
+.booked-frame,
+.wp-block-image:is(
+  .is-style-booked-frame-rustic-dark,
+  .is-style-booked-frame-antique-gold,
+  .is-style-booked-frame-ornate-wood
+) > img {
+  border-color: transparent;
+  border-image-repeat: stretch;
+  border-image-slice: var(--booked-frame-slice);
+  border-image-source: var(--booked-frame-image);
+  border-image-width: 1;
+  border-style: solid;
+  border-width:
+    var(--booked-frame-width-top)
+    var(--booked-frame-width-right)
+    var(--booked-frame-width-bottom)
+    var(--booked-frame-width-left);
+  box-sizing: border-box;
+}
+
+.booked-frame--rustic-dark,
+.wp-block-image.is-style-booked-frame-rustic-dark > img {
+  --booked-frame-image: url("images/cadre-bois-rustique-sombre.png");
+  --booked-frame-slice: 150 155 153 150;
+  --booked-frame-width-top: clamp(30px, 6vw, 72px);
+  --booked-frame-width-right: clamp(31px, 6.2vw, 74px);
+  --booked-frame-width-bottom: clamp(31px, 6.1vw, 73px);
+  --booked-frame-width-left: clamp(30px, 6vw, 72px);
+}
+
+.booked-frame--antique-gold,
+.wp-block-image.is-style-booked-frame-antique-gold > img {
+  --booked-frame-image: url("images/cadre-dore-ancien.png");
+  --booked-frame-slice: 86 70 78 72;
+  --booked-frame-width-top: clamp(32px, 5.8vw, 60px);
+  --booked-frame-width-right: clamp(26px, 4.7vw, 49px);
+  --booked-frame-width-bottom: clamp(29px, 5.2vw, 54px);
+  --booked-frame-width-left: clamp(27px, 4.9vw, 50px);
+}
+
+.booked-frame--ornate-wood,
+.wp-block-image.is-style-booked-frame-ornate-wood > img {
+  --booked-frame-image: url("images/cadre-bois-orne.png");
+  --booked-frame-slice: 220 220 215 180;
+  --booked-frame-width-top: clamp(48px, 8vw, 92px);
+  --booked-frame-width-right: clamp(48px, 8vw, 92px);
+  --booked-frame-width-bottom: clamp(47px, 7.8vw, 90px);
+  --booked-frame-width-left: clamp(39px, 6.5vw, 75px);
+}
+
+.booked-cartel {
+  --booked-cartel-end-width: 26px;
+  align-items: center;
+  border-color: transparent;
+  border-image-slice: 0 190 fill;
+  border-image-source: url("images/cartel-laiton.png");
+  border-image-width: 0 1;
+  border-style: solid;
+  border-width: 0 var(--booked-cartel-end-width);
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  min-height: 46px;
+  padding: 2px 3px 3px;
+}
+
+.booked-cartel__text {
+  color: rgb(68 48 18 / 82%);
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: .055em;
+  line-height: 1.05;
+  max-width: 100%;
+  text-align: center;
+  text-shadow:
+    0 1px 0 rgb(255 240 174 / 58%),
+    0 -1px 0 rgb(44 27 7 / 82%),
+    1px 0 0 rgb(255 232 148 / 25%),
+    -1px 0 0 rgb(51 31 8 / 38%);
+  text-transform: uppercase;
+}

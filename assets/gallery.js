@@ -440,9 +440,8 @@
     main.appendChild(mainFrame);
     const giteName = String(root.dataset.giteName || "").trim();
     if (giteName) {
-      const plaque = createElement("div", "booked-gallery__brass-plaque");
-      plaque.style.backgroundImage = `url("${baseUrl}cartel-laiton.png")`;
-      plaque.appendChild(createElement("span", "booked-gallery__brass-plaque-text", giteName));
+      const plaque = createElement("div", "booked-cartel booked-gallery__brass-plaque");
+      plaque.appendChild(createElement("span", "booked-cartel__text booked-gallery__brass-plaque-text", giteName));
       main.appendChild(plaque);
     }
     wrapper.appendChild(main);

@@ -371,6 +371,23 @@ class Booked_Block
 
     public function register_block(): void
     {
+        foreach ([
+            'booked-frame-rustic-dark' => 'Cadre bois rustique sombre',
+            'booked-frame-antique-gold' => 'Cadre doré ancien',
+            'booked-frame-ornate-wood' => 'Cadre bois orné',
+        ] as $name => $label) {
+            register_block_style('core/image', [
+                'name' => $name,
+                'label' => $label,
+            ]);
+        }
+
+        wp_enqueue_block_style('core/image', [
+            'handle' => 'booked-decorative',
+            'src' => BOOKED_PLUGIN_URL . 'assets/decorative.css',
+            'ver' => BOOKED_VERSION,
+        ]);
+
         register_block_type('booked/widget', [
             'api_version' => 2,
             'title' => 'Booked',
