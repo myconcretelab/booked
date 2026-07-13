@@ -326,11 +326,22 @@
   --booked-heading-soft: color-mix(in srgb, currentColor 16%, transparent);
   align-items: center;
   display: grid;
-  font-size: 34px;
   font-weight: 300;
-  gap: 18px;
+  gap: 0.53em;
   line-height: 1.18;
   position: relative;
+}
+
+.booked-heading--level-2:not([class*="has-"][class*="-font-size"]) {
+  font-size: clamp(2rem, 3vw, 2.375rem);
+}
+
+.booked-heading--level-3:not([class*="has-"][class*="-font-size"]) {
+  font-size: clamp(1.625rem, 2.5vw, 1.875rem);
+}
+
+.booked-heading--level-4:not([class*="has-"][class*="-font-size"]) {
+  font-size: 1.5rem;
 }
 
 .wp-block-booked-heading.booked-heading,
@@ -385,7 +396,7 @@
 .booked-heading--short-lines,
 .booked-heading--double-lines,
 .booked-heading--split-line {
-  grid-template-columns: minmax(28px, 1fr) auto minmax(28px, 1fr);
+  grid-template-columns: minmax(0.82em, 1fr) auto minmax(0.82em, 1fr);
 }
 
 .booked-heading__line {
@@ -414,62 +425,62 @@
 
 .booked-heading--line-ticks .booked-heading__text {
   border-inline: 1px solid var(--booked-heading-line);
-  padding-inline: 30px;
+  padding-inline: 0.88em;
 }
 
 .booked-heading--long-lines .booked-heading__text {
-  padding-inline: 24px;
+  padding-inline: 0.7em;
 }
 
 .booked-heading--short-lines {
-  grid-template-columns: minmax(42px, 120px) auto minmax(42px, 120px);
+  grid-template-columns: minmax(1.24em, 3.53em) auto minmax(1.24em, 3.53em);
   justify-content: center;
 }
 
 .booked-heading--short-lines .booked-heading__text {
-  padding-inline: 18px;
+  padding-inline: 0.53em;
 }
 
 .booked-heading--double-lines .booked-heading__line {
   border-block: 1px solid var(--booked-heading-line);
   background: transparent;
   display: block;
-  height: 8px;
+  height: 0.24em;
   opacity: 0.64;
 }
 
 .booked-heading--double-lines .booked-heading__text {
-  padding-inline: 24px;
+  padding-inline: 0.7em;
 }
 
 .booked-heading--split-line .booked-heading__line--before {
   justify-self: end;
-  transform: translateY(-10px);
-  width: min(100%, 220px);
+  transform: translateY(-0.3em);
+  width: min(100%, 6.47em);
 }
 
 .booked-heading--split-line .booked-heading__line--after {
   justify-self: start;
-  transform: translateY(10px);
-  width: min(100%, 220px);
+  transform: translateY(0.3em);
+  width: min(100%, 6.47em);
 }
 
 .booked-heading--split-line .booked-heading__text {
-  padding-inline: 26px;
+  padding-inline: 0.76em;
 }
 
 .booked-heading--corner-lines .booked-heading__text,
 .booked-heading--brackets .booked-heading__text,
 .booked-heading--boxed .booked-heading__text {
-  padding: 12px 26px;
+  padding: 0.35em 0.76em;
 }
 
 .booked-heading--corner-lines .booked-heading__text {
   background:
-    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) left top / 42px 1px no-repeat,
-    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) left top / 1px 22px no-repeat,
-    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) right bottom / 42px 1px no-repeat,
-    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) right bottom / 1px 22px no-repeat;
+    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) left top / 1.24em 1px no-repeat,
+    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) left top / 1px 0.65em no-repeat,
+    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) right bottom / 1.24em 1px no-repeat,
+    linear-gradient(var(--booked-heading-line), var(--booked-heading-line)) right bottom / 1px 0.65em no-repeat;
 }
 
 .booked-heading--brackets .booked-heading__text {
@@ -478,22 +489,22 @@
 
 .booked-heading--underline .booked-heading__text {
   border-bottom: 1px solid var(--booked-heading-line);
-  padding-bottom: 12px;
+  padding-bottom: 0.35em;
 }
 
 .booked-heading--overline .booked-heading__text {
   border-top: 1px solid var(--booked-heading-line);
-  padding-top: 12px;
+  padding-top: 0.35em;
 }
 
 .booked-heading--marker .booked-heading__text {
   background: linear-gradient(transparent 54%, color-mix(in srgb, var(--booked-heading-accent) 28%, transparent) 54%);
   display: inline-block;
-  padding-inline: 5px;
+  padding-inline: 0.15em;
 }
 
 .booked-heading--ribbon {
-  clip-path: polygon(24px 0, calc(100% - 24px) 0, 100% 50%, calc(100% - 24px) 100%, 24px 100%, 0 50%);
+  clip-path: polygon(0.7em 0, calc(100% - 0.7em) 0, 100% 50%, calc(100% - 0.7em) 100%, 0.7em 100%, 0 50%);
 }
 
 .booked-heading--ribbon:not(.has-background) {
@@ -508,7 +519,7 @@
   background: transparent;
   color: inherit;
   display: inline-block;
-  padding: 10px 42px;
+  padding: 0.3em 1.24em;
 }
 
 .booked-heading--ribbon-width-inline {

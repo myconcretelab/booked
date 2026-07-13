@@ -65,7 +65,8 @@
     { label: __("Simple", "booked"), value: "plain" },
   ];
 
-  const getHeadingTagName = (level) => `h${[2, 3, 4].includes(Number(level)) ? Number(level) : 2}`;
+  const getHeadingLevel = (level) => ([2, 3, 4].includes(Number(level)) ? Number(level) : 2);
+  const getHeadingTagName = (level) => `h${getHeadingLevel(level)}`;
   const getHeadingStyle = (style) => (HEADING_STYLES.includes(style) ? style : "line-ticks");
   const getHeadingStyleAttribute = (attributes) =>
     getHeadingStyle(
@@ -78,7 +79,7 @@
     const ribbonWidthClass = headingStyle === "ribbon"
       ? ` booked-heading--ribbon-width-${getRibbonWidth(attributes.ribbonWidth)}`
       : "";
-    return `booked-heading booked-heading--${headingStyle} booked-heading--align-${getHeadingTextAlign(attributes.textAlign)}${ribbonWidthClass}`;
+    return `booked-heading booked-heading--${headingStyle} booked-heading--level-${getHeadingLevel(attributes.level)} booked-heading--align-${getHeadingTextAlign(attributes.textAlign)}${ribbonWidthClass}`;
   };
 
   const normalizeGites = (payload) => {

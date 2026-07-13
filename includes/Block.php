@@ -768,7 +768,7 @@ class Booked_Block
         return sprintf(
             '<div %s><span class="booked-heading__line booked-heading__line--before" aria-hidden="true"></span><h%d class="booked-heading__text">%s</h%d><span class="booked-heading__line booked-heading__line--after" aria-hidden="true"></span></div>',
             get_block_wrapper_attributes([
-                'class' => sprintf('booked-heading booked-heading--%s booked-heading--align-%s%s', $style, $align, $ribbon_width_class),
+                'class' => sprintf('booked-heading booked-heading--%s booked-heading--level-%d booked-heading--align-%s%s', $style, $level, $align, $ribbon_width_class),
             ]),
             $level,
             $rendered_content,
