@@ -1730,6 +1730,62 @@ a.booked-gite-cards__wood-frame:focus-visible {
   right: 9%;
 }
 
+.booked-gite-cards__wood-frame--ancient {
+  aspect-ratio: 1219 / 969;
+  max-width: 580px;
+}
+
+.booked-gite-cards__wood-frame--ancient .booked-gite-cards__wood-content {
+  inset: 11.9% 9.1% 11% 8.9%;
+}
+
+.booked-gite-cards__wood-frame--baroque {
+  aspect-ratio: 1269 / 1100;
+  max-width: 520px;
+}
+
+.booked-gite-cards__wood-frame--baroque .booked-gite-cards__wood-content {
+  inset: 14.9% 12.2% 13.1% 12.3%;
+}
+
+.booked-gite-cards__wood-frame--oval {
+  aspect-ratio: 981 / 1171;
+  max-width: 360px;
+}
+
+.booked-gite-cards__wood-frame--oval .booked-gite-cards__wood-content {
+  border-radius: 50%;
+  inset: 14.7% 17.2% 14.4%;
+}
+
+.booked-gite-cards__wood-frame--oval .booked-gite-cards__wood-content::after {
+  border-radius: inherit;
+}
+
+.booked-gite-cards__wood-frame--oval .booked-gite-cards__wood-plaque {
+  max-width: 82%;
+  right: 50%;
+  transform: translateX(50%);
+}
+
+.booked-gite-cards__wood-frame--gold {
+  aspect-ratio: 644 / 800;
+  max-width: 350px;
+}
+
+.booked-gite-cards__wood-frame--gold .booked-gite-cards__wood-content {
+  inset: 11.1% 12.6% 10.5% 12.9%;
+}
+
+.booked-gite-cards__wood-frame--polaroid {
+  aspect-ratio: 780 / 846;
+  max-width: 390px;
+}
+
+.booked-gite-cards__wood-frame--polaroid .booked-gite-cards__wood-content {
+  inset: 5.9% 5.5% 20.1% 5.6%;
+}
+
 @media (max-width: 640px) {
   .booked-gite-cards__wood-details {
     gap: 2px;

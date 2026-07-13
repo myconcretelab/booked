@@ -346,10 +346,15 @@
     dark: "cadre-bois-rustique-sombre.png",
     patina: "cadre-bois-rustique-patine.png",
     ornate: "cadre-bois-orne.png",
+    ancient: "cadre-bois-ancien.png",
+    baroque: "cadre-baroque-bronze.png",
+    oval: "cadre-bois-ovale.png",
+    gold: "cadre-dore-ancien.png",
+    polaroid: "cadre-polaroid.png",
   };
 
   const renderWoodFrame = (gite, options, index) => {
-    const sequence = ["rustic", "dark", "patina", "ornate"];
+    const sequence = ["rustic", "dark", "patina", "ornate", "ancient", "baroque", "oval", "gold", "polaroid"];
     const requestedFrame = options.woodFrameAssignments[gite.id];
     const frame = woodFrameFiles[requestedFrame] ? requestedFrame : sequence[index % sequence.length];
     const composition = createElement(gite.url ? "a" : "div", `booked-gite-cards__wood-frame booked-gite-cards__wood-frame--${frame}`);

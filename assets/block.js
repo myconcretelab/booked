@@ -453,6 +453,11 @@
     { label: __("Bois sombre", "booked"), value: "dark" },
     { label: __("Bois patiné", "booked"), value: "patina" },
     { label: __("Bois orné (paysage)", "booked"), value: "ornate" },
+    { label: __("Bois ancien (paysage)", "booked"), value: "ancient" },
+    { label: __("Baroque bronze", "booked"), value: "baroque" },
+    { label: __("Bois ovale", "booked"), value: "oval" },
+    { label: __("Doré ancien", "booked"), value: "gold" },
+    { label: __("Polaroid blanc", "booked"), value: "polaroid" },
   ];
 
   const getGiteCardsRatioOptions = () => [
@@ -2141,12 +2146,12 @@
               ? el(
                   "div",
                   { className: "booked-wood-frame-controls" },
-                  el("p", { className: "booked-block-help" }, __("Choisissez le cadre utilisé pour chaque gîte. Le cadre orné adopte automatiquement la mise en page paysage.", "booked")),
+                  el("p", { className: "booked-block-help" }, __("Choisissez le cadre utilisé pour chaque gîte. Les cadres paysage et ovale adaptent automatiquement leur mise en page.", "booked")),
                   getSelectedGiteCardIds(attributes.selectedGiteIds, gites).map((giteId, index) =>
                     el(SelectControl, {
                       key: giteId,
                       label: getGiteName(gites, giteId),
-                      value: (attributes.woodFrameAssignments || {})[giteId] || getWoodFrameOptions()[index % 4].value,
+                      value: (attributes.woodFrameAssignments || {})[giteId] || getWoodFrameOptions()[index % getWoodFrameOptions().length].value,
                       options: getWoodFrameOptions(),
                       onChange: (frame) => setAttributes({
                         woodFrameAssignments: { ...(attributes.woodFrameAssignments || {}), [giteId]: frame },

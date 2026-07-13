@@ -870,7 +870,7 @@ class Booked_Block
         $show_description = $is_composed_layout || (!$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription'])));
         $show_stats = $is_page_compact || $is_composed_layout || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
         $show_cta = !$is_page_compact && !$is_composed_layout && (!array_key_exists('showCta', $attributes) || !empty($attributes['showCta']));
-        $allowed_frames = ['rustic', 'dark', 'patina', 'ornate'];
+        $allowed_frames = ['rustic', 'dark', 'patina', 'ornate', 'ancient', 'baroque', 'oval', 'gold', 'polaroid'];
         $wood_frame_assignments = [];
         foreach ((array) ($attributes['woodFrameAssignments'] ?? []) as $gite_id => $frame) {
             $gite_id = sanitize_text_field((string) $gite_id);
