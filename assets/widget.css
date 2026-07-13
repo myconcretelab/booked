@@ -356,6 +356,15 @@
   font-weight: bolder;
 }
 
+.booked-heading__text mark.has-inline-color:not([style*="background-color"]),
+.booked-heading__text mark.has-inline-color[style*="background-color:transparent"],
+.booked-heading__text mark.has-inline-color[style*="background-color: transparent"],
+.booked-heading__text mark.has-inline-color[style*="background-color:rgba(0, 0, 0, 0)"],
+.booked-heading__text mark.has-inline-color[style*="background-color:rgba(0,0,0,0)"],
+.booked-heading__text mark.has-inline-color[style*="background-color: rgba(0, 0, 0, 0)"] {
+  background-color: transparent !important;
+}
+
 .booked-heading--align-left {
   justify-items: start;
   text-align: left;
