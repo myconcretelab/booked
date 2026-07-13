@@ -325,9 +325,9 @@
   --booked-heading-accent: #8f6a4f;
   --booked-heading-soft: color-mix(in srgb, currentColor 16%, transparent);
   align-items: center;
-  color: inherit;
   display: grid;
   font-size: 34px;
+  font-weight: 300;
   gap: 18px;
   line-height: 1.18;
   position: relative;
@@ -341,7 +341,7 @@
 .booked-heading__text {
   color: inherit;
   font-size: inherit;
-  font-weight: 400;
+  font-weight: inherit;
   letter-spacing: 0;
   line-height: inherit;
   margin: 0;
@@ -349,6 +349,11 @@
   overflow-wrap: anywhere;
   position: relative;
   text-transform: uppercase;
+}
+
+.booked-heading__text strong,
+.booked-heading__text b {
+  font-weight: bolder;
 }
 
 .booked-heading--align-left {
@@ -479,8 +484,8 @@
 }
 
 .booked-heading--ribbon .booked-heading__text {
-  background: var(--booked-heading-line);
-  color: #ffffff;
+  background: var(--booked-heading-accent);
+  color: inherit;
   display: inline-block;
   padding: 10px 26px;
 }
@@ -495,13 +500,26 @@
 }
 
 .booked-heading--ribbon .booked-heading__text::before {
-  border-right: 0.55em solid var(--booked-heading-line);
+  border-right: 0.55em solid var(--booked-heading-accent);
   right: 100%;
 }
 
 .booked-heading--ribbon .booked-heading__text::after {
-  border-left: 0.55em solid var(--booked-heading-line);
+  border-left: 0.55em solid var(--booked-heading-accent);
   left: 100%;
+}
+
+.booked-heading--ribbon.has-background {
+  clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 50%, 100% 100%, 0 100%, 24px 50%);
+}
+
+.booked-heading--ribbon.has-background .booked-heading__text {
+  background: transparent;
+}
+
+.booked-heading--ribbon.has-background .booked-heading__text::before,
+.booked-heading--ribbon.has-background .booked-heading__text::after {
+  display: none;
 }
 
 .booked-heading--boxed .booked-heading__text {

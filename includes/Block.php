@@ -646,6 +646,7 @@ class Booked_Block
                     'padding' => true,
                 ],
                 'typography' => [
+                    '__experimentalFontWeight' => true,
                     'fontSize' => true,
                     'lineHeight' => true,
                 ],
@@ -722,7 +723,10 @@ class Booked_Block
         if (trim(wp_strip_all_tags($content)) === '') {
             return '';
         }
-        $rendered_content = esc_html(wp_strip_all_tags($content));
+        $rendered_content = wp_kses($content, [
+            'strong' => [],
+            'b' => [],
+        ]);
 
         $level = max(2, min(4, (int) ($attributes['level'] ?? 2)));
         $allowed_styles = [

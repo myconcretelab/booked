@@ -1607,6 +1607,7 @@
         padding: true,
       },
       typography: {
+        __experimentalFontWeight: true,
         fontSize: true,
         lineHeight: true,
       },
@@ -1684,7 +1685,7 @@
             className: "booked-heading__text",
             value: attributes.content || "",
             placeholder: __("Votre titre...", "booked"),
-            allowedFormats: [],
+            allowedFormats: ["core/bold"],
             onChange: (content) => setAttributes({ content }),
           }),
           el("span", { className: "booked-heading__line booked-heading__line--after", "aria-hidden": "true" })
