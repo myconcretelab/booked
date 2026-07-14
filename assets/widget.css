@@ -2201,7 +2201,7 @@ a.booked-gite-cards__wood-frame:focus-visible {
 .booked-gallery__media {
   appearance: none;
   aspect-ratio: var(--booked-gallery-ratio, 4 / 3);
-  background: #f1f5f9;
+  background-color: #f1f5f9;
   border-radius: 0;
   color: inherit;
   cursor: default;
