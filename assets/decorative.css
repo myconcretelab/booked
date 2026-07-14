@@ -98,6 +98,10 @@
   width: fit-content;
 }
 
+:is(.wp-block-heading, p).is-style-cartel a {
+  text-decoration: none;
+}
+
 :is(.wp-block-heading, p).is-style-cartel.has-text-align-left {
   margin-inline: 0 auto;
 }
