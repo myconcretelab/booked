@@ -6,6 +6,7 @@
   .is-style-booked-frame-antique-gold,
   .is-style-booked-frame-ornate-wood
 ) > img {
+  background-clip: padding-box;
   border-color: transparent;
   border-image-repeat: stretch;
   border-image-slice: var(--booked-frame-slice);
