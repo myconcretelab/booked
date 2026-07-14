@@ -2260,8 +2260,12 @@ button.booked-gallery__media {
 .booked-gallery__frames-main {
   aspect-ratio: var(--booked-gallery-ratio, 4 / 3);
   filter: drop-shadow(0 10px 10px rgb(28 19 11 / 28%));
+  height: min(70svh, 100%);
+  justify-self: center;
+  max-width: 100%;
   position: relative;
   transform: translateY(-12%) rotate(var(--booked-gallery-frame-rotation, 0deg));
+  width: auto;
 }
 
 .booked-gallery__frames-main .booked-gallery__media {
@@ -2282,6 +2286,18 @@ button.booked-gallery__media {
   pointer-events: none;
   position: absolute;
   z-index: 2;
+}
+
+.booked-gallery__frames-main .booked-gallery__media:focus-visible {
+  outline: none;
+}
+
+.booked-gallery__frames-main .booked-gallery__media:focus-visible::before {
+  box-shadow:
+    inset 0 0 0 3px #ffffff,
+    inset 0 0 0 5px #1f2937,
+    inset 0 0 24px rgb(24 15 7 / 62%),
+    inset 0 0 7px rgb(10 7 3 / 78%);
 }
 
 .booked-gallery__polaroid-frame-overlay {
