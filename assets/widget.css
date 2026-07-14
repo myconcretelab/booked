@@ -2202,7 +2202,6 @@ a.booked-gite-cards__wood-frame:focus-visible {
   appearance: none;
   aspect-ratio: var(--booked-gallery-ratio, 4 / 3);
   background: #f1f5f9;
-  border: 0;
   border-radius: 0;
   color: inherit;
   cursor: default;
@@ -2212,6 +2211,10 @@ a.booked-gite-cards__wood-frame:focus-visible {
   padding: 0;
   position: relative;
   width: 100%;
+}
+
+.booked-gallery__media:not(.booked-frame) {
+  border: 0;
 }
 
 .booked-gallery__media::after {
@@ -2255,7 +2258,7 @@ button.booked-gallery__media {
 }
 
 .booked-gallery__frames-main {
-  aspect-ratio: 1466 / 943;
+  aspect-ratio: var(--booked-gallery-ratio, 4 / 3);
   filter: drop-shadow(0 10px 10px rgb(28 19 11 / 28%));
   position: relative;
   transform: translateY(-12%) rotate(var(--booked-gallery-frame-rotation, 0deg));
@@ -2263,15 +2266,11 @@ button.booked-gallery__media {
 
 .booked-gallery__frames-main .booked-gallery__media {
   aspect-ratio: auto;
-  inset: 23.3% 14.8% 22.8%;
+  height: 100%;
+  inset: 0;
   position: absolute;
-  width: auto;
+  width: 100%;
   z-index: 1;
-}
-
-.booked-gallery__frames-main .booked-gallery__media,
-.booked-gallery__frames-main .booked-gallery__wood-frame-overlay {
-  transform: translateY(-4%);
 }
 
 .booked-gallery__frames-main .booked-gallery__media::before {
@@ -2285,7 +2284,6 @@ button.booked-gallery__media {
   z-index: 2;
 }
 
-.booked-gallery__wood-frame-overlay,
 .booked-gallery__polaroid-frame-overlay {
   background-position: center;
   background-repeat: no-repeat;

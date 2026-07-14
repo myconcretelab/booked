@@ -143,6 +143,10 @@ class Booked_Block
                 'type' => 'string',
                 'default' => 'grid',
             ],
+            'woodFrameStyle' => [
+                'type' => 'string',
+                'default' => 'ornate-wood',
+            ],
             'featuredSideCount' => [
                 'type' => 'number',
                 'default' => 4,
@@ -989,6 +993,9 @@ class Booked_Block
         $layout_mode = in_array((string) ($attributes['layoutMode'] ?? 'grid'), ['grid', 'featured', 'frames'], true)
             ? (string) $attributes['layoutMode']
             : 'grid';
+        $wood_frame_style = in_array((string) ($attributes['woodFrameStyle'] ?? 'ornate-wood'), ['rustic-dark', 'antique-gold', 'ornate-wood'], true)
+            ? (string) $attributes['woodFrameStyle']
+            : 'ornate-wood';
         $featured_side_count = max(1, min(8, (int) ($attributes['featuredSideCount'] ?? 4)));
         $hover_dim_opacity = max(0, min(80, (int) ($attributes['hoverDimOpacity'] ?? 0)));
         $width_mode = in_array((string) ($attributes['widthMode'] ?? 'fixed'), ['fixed', 'full'], true)
@@ -1023,7 +1030,7 @@ class Booked_Block
         }
 
         return sprintf(
-            '<div %s data-gite-id="%s" data-gite-name="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-layout-mode="%s" data-featured-side-count="%d" data-hover-dim-opacity="%d" data-lightbox="%s" data-expand-mode="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
+            '<div %s data-gite-id="%s" data-gite-name="%s" data-columns="%d" data-gap="%d" data-image-ratio="%s" data-layout-mode="%s" data-wood-frame-style="%s" data-featured-side-count="%d" data-hover-dim-opacity="%d" data-lightbox="%s" data-expand-mode="%s" data-width-mode="%s" data-max-width="%d" data-show-captions="%s"></div>',
             $wrapper_attributes,
             esc_attr($gite_id),
             esc_attr($gite_name),
@@ -1031,6 +1038,7 @@ class Booked_Block
             $gap,
             esc_attr($image_ratio),
             esc_attr($layout_mode),
+            esc_attr($wood_frame_style),
             $featured_side_count,
             $hover_dim_opacity,
             $lightbox ? '1' : '0',

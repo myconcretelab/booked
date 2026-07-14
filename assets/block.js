@@ -297,6 +297,10 @@
       type: "string",
       default: "grid",
     },
+    woodFrameStyle: {
+      type: "string",
+      default: "ornate-wood",
+    },
     featuredSideCount: {
       type: "number",
       default: 4,
@@ -431,6 +435,12 @@
     { label: __("Grille", "booked"), value: "grid" },
     { label: __("Image principale", "booked"), value: "featured" },
     { label: __("Cadre bois et Polaroids", "booked"), value: "frames" },
+  ];
+
+  const getGalleryWoodFrameOptions = () => [
+    { label: __("Cadre bois rustique sombre", "booked"), value: "rustic-dark" },
+    { label: __("Cadre doré ancien", "booked"), value: "antique-gold" },
+    { label: __("Cadre bois orné", "booked"), value: "ornate-wood" },
   ];
 
   const getGalleryExpandOptions = () => [
@@ -956,6 +966,7 @@
       attributes.gap,
       attributes.imageRatio,
       attributes.layoutMode,
+      attributes.woodFrameStyle,
       attributes.featuredSideCount,
       attributes.hoverDimOpacity,
       attributes.lightbox,
@@ -978,6 +989,7 @@
       "data-gap": String(attributes.gap === undefined ? 16 : attributes.gap),
       "data-image-ratio": attributes.imageRatio || "4-3",
       "data-layout-mode": ["featured", "frames"].includes(attributes.layoutMode) ? attributes.layoutMode : "grid",
+      "data-wood-frame-style": ["rustic-dark", "antique-gold", "ornate-wood"].includes(attributes.woodFrameStyle) ? attributes.woodFrameStyle : "ornate-wood",
       "data-featured-side-count": String(attributes.featuredSideCount || 4),
       "data-hover-dim-opacity": String(attributes.hoverDimOpacity || 0),
       "data-lightbox": attributes.lightbox === false ? "0" : "1",
@@ -2380,6 +2392,14 @@
               options: getGalleryLayoutOptions(),
               onChange: (layoutMode) => setAttributes({ layoutMode }),
             }),
+            (attributes.layoutMode || "grid") === "frames"
+              ? el(SelectControl, {
+                  label: __("Cadre de l’image principale", "booked"),
+                  value: attributes.woodFrameStyle || "ornate-wood",
+                  options: getGalleryWoodFrameOptions(),
+                  onChange: (woodFrameStyle) => setAttributes({ woodFrameStyle }),
+                })
+              : null,
             (attributes.layoutMode || "grid") === "featured"
               ? el(RangeControl, {
                   label: __("Photos à côté", "booked"),

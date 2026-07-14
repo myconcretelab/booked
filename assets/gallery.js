@@ -123,6 +123,9 @@
       gap: readNumberOption(root, "gap", 16, 0, 64),
       imageRatio,
       layoutMode: ["featured", "frames"].includes(root.dataset.layoutMode) ? root.dataset.layoutMode : "grid",
+      woodFrameStyle: ["rustic-dark", "antique-gold", "ornate-wood"].includes(root.dataset.woodFrameStyle)
+        ? root.dataset.woodFrameStyle
+        : "ornate-wood",
       featuredSideCount: readNumberOption(root, "featuredSideCount", 4, 1, 8),
       hoverDimOpacity: readNumberOption(root, "hoverDimOpacity", 0, 0, 80),
       lightbox: root.dataset.lightbox !== "0",
@@ -136,6 +139,7 @@
   const applyLayoutOptions = (root, options) => {
     root.dataset.columns = String(options.columns);
     root.dataset.layoutMode = options.layoutMode;
+    root.dataset.woodFrameStyle = options.woodFrameStyle;
     root.dataset.featuredSideCount = String(options.featuredSideCount);
     root.dataset.hoverDimOpacity = String(options.hoverDimOpacity);
     root.classList.toggle("booked-gallery--fixed", options.widthMode === "fixed");
@@ -433,11 +437,9 @@
   const renderFramesContent = (root, photos, options) => {
     const wrapper = createElement("div", "booked-gallery__frames");
     const main = buildGalleryItem(photos, 0, options, "booked-gallery__frames-main", false);
-    const mainFrame = createElement("span", "booked-gallery__wood-frame-overlay");
-    const baseUrl = String(config.woodFrameBaseUrl || "").replace(/\/?$/, "/");
+    const mainMedia = main.querySelector(".booked-gallery__media");
     main.style.setProperty("--booked-gallery-frame-rotation", getStableRotation(photos[0], 0, 0.9));
-    mainFrame.style.backgroundImage = `url("${baseUrl}cadre-bois-orne.png")`;
-    main.appendChild(mainFrame);
+    mainMedia.classList.add("booked-frame", `booked-frame--${options.woodFrameStyle}`);
     const giteName = String(root.dataset.giteName || "").trim();
     if (giteName) {
       const plaque = createElement("div", "booked-cartel booked-gallery__brass-plaque");
