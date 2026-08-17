@@ -306,6 +306,23 @@
     return period?.minimumNights || getConfigMinimumNights(period?.type, giteConfig) || getDefaultMinimumNights(giteConfig);
   };
 
+  const getNextBlockedStart = (startValue, availability) => {
+    if (!startValue) return "";
+
+    return (availability?.blocked_ranges || [])
+      .map((item) => String(item.date_entree || "").slice(0, 10))
+      .filter((dateValue) => dateValue > startValue)
+      .sort()[0] || "";
+  };
+
+  const getEffectiveDateMinimumNights = (dateValue, availability, periodDays, giteConfig) => {
+    const configuredMinimum = getDateMinimumNights(dateValue, periodDays, giteConfig);
+    const nextBlockedStart = getNextBlockedStart(dateValue, availability);
+    const availableNights = nextBlockedStart ? getNightCount(dateValue, nextBlockedStart) : 0;
+
+    return availableNights > 0 ? Math.min(configuredMinimum, availableNights) : configuredMinimum;
+  };
+
   const formatMinimumNights = (nights) => `${nights} nuit${nights > 1 ? "s" : ""} minimum`;
 
   const formatMinimumNightsRequired = (nights) => `Un minimum de ${nights} nuit${nights > 1 ? "s" : ""} est requis`;
@@ -331,7 +348,8 @@
 
   const isStayBelowMinimum = (startValue, endValue, availability, giteConfig) => {
     if (!startValue || !endValue || endValue <= startValue) return false;
-    const minimumNights = getDateMinimumNights(startValue, getPeriodDays(availability || {}), giteConfig);
+    const periodDays = getPeriodDays(availability || {});
+    const minimumNights = getEffectiveDateMinimumNights(startValue, availability, periodDays, giteConfig);
     return minimumNights > 1 && getNightCount(startValue, endValue) < minimumNights;
   };
 
@@ -342,11 +360,10 @@
     return blockedDays.get(formatDate(day)) || "free";
   };
 
-  const renderMonth = (monthDate, blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors = true, giteConfig = null) => {
+  const renderMonth = (monthDate, blockedDays, periodDays, periodColors, selectedStart, selectedEnd, selectedStartCheckoutDate, selectedStartMinimumNights, onDayClick, showPeriodColors = true) => {
     const month = startOfMonth(monthDate);
     const monthEnd = endOfMonth(month);
     const firstWeekday = (month.getDay() + 6) % 7;
-    const selectedStartMinimumNights = selectedStart && !selectedEnd ? getDateMinimumNights(selectedStart, periodDays, giteConfig) : 0;
     const monthElement = createElement("section", "booked-widget__month");
     const title = createElement(
       "h5",
@@ -369,16 +386,23 @@
     for (let day = month; day <= monthEnd; day = addDays(day, 1)) {
       const status = getDayStatus(day, blockedDays);
       const dateValue = formatDate(day);
+      const isCheckoutDate = Boolean(
+        selectedStart &&
+        dateValue === selectedStartCheckoutDate &&
+        (!selectedEnd || dateValue === selectedEnd)
+      );
+      const isSelectable = status === "free" || isCheckoutDate;
       const period = showPeriodColors && status === "free" ? periodDays.get(dateValue) : null;
       const periodClass = period ? ` booked-widget__day--period booked-widget__day--period-${period.type}` : "";
       const isTooShortStay =
-        status === "free" &&
+        isSelectable &&
         selectedStart &&
         !selectedEnd &&
         dateValue > selectedStart &&
         selectedStartMinimumNights > 1 &&
         getNightCount(selectedStart, dateValue) < selectedStartMinimumNights;
       const tooShortClass = isTooShortStay ? " booked-widget__day--too-short" : "";
+      const checkoutClass = isCheckoutDate ? " booked-widget__day--checkout" : "";
       const selectionClass =
         dateValue === selectedStart || dateValue === selectedEnd
           ? " booked-widget__day--selected"
@@ -387,7 +411,7 @@
             : "";
       const button = createElement(
         "button",
-        `booked-widget__day booked-widget__day--${status}${periodClass}${selectionClass}${tooShortClass}`,
+        `booked-widget__day booked-widget__day--${status}${periodClass}${selectionClass}${tooShortClass}${checkoutClass}`,
         String(day.getDate())
       );
       button.type = "button";
@@ -402,19 +426,19 @@
         button.setAttribute("aria-disabled", "true");
         button.tabIndex = -1;
       }
-      button.disabled = status !== "free" || !onDayClick;
+      button.disabled = !isSelectable || !onDayClick;
       button.setAttribute(
         "aria-label",
-        `${dateValue} ${status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}${period?.label ? `, ${period.label}` : ""}${isTooShortStay ? `, ${formatMinimumNightsRequired(selectedStartMinimumNights)}` : ""}`
+        `${dateValue} ${isCheckoutDate ? "départ possible, indisponible à partir de cette date" : status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}${period?.label ? `, ${period.label}` : ""}${isTooShortStay ? `, ${formatMinimumNightsRequired(selectedStartMinimumNights)}` : ""}`
       );
-      if (status === "free" && onDayClick && !isTooShortStay) {
+      if (isSelectable && onDayClick && !isTooShortStay) {
         button.addEventListener("click", () => onDayClick(dateValue));
       }
       grid.appendChild(button);
       dateCells += 1;
     }
 
-    while (dateCells < 42) {
+    while (dateCells % 7 !== 0) {
       grid.appendChild(createElement("div", "booked-widget__day booked-widget__day--empty"));
       dateCells += 1;
     }
@@ -426,6 +450,10 @@
   const renderAvailabilityCalendar = (target, availability, monthCursor, monthsCount, selectedStart, selectedEnd, onNavigate, onDayClick, periodColors = DEFAULT_PERIOD_COLORS, showPeriodColors = true, giteConfig = null) => {
     const blockedDays = getBlockedDays(availability);
     const periodDays = getPeriodDays(availability);
+    const selectedStartCheckoutDate = selectedStart ? getNextBlockedStart(selectedStart, availability) : "";
+    const selectedStartMinimumNights = selectedStart && !selectedEnd
+      ? getEffectiveDateMinimumNights(selectedStart, availability, periodDays, giteConfig)
+      : 0;
     target.innerHTML = "";
 
     const toolbar = createElement("div", "booked-widget__calendar-toolbar");
@@ -444,7 +472,18 @@
     const months = createElement("div", "booked-widget__months");
     months.style.setProperty("--booked-month-count", String(Math.min(monthsCount, 3)));
     for (let index = 0; index < monthsCount; index += 1) {
-      months.appendChild(renderMonth(addMonths(monthCursor, index), blockedDays, periodDays, periodColors, selectedStart, selectedEnd, onDayClick, showPeriodColors, giteConfig));
+      months.appendChild(renderMonth(
+        addMonths(monthCursor, index),
+        blockedDays,
+        periodDays,
+        periodColors,
+        selectedStart,
+        selectedEnd,
+        selectedStartCheckoutDate,
+        selectedStartMinimumNights,
+        onDayClick,
+        showPeriodColors
+      ));
     }
     target.appendChild(months);
 
@@ -507,8 +546,9 @@
     let shell = null;
 
     const getAvailabilityPath = (cursor) => {
+      const availabilityMonths = Math.max(2, monthsCount);
       const availabilityFrom = formatDate(cursor);
-      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(cursor, monthsCount - 1)), 1));
+      const availabilityTo = formatDate(addDays(endOfMonth(addMonths(cursor, availabilityMonths - 1)), 1));
       return `/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`;
     };
 
@@ -731,13 +771,15 @@
     let isRefreshing = false;
     let isPopoverOpen = false;
     let isModalOpen = false;
+    let returnToModalAfterDateSelection = false;
     let giteConfig = null;
     let areEventsBound = false;
 
-    const getVisibleMonths = () => 2;
+    const configuredMonths = Math.max(1, Math.min(2, Number(root.dataset.months || 2)));
+    const getVisibleMonths = () => window.matchMedia("(max-width: 720px)").matches ? 1 : configuredMonths;
 
     const getAvailabilityPath = (monthCursor) => {
-      const visibleMonths = getVisibleMonths();
+      const visibleMonths = Math.max(2, getVisibleMonths());
       const availabilityFrom = formatDate(monthCursor);
       const availabilityTo = formatDate(addDays(endOfMonth(addMonths(monthCursor, visibleMonths - 1)), 1));
       return `/gites/${encodeURIComponent(giteId)}/availability?from=${availabilityFrom}&to=${availabilityTo}`;
@@ -814,6 +856,10 @@
         if (options.closePopoverOnSuccess) {
           isPopoverOpen = false;
         }
+        if (options.openModalOnSuccess) {
+          isModalOpen = true;
+          returnToModalAfterDateSelection = false;
+        }
       } catch (error) {
         quote = null;
         feedback = error.message || "Prix indisponible.";
@@ -832,6 +878,7 @@
       if (!isPopoverOpen && !isModalOpen) return;
       isPopoverOpen = false;
       isModalOpen = false;
+      returnToModalAfterDateSelection = false;
       renderCard();
     };
 
@@ -839,6 +886,7 @@
       const path = typeof event.composedPath === "function" ? event.composedPath() : [];
       if (!isPopoverOpen || path.includes(root) || root.contains(event.target)) return;
       isPopoverOpen = false;
+      returnToModalAfterDateSelection = false;
       renderCard();
     };
 
@@ -849,13 +897,14 @@
 
     const handleResize = () => {
       if (isPopoverOpen) {
-        void loadAvailabilityAndRender(currentMonthCursor, "Calendrier indisponible.");
+        renderCard();
       }
     };
 
     const openPopover = () => {
       isPopoverOpen = true;
       isModalOpen = false;
+      returnToModalAfterDateSelection = false;
       const startDate = parseDate(selectedStart);
       if (startDate) {
         const nextMonthCursor = startOfMonth(startDate);
@@ -872,6 +921,7 @@
       quote = null;
       feedback = "";
       hasSelectionError = false;
+      returnToModalAfterDateSelection = false;
       storeSelection();
       renderCard();
     };
@@ -901,7 +951,11 @@
       storeSelection();
       renderCard();
       if (selectedStart && selectedEnd) {
-        void requestQuote({ closePopoverOnSuccess: true, keepPopoverOpenOnError: true });
+        void requestQuote({
+          closePopoverOnSuccess: true,
+          keepPopoverOpenOnError: true,
+          openModalOnSuccess: returnToModalAfterDateSelection,
+        });
       }
     };
 
@@ -963,10 +1017,11 @@
       }
       popover.appendChild(calendar);
 
-      const popoverFeedback = createElement("div", "booked-booking-card__popover-feedback", feedback);
-      popoverFeedback.setAttribute("aria-live", "polite");
-      popoverFeedback.setAttribute("aria-hidden", feedback ? "false" : "true");
-      popover.appendChild(popoverFeedback);
+      if (feedback) {
+        const popoverFeedback = createElement("div", "booked-booking-card__popover-feedback", feedback);
+        popoverFeedback.setAttribute("aria-live", "polite");
+        popover.appendChild(popoverFeedback);
+      }
 
       const actions = createElement("div", "booked-booking-card__popover-actions");
       const clearButton = createElement("button", "booked-booking-card__text-button", "Effacer les dates");
@@ -976,6 +1031,7 @@
       closeButton.type = "button";
       closeButton.addEventListener("click", () => {
         isPopoverOpen = false;
+        returnToModalAfterDateSelection = false;
         renderCard();
       });
       actions.append(clearButton, closeButton);
@@ -996,15 +1052,26 @@
       closeButton.setAttribute("aria-label", "Fermer");
       closeButton.addEventListener("click", () => {
         isModalOpen = false;
+        returnToModalAfterDateSelection = false;
         renderCard();
       });
 
       const title = createElement("h3", "booked-booking-card__modal-title", "Demande de réservation");
-      const summary = createElement(
-        "p",
-        "booked-booking-card__modal-summary",
-        `${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`
+      const summary = createElement("button", "booked-booking-card__modal-summary");
+      summary.type = "button";
+      summary.setAttribute("aria-label", "Modifier les dates du séjour");
+      const backArrow = createElement("span", "booked-booking-card__modal-back", "←");
+      backArrow.setAttribute("aria-hidden", "true");
+      summary.append(
+        backArrow,
+        createElement("span", "", `${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`)
       );
+      summary.addEventListener("click", () => {
+        isModalOpen = false;
+        isPopoverOpen = true;
+        returnToModalAfterDateSelection = true;
+        renderCard();
+      });
 
       const form = createElement("form", "booked-booking-card__modal-form");
       form.innerHTML = `
