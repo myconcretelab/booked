@@ -739,6 +739,7 @@
       root._bookedBookingCardCleanup();
       root._bookedBookingCardCleanup = null;
     }
+    root.classList.remove("booked-booking-card--floating");
 
     let giteId = String(root.dataset.giteId || "").trim();
     if (!giteId) {
@@ -1057,14 +1058,15 @@
       });
 
       const title = createElement("h3", "booked-booking-card__modal-title", "Demande de réservation");
+      const nights = getNightCount(selectedStart, selectedEnd);
       const summary = createElement("button", "booked-booking-card__modal-summary");
       summary.type = "button";
-      summary.setAttribute("aria-label", "Modifier les dates du séjour");
+      summary.setAttribute("aria-label", `Modifier les dates du séjour, ${nights} nuit${nights > 1 ? "s" : ""}`);
       const backArrow = createElement("span", "booked-booking-card__modal-back", "←");
       backArrow.setAttribute("aria-hidden", "true");
       summary.append(
         backArrow,
-        createElement("span", "", `${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`)
+        createElement("span", "", `${nights} nuit${nights > 1 ? "s" : ""} · ${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`)
       );
       summary.addEventListener("click", () => {
         isModalOpen = false;
@@ -1132,6 +1134,7 @@
 
     function renderCard() {
       root.innerHTML = "";
+      root.classList.toggle("booked-booking-card--floating", isPopoverOpen || isModalOpen);
       const card = createElement("div", "booked-booking-card__panel");
       const hasDates = Boolean(selectedStart && selectedEnd);
       const hasQuote = Boolean(hasDates && quote);
@@ -1241,6 +1244,7 @@
       document.addEventListener("keydown", handleEscape);
       window.addEventListener("resize", handleResize);
       root._bookedBookingCardCleanup = () => {
+        root.classList.remove("booked-booking-card--floating");
         document.removeEventListener(SELECTION_EVENT, externalSelectionHandler);
         document.removeEventListener("click", handleOutsideClick);
         document.removeEventListener("keydown", handleEscape);

@@ -2668,6 +2668,11 @@ button.booked-gallery__media:hover .booked-gallery__image {
   z-index: 10;
 }
 
+.booked-booking-card--floating,
+:where(.wp-block-column, .gite-page-sidebar):has(.booked-booking-card--floating) {
+  z-index: 100000 !important;
+}
+
 .admin-bar .booked-booking-card {
   top: 56px;
 }
