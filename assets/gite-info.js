@@ -1,5 +1,8 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
+  const language = String(config.language || document.documentElement.lang || "fr").toLowerCase().split(/[-_]/)[0];
+  const labels = {"Lit 90": ["90 cm bed", "Cama de 90 cm"], "Lit 140": ["140 cm bed", "Cama de 140 cm"], "Lit 160": ["160 cm bed", "Cama de 160 cm"], "Lit 180": ["180 cm bed", "Cama de 180 cm"], "Lits superposés": ["Bunk beds", "Literas"], "Canapé-lit": ["Sofa bed", "Sofá cama"], "Lit bébé": ["Cot", "Cuna"], "Prix basse saison": ["Low-season rate", "Tarifa de temporada baja"], "Prix haute saison": ["High-season rate", "Tarifa de temporada alta"], "Adresse": ["Address", "Dirección"], "Arrivée": ["Check-in", "Llegada"], "Départ": ["Check-out", "Salida"], "Gestionnaire": ["Property manager", "Responsable"], "Ménage": ["Cleaning", "Limpieza"], "Draps": ["Bed linen", "Sábanas"], "Linge de toilette": ["Towels", "Toallas"], "Chiens": ["Dogs", "Perros"], "Départ tardif": ["Late check-out", "Salida tardía"], "Options": ["Extras", "Extras"], "Informations générales": ["General information", "Información general"], "Coordonnées et tarifs": ["Contact details and rates", "Datos de contacto y tarifas"]};
+  const translate = (text) => labels[text]?.[language === "en" ? 0 : language === "es" ? 1 : -1] || text;
   const contentRequests = new Map();
   const CACHE_PREFIX = "booked:gite-info:v1:";
   const NO_SELECTION_ID = "__booked_no_selection__";
@@ -7,13 +10,13 @@
   const GENERAL_INFO_GROUP_ID = "__booked_general_info_details";
 
   const BED_LABELS = {
-    single: "Lit 90",
-    double: "Lit 140",
-    queen: "Lit 160",
-    king: "Lit 180",
-    bunk: "Lits superposés",
-    sofa_bed: "Canapé-lit",
-    baby: "Lit bébé",
+    single: translate("Lit 90"),
+    double: translate("Lit 140"),
+    queen: translate("Lit 160"),
+    king: translate("Lit 180"),
+    bunk: translate("Lits superposés"),
+    sofa_bed: translate("Canapé-lit"),
+    baby: translate("Lit bébé"),
   };
 
   const BED_DIMENSIONS = {
@@ -165,20 +168,20 @@
     ]);
 
     [
-      ["price-low", "Prix basse saison", "variables.prix_nuit_basse_saison"],
-      ["price-high", "Prix haute saison", "variables.prix_nuit_haute_saison"],
+      ["price-low", translate("Prix basse saison"), "variables.prix_nuit_basse_saison"],
+      ["price-high", translate("Prix haute saison"), "variables.prix_nuit_haute_saison"],
     ].forEach(([id, label, path]) => {
       const value = getFirstText(payload, [path]);
       if (value) rows.push({ id, kind: "general_info", icon: "", label, value, emphasis: true });
     });
 
     if (address) {
-      rows.push({ id: "address", kind: "general_info", icon: "address", label: "Adresse", value: address, href: createMapsUrl(address) });
+      rows.push({ id: "address", kind: "general_info", icon: "address", label: translate("Adresse"), value: address, href: createMapsUrl(address) });
     }
 
     [
-      ["arrival", "Arrivée", "variables.horaire_arrivee", "arrival"],
-      ["departure", "Départ", "variables.horaire_depart", "departure"],
+      ["arrival", translate("Arrivée"), "variables.horaire_arrivee", "arrival"],
+      ["departure", translate("Départ"), "variables.horaire_depart", "departure"],
     ].forEach(([id, label, path, icon]) => {
       const value = getFirstText(payload, [path]);
       if (value) rows.push({ id, kind: "general_info", icon, label, value });
@@ -189,7 +192,7 @@
         id: "manager",
         kind: "general_info",
         icon: "manager",
-        label: "Gestionnaire",
+        label: translate("Gestionnaire"),
         value: [managerName, managerPhone].filter(Boolean).join(" - "),
         obfuscate: Boolean(managerPhone),
       });
@@ -197,17 +200,17 @@
 
     const options = [];
     [
-      ["Ménage", "variables.service_menage_forfait", "cleaning"],
-      ["Draps", "variables.service_draps_par_lit", "sheets"],
-      ["Linge de toilette", "variables.service_linge_toilette_par_personne", "towels"],
-      ["Chiens", "variables.service_chiens_par_nuit", "pets"],
-      ["Départ tardif", "variables.service_depart_tardif_forfait", "late-checkout"],
+      [translate("Ménage"), "variables.service_menage_forfait", "cleaning"],
+      [translate("Draps"), "variables.service_draps_par_lit", "sheets"],
+      [translate("Linge de toilette"), "variables.service_linge_toilette_par_personne", "towels"],
+      [translate("Chiens"), "variables.service_chiens_par_nuit", "pets"],
+      [translate("Départ tardif"), "variables.service_depart_tardif_forfait", "late-checkout"],
     ].forEach(([label, path, icon]) => {
       const value = getFirstText(payload, [path]);
       if (value) options.push({ icon, label, value });
     });
     if (options.length > 0) {
-      rows.push({ id: "options", kind: "general_options", label: "Options", options });
+      rows.push({ id: "options", kind: "general_options", label: translate("Options"), options });
     }
 
     return rows;
@@ -222,11 +225,11 @@
 
     return {
       id: GENERAL_INFO_SECTION_ID,
-      titre: "Informations générales",
+      titre: translate("Informations générales"),
       groupes: [
         {
           id: GENERAL_INFO_GROUP_ID,
-          titre: "Coordonnées et tarifs",
+          titre: translate("Coordonnées et tarifs"),
           items: rows,
         },
       ],
@@ -273,6 +276,7 @@
       queryParams.forEach((value, key) => url.searchParams.append(key, value));
     }
 
+    url.searchParams.set("lang", config.language || document.documentElement.lang || "fr");
     return url.toString();
   };
 
@@ -354,7 +358,7 @@
 
       return options.length > 0 ? {
         kind: "general-options",
-        label: getText(item.label) || "Options",
+        label: getText(item.label) || translate("Options"),
         options,
       } : null;
     }

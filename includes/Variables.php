@@ -43,13 +43,14 @@ class Booked_Variables
             return new WP_Error('booked_missing_gite_id', 'Gîte manquant.', ['status' => 400]);
         }
 
-        $cache_key = 'booked_gite_content_' . md5($gite_id);
+        $language = Booked_Language::resolve();
+        $cache_key = 'booked_gite_content_' . md5($gite_id . ':' . $language . ':' . BOOKED_VERSION);
         $cached = $force_refresh ? false : get_transient($cache_key);
         if (is_array($cached)) {
             return $cached;
         }
 
-        $result = $this->api_client->request('GET', '/booked/gites/' . rawurlencode($gite_id) . '/content');
+        $result = $this->api_client->request('GET', '/booked/gites/' . rawurlencode($gite_id) . '/content?lang=' . rawurlencode($language));
         if (is_wp_error($result)) {
             return $result;
         }

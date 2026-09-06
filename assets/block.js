@@ -2570,7 +2570,7 @@
           return;
         }
 
-        const path = `/booked/v1/gites/${encodeURIComponent(effectiveGiteId)}/content`;
+        const path = `/booked/v1/gites/${encodeURIComponent(effectiveGiteId)}/content?lang=${encodeURIComponent((window.BookedWidgetConfig || {}).language || "fr")}`;
         const cached = readCachedEditorApi(path);
         if (cached) {
           setContent(cached);

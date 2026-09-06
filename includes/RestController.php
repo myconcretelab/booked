@@ -435,7 +435,7 @@ class Booked_RestController
 
     public function get_content(WP_REST_Request $request)
     {
-        $result = $this->api_client->request('GET', '/booked/gites/' . rawurlencode((string) $request['id']) . '/content');
+        $result = $this->api_client->request('GET', '/booked/gites/' . rawurlencode((string) $request['id']) . '/content?lang=' . rawurlencode(Booked_Language::resolve($request->get_param('lang'))));
         if ($error = $this->maybe_error($result)) {
             return $error;
         }
@@ -445,9 +445,24 @@ class Booked_RestController
     public function get_photos(WP_REST_Request $request)
     {
         $gite_id = sanitize_text_field((string) $request['id']);
-        return new WP_REST_Response([
-            'photos' => $this->photo_sync->get_public_photos($gite_id),
-        ], 200);
+        $photos = $this->photo_sync->get_public_photos($gite_id);
+        $language = Booked_Language::resolve($request->get_param('lang'));
+        if ($language !== 'fr') {
+            $content = $this->api_client->request('GET', '/booked/gites/' . rawurlencode($gite_id) . '/content?lang=' . $language);
+            if (!is_wp_error($content)) {
+                $metadata = [];
+                foreach (($content['photos'] ?? []) as $photo) {
+                    $metadata[(string) $photo['id']] = $photo;
+                }
+                foreach ($photos as &$photo) {
+                    $translated = $metadata[$photo['booked_photo_id']] ?? [];
+                    $photo['title'] = $translated['title'] ?? $photo['title'];
+                    $photo['alt'] = $translated['alt'] ?? $photo['alt'];
+                }
+                unset($photo);
+            }
+        }
+        return new WP_REST_Response(['photos' => $photos, 'language' => $language], 200);
     }
 
     public function sync_photos(WP_REST_Request $request)
