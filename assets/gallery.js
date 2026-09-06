@@ -1,4 +1,5 @@
 (function () {
+  const { t, locale, count } = window.BookedI18n;
   const config = window.BookedWidgetConfig || {};
   const photoRequests = new Map();
   const CACHE_PREFIX = "booked:gallery:v2:";
@@ -85,7 +86,7 @@
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "Galerie Booked indisponible.");
+      throw new Error(payload.error || t("Galerie Booked indisponible."));
     }
     writeCachedApi(path, payload);
     return payload;
@@ -198,9 +199,9 @@
     const dialog = createElement("div", "booked-gallery-lightbox__dialog");
     const image = createElement("img", "booked-gallery-lightbox__image");
     const caption = createElement("div", "booked-gallery-lightbox__caption");
-    const closeButton = createElement("button", "booked-gallery-lightbox__close", "Fermer");
-    const previousButton = createElement("button", "booked-gallery-lightbox__nav booked-gallery-lightbox__nav--previous", "Précédente");
-    const nextButton = createElement("button", "booked-gallery-lightbox__nav booked-gallery-lightbox__nav--next", "Suivante");
+    const closeButton = createElement("button", "booked-gallery-lightbox__close", t("Fermer"));
+    const previousButton = createElement("button", "booked-gallery-lightbox__nav booked-gallery-lightbox__nav--previous", t("Précédente"));
+    const nextButton = createElement("button", "booked-gallery-lightbox__nav booked-gallery-lightbox__nav--next", t("Suivante"));
 
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
@@ -260,13 +261,13 @@
   const openMasonryOverlay = (photos) => {
     const overlay = createElement("div", "booked-gallery-masonry-overlay");
     const header = createElement("div", "booked-gallery-masonry-overlay__header");
-    const closeButton = createElement("button", "booked-gallery-masonry-overlay__back", "Détails");
+    const closeButton = createElement("button", "booked-gallery-masonry-overlay__back", t("Détails"));
     const grid = createElement("div", "booked-gallery-masonry-overlay__grid");
 
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     closeButton.type = "button";
-    closeButton.setAttribute("aria-label", "Retour aux détails");
+    closeButton.setAttribute("aria-label", t("Retour aux détails"));
 
     const close = () => {
       document.removeEventListener("keydown", handleKeydown);
@@ -284,7 +285,7 @@
       const item = createElement("figure", "booked-gallery-masonry-overlay__item");
       const media = createElement("button", "booked-gallery-masonry-overlay__media");
       media.type = "button";
-      media.setAttribute("aria-label", photo.title ? `Agrandir ${photo.title}` : "Agrandir l'image");
+      media.setAttribute("aria-label", photo.title ? t("Agrandir {name}", {name: photo.title}) : t("Agrandir l'image"));
       media.addEventListener("click", () => openLightbox(photos, index));
       media.appendChild(buildFullImage(photo, index));
       item.appendChild(media);
@@ -324,14 +325,14 @@
     if (options.lightbox) {
       const targetIndex = showCountButton ? 0 : index;
       media.type = "button";
-      media.setAttribute("aria-label", showCountButton ? `Voir les ${photos.length} photos` : photo.title ? `Agrandir ${photo.title}` : "Agrandir l'image");
+      media.setAttribute("aria-label", showCountButton ? t("Voir les {count} photos", {count: photos.length}) : photo.title ? t("Agrandir {name}", {name: photo.title}) : t("Agrandir l'image"));
       media.addEventListener("click", () => openGalleryExpansion(photos, targetIndex, options));
     }
 
     media.appendChild(buildImage(photo, index));
 
     if (showCountButton && options.lightbox) {
-      media.appendChild(createElement("span", "booked-gallery__count-button", `Voir les ${photos.length} photos`));
+      media.appendChild(createElement("span", "booked-gallery__count-button", t("Voir les {count} photos", {count: photos.length})));
     }
 
     figure.appendChild(media);
@@ -470,7 +471,7 @@
     root.innerHTML = "";
 
     if (photos.length === 0) {
-      root.appendChild(createElement("div", "booked-gallery__empty", "Aucune image disponible."));
+      root.appendChild(createElement("div", "booked-gallery__empty", t("Aucune image disponible.")));
       return;
     }
 
@@ -493,7 +494,7 @@
     const giteId = root.dataset.giteId;
     if (!giteId) {
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-gallery__empty", "Sélectionnez un gîte."));
+      root.appendChild(createElement("div", "booked-gallery__empty", t("Sélectionnez un gîte.")));
       return;
     }
 
@@ -502,7 +503,7 @@
       renderContent(root, cachedPayload);
     } else {
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-gallery__loading", "Chargement..."));
+      root.appendChild(createElement("div", "booked-gallery__loading", t("Chargement...")));
     }
 
     try {
@@ -511,7 +512,7 @@
     } catch (error) {
       if (cachedPayload) return;
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-widget--error", error.message || "Galerie indisponible."));
+      root.appendChild(createElement("div", "booked-widget--error", error.message || t("Galerie indisponible.")));
     }
   };
 

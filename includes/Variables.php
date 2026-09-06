@@ -36,14 +36,14 @@ class Booked_Variables
         $this->api_client = $api_client;
     }
 
-    public function get_gite_content(string $gite_id, bool $force_refresh = false)
+    public function get_gite_content(string $gite_id, bool $force_refresh = false, ?string $language = null)
     {
         $gite_id = sanitize_text_field($gite_id);
         if ($gite_id === '') {
             return new WP_Error('booked_missing_gite_id', 'Gîte manquant.', ['status' => 400]);
         }
 
-        $language = Booked_Language::resolve();
+        $language = Booked_Language::resolve($language);
         $cache_key = 'booked_gite_content_' . md5($gite_id . ':' . $language . ':' . BOOKED_VERSION);
         $cached = $force_refresh ? false : get_transient($cache_key);
         if (is_array($cached)) {

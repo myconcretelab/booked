@@ -1,4 +1,5 @@
 (function () {
+  const { t, locale, count } = window.BookedI18n;
   const config = window.BookedWidgetConfig || {};
   const contentRequests = new Map();
   const CACHE_PREFIX = "booked:gite-cards:v2:";
@@ -87,6 +88,7 @@
       queryParams.forEach((value, key) => url.searchParams.append(key, value));
     }
 
+    url.searchParams.set("lang", window.BookedI18n.language);
     return url.toString();
   };
 
@@ -120,7 +122,7 @@
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "Contenu Booked indisponible.");
+      throw new Error(payload.error || t("Contenu Booked indisponible."));
     }
     writeCachedApi(path, payload);
     return payload;
@@ -240,10 +242,10 @@
   const normalizeGite = (giteId, payload, metadata) => {
     const webInfo = getObject(payload.public_web_info, payload.web_info, payload.informations_web);
     const capacity = getNumber(webInfo.max_people, webInfo.nombre_personnes_maximum, webInfo.capacite_max, payload.capacite_max, payload.capacity, payload.capacite, metadata.capacity);
-    const bedrooms = getNumber(payload.nb_chambres, payload.bedrooms, payload.chambres) || countGroupsMatching(payload, /chambre/i);
+    const bedrooms = getNumber(payload.nb_chambres, payload.bedrooms, payload.chambres) || getGroups(payload).filter(group => group.type === "chambre").length;
     const beds = getNumber(payload.nb_lits, payload.beds, payload.couchages) || countBeds(payload);
     const sleepingCapacity = getNumber(webInfo.sleeping_capacity, webInfo.nombre_couchages, webInfo.couchages, payload.nb_couchages) || beds;
-    const bathrooms = getNumber(payload.nb_salles_de_bain, payload.bathrooms, payload.salles_de_bain) || countGroupsMatching(payload, /salle d('|e )?eau|salle de bain|douche/i);
+    const bathrooms = getNumber(payload.nb_salles_de_bain, payload.bathrooms, payload.salles_de_bain) || countGroupsMatching(payload, /salle d('|e )?eau|salle de bain|douche|shower room|bathroom|baño/i);
     const surface = getNumber(webInfo.surface_m2, webInfo.surface, payload.surface, payload.surface_m2, payload.superficie);
     const fireplace = getBoolean(webInfo.fireplace, webInfo.cheminee, payload.cheminee);
     const privateGarden = getBoolean(webInfo.private_garden, webInfo.jardin_prive, payload.jardin_prive);
@@ -258,14 +260,14 @@
       photo: getPrimaryPhoto(payload),
       url: getText(metadata.pageUrl, metadata.url, payload.public_url, payload.url, payload.permalink, payload.link),
       stats: [
-        surface ? { icon: "surface", label: "Surface", value: `${surface} m2` } : null,
-        capacity ? { icon: "people", label: "Capacité", value: `${capacity} pers.` } : null,
-        sleepingCapacity ? { icon: "sleeping", label: "Couchages", value: String(sleepingCapacity) } : null,
-        fireplace ? { icon: "fireplace", label: "Cheminée", value: "Oui" } : null,
-        privateGarden ? { icon: "garden", label: "Jardin privé", value: "Oui" } : null,
-        privateCourtyard ? { icon: "courtyard", label: "Cour privée", value: "Oui" } : null,
-        bedrooms ? { icon: "bedrooms", label: "Chambres", value: String(bedrooms) } : null,
-        bathrooms ? { icon: "bath", label: "Salles d'eau", value: String(bathrooms) } : null,
+        surface ? { icon: "surface", label: t("Surface"), value: `${surface} m2` } : null,
+        capacity ? { icon: "people", label: t("Capacité"), value: t("{count} pers.", {count: capacity}) } : null,
+        sleepingCapacity ? { icon: "sleeping", label: t("Couchages"), value: String(sleepingCapacity) } : null,
+        fireplace ? { icon: "fireplace", label: t("Cheminée"), value: t("Oui") } : null,
+        privateGarden ? { icon: "garden", label: t("Jardin privé"), value: t("Oui") } : null,
+        privateCourtyard ? { icon: "courtyard", label: t("Cour privée"), value: t("Oui") } : null,
+        bedrooms ? { icon: "bedrooms", label: t("Chambres"), value: String(bedrooms) } : null,
+        bathrooms ? { icon: "bath", label: t("Salles d'eau"), value: String(bathrooms) } : null,
       ].filter(Boolean),
     };
   };
@@ -275,7 +277,7 @@
     if (!options.showImages) return media;
     if (gite.url) {
       media.href = gite.url;
-      media.setAttribute("aria-label", `Voir ${gite.name}`);
+      media.setAttribute("aria-label", t("Voir {name}", {name: gite.name}));
     }
 
     if (gite.photo && gite.photo.url) {
@@ -370,7 +372,7 @@
 
     if (gite.url) {
       composition.href = gite.url;
-      composition.setAttribute("aria-label", `Voir ${gite.name}`);
+      composition.setAttribute("aria-label", t("Voir {name}", {name: gite.name}));
     }
     if (gite.stats.length > 0) details.appendChild(renderPolaroidStats(gite.stats));
     media.classList.add("booked-gite-cards__wood-photo");
@@ -493,7 +495,7 @@
     root.style.setProperty("--booked-gite-cards-ratio", options.imageRatioCss);
 
     if (gites.length === 0) {
-      root.appendChild(createElement("div", "booked-gite-cards__empty", "Aucun gîte disponible."));
+      root.appendChild(createElement("div", "booked-gite-cards__empty", t("Aucun gîte disponible.")));
       return;
     }
 
@@ -523,7 +525,7 @@
       showDescription: isComposedLayout || (layout !== "page-compact" && root.dataset.showDescription !== "0"),
       showStats: layout === "page-compact" || isComposedLayout || root.dataset.showStats !== "0",
       showCta: layout !== "page-compact" && !isComposedLayout && root.dataset.showCta !== "0",
-      ctaLabel: root.dataset.ctaLabel || "Voir le gîte",
+      ctaLabel: t(root.dataset.ctaLabel || "Voir le gîte"),
       woodFrameAssignments: parseJsonObject(root.dataset.woodFrameAssignments),
     };
   };
@@ -538,7 +540,7 @@
 
     if (giteIds.length === 0) {
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-gite-cards__empty", "Sélectionnez au moins un gîte."));
+      root.appendChild(createElement("div", "booked-gite-cards__empty", t("Sélectionnez au moins un gîte.")));
       return;
     }
 
@@ -551,7 +553,7 @@
       renderContent(root, cachedGites, options);
     } else {
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-gite-cards__loading", "Chargement des gîtes..."));
+      root.appendChild(createElement("div", "booked-gite-cards__loading", t("Chargement des gîtes...")));
     }
 
     try {
@@ -560,7 +562,7 @@
     } catch (error) {
       if (cachedGites.length > 0) return;
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-widget--error", error.message || "Contenu indisponible."));
+      root.appendChild(createElement("div", "booked-widget--error", error.message || t("Contenu indisponible.")));
     }
   };
 

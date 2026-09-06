@@ -6,6 +6,8 @@ Les textes restent gérés dans Contrats, dans Présentation web → Traductions
 
 Les routes REST `/booked/v1/gites/{id}/content` et `/booked/v1/gites/{id}/photos` acceptent `?lang=en` ou `?lang=es`. Sans paramètre elles utilisent la langue WordPress. Le serveur Contrats doit être mis à jour et sa migration appliquée avant ce plugin.
 
-Les pages, les menus, les phrases personnalisées WordPress et le formulaire de réservation constituent des contenus distincts des fiches gîtes ; leur traduction est à gérer séparément. Polylang ne traduit pas automatiquement les textes.
+Les pages et menus sont des traductions natives Polylang, gérées par le thème Gîtes Brocéliande. Le formulaire, les calendriers, cartes et galeries utilisent `assets/i18n.js` : dates, devises, libellés et messages suivent la langue de la page. Les champs envoyés à l’API et la logique de réservation restent identiques. Polylang ne traduit pas automatiquement les textes éditoriaux.
 
 Vérification autonome : `php tests/language.php` (résolution des langues, isolation du cache, transmission à Contrats).
+
+Test navigateur du formulaire (devis, soumission simulée et confirmation FR/EN/ES) : importer `runBookingI18nChecks` depuis `tests/booking-i18n.mjs` et lui transmettre `chromium` de Playwright. Le test intercepte toutes les requêtes ; aucune réservation ni aucun email réel n’est créé.

@@ -1,4 +1,5 @@
 (function () {
+  const { t, locale, count } = window.BookedI18n;
   const ROOT_SELECTOR = ".booked-image-carousel";
 
   const readInterval = (root) => {

@@ -1,4 +1,5 @@
 (function () {
+  const { t, locale, count } = window.BookedI18n;
   const config = window.BookedWidgetConfig || {};
   const SELECTION_EVENT = "booked:selection-change";
   const CACHE_PREFIX = "booked:api:v1:";
@@ -17,12 +18,12 @@
 
   const formatDisplayDate = (value) => {
     const date = parseDate(value);
-    return date ? new Intl.DateTimeFormat("fr-FR").format(date) : "";
+    return date ? new Intl.DateTimeFormat(locale).format(date) : "";
   };
 
   const formatShortDisplayDate = (value) => {
     const date = parseDate(value);
-    return date ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(date) : "";
+    return date ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date) : "";
   };
 
   const getNightCount = (startValue, endValue) => {
@@ -34,7 +35,7 @@
 
   const formatTotalPrice = (value) => {
     const amount = Number(value || 0);
-    return new Intl.NumberFormat("fr-FR", {
+    return new Intl.NumberFormat(locale, {
       style: "currency",
       currency: "EUR",
       minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
@@ -70,7 +71,7 @@
     return element;
   };
 
-  const createRefreshIndicator = (label = "Mise à jour...") => {
+  const createRefreshIndicator = (label = t("Mise à jour...")) => {
     const indicator = createElement("div", "booked-refresh-indicator");
     indicator.setAttribute("role", "status");
     indicator.setAttribute("aria-live", "polite");
@@ -141,6 +142,7 @@
       });
     }
 
+    url.searchParams.set("lang", window.BookedI18n.language);
     return url.toString();
   };
 
@@ -177,11 +179,11 @@
         "Content-Type": "application/json",
       },
       body: options?.body ? JSON.stringify(options.body) : undefined,
-    });
+    }).catch(() => { throw new Error(t("Service Booked temporairement indisponible.")); });
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "Erreur Booked.");
+      throw new Error(window.BookedI18n.error(payload));
     }
     if (method === "GET") {
       writeCachedApi(path, payload);
@@ -323,9 +325,9 @@
     return availableNights > 0 ? Math.min(configuredMinimum, availableNights) : configuredMinimum;
   };
 
-  const formatMinimumNights = (nights) => `${nights} nuit${nights > 1 ? "s" : ""} minimum`;
+  const formatMinimumNights = (nights) => count(nights, "{count} nuit minimum", "{count} nuits minimum");
 
-  const formatMinimumNightsRequired = (nights) => `Un minimum de ${nights} nuit${nights > 1 ? "s" : ""} est requis`;
+  const formatMinimumNightsRequired = (nights) => count(nights, "Un minimum de {count} nuit est requis", "Un minimum de {count} nuits est requis");
 
   const getPeriodDays = (availability) => {
     const periodDays = new Map();
@@ -338,7 +340,7 @@
       for (let day = start; day < end; day = addDays(day, 1)) {
         periodDays.set(formatDate(day), {
           type,
-          label: String(item.label || ""),
+          label: window.BookedI18n.language === "fr" ? String(item.label || "") : t({school_holiday: "Vacances scolaires", bridge: "Pont", july_august: "Juillet et août"}[type]),
           minimumNights: getPeriodItemMinimumNights(item),
         });
       }
@@ -368,13 +370,13 @@
     const title = createElement(
       "h5",
       "booked-widget__month-title",
-      new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(month)
+      new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(month)
     );
     monthElement.appendChild(title);
 
     const grid = createElement("div", "booked-widget__calendar-grid");
     let dateCells = 0;
-    ["L", "M", "M", "J", "V", "S", "D"].forEach((label) => {
+    Array.from({length: 7}, (_, i) => new Intl.DateTimeFormat(locale, {weekday: "short"}).format(new Date(2024, 0, 1 + i))).forEach((label) => {
       grid.appendChild(createElement("div", "booked-widget__weekday", label));
     });
 
@@ -429,7 +431,7 @@
       button.disabled = !isSelectable || !onDayClick;
       button.setAttribute(
         "aria-label",
-        `${dateValue} ${isCheckoutDate ? "départ possible, indisponible à partir de cette date" : status === "free" ? "disponible" : status === "option" ? "option temporaire" : "indisponible"}${period?.label ? `, ${period.label}` : ""}${isTooShortStay ? `, ${formatMinimumNightsRequired(selectedStartMinimumNights)}` : ""}`
+        `${dateValue} ${isCheckoutDate ? t("départ possible, indisponible à partir de cette date") : status === "free" ? t("disponible") : status === "option" ? t("option temporaire") : t("indisponible")}${period?.label ? `, ${period.label}` : ""}${isTooShortStay ? `, ${formatMinimumNightsRequired(selectedStartMinimumNights)}` : ""}`
       );
       if (isSelectable && onDayClick && !isTooShortStay) {
         button.addEventListener("click", () => onDayClick(dateValue));
@@ -459,13 +461,13 @@
     const toolbar = createElement("div", "booked-widget__calendar-toolbar");
     const previous = createElement("button", "booked-widget__calendar-nav", "‹");
     previous.type = "button";
-    previous.setAttribute("aria-label", "Mois précédent");
+    previous.setAttribute("aria-label", t("Mois précédent"));
     previous.addEventListener("click", () => onNavigate(-1));
     const next = createElement("button", "booked-widget__calendar-nav", "›");
     next.type = "button";
-    next.setAttribute("aria-label", "Mois suivant");
+    next.setAttribute("aria-label", t("Mois suivant"));
     next.addEventListener("click", () => onNavigate(1));
-    const label = createElement("div", "booked-widget__calendar-heading", "Calendrier des disponibilités");
+    const label = createElement("div", "booked-widget__calendar-heading", t("Calendrier des disponibilités"));
     toolbar.append(previous, label, next);
     target.appendChild(toolbar);
 
@@ -489,9 +491,9 @@
 
     const legend = createElement("div", "booked-widget__legend");
     [
-      ["free", "Disponible"],
-      ["booked", "Réservé"],
-      ["option", "Option"],
+      ["free", t("Disponible")],
+      ["booked", t("Réservé")],
+      ["option", t("Option")],
     ].forEach(([status, labelText]) => {
       const item = createElement("span", "booked-widget__legend-item");
       item.appendChild(createElement("span", `booked-widget__legend-dot booked-widget__legend-dot--${status}`));
@@ -593,7 +595,7 @@
           header.appendChild(createElement("h3", "booked-widget__title", currentGiteConfig.nom));
         }
         if (showCapacity) {
-          header.appendChild(createElement("p", "booked-widget__subtitle", `Capacité max ${currentGiteConfig.capacite_max} personnes`));
+          header.appendChild(createElement("p", "booked-widget__subtitle", t("Capacité max {count} personnes", {count: currentGiteConfig.capacite_max})));
         }
         shell.appendChild(header);
       }
@@ -658,7 +660,7 @@
           root.dataset.monthCursor = formatDate(currentMonthCursor);
           renderCalendar();
         }
-        feedbackBox.textContent = error.message || "Navigation impossible.";
+        feedbackBox.textContent = error.message || t("Navigation impossible.");
       } finally {
         isRefreshing = false;
         if (calendar) {
@@ -709,7 +711,7 @@
       applyData(cachedConfig, cachedAvailability, monthCursor);
     } else {
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-widget__loading", "Chargement des disponibilités…"));
+      root.appendChild(createElement("div", "booked-widget__loading", t("Chargement des disponibilités…")));
     }
 
     try {
@@ -725,12 +727,12 @@
         isRefreshing = false;
         renderRefreshState();
         if (feedbackBox) {
-          feedbackBox.textContent = error.message || "Mise à jour impossible.";
+          feedbackBox.textContent = error.message || t("Mise à jour impossible.");
         }
         return;
       }
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-widget booked-widget--error", error.message || "Widget indisponible."));
+      root.appendChild(createElement("div", "booked-widget booked-widget--error", error.message || t("Widget indisponible.")));
     }
   };
 
@@ -863,7 +865,7 @@
         }
       } catch (error) {
         quote = null;
-        feedback = error.message || "Prix indisponible.";
+        feedback = error.message || t("Prix indisponible.");
         hasSelectionError = true;
         if (options.keepPopoverOpenOnError) {
           isPopoverOpen = true;
@@ -910,7 +912,7 @@
       if (startDate) {
         const nextMonthCursor = startOfMonth(startDate);
         if (formatDate(nextMonthCursor) !== formatDate(currentMonthCursor)) {
-          void loadAvailabilityAndRender(nextMonthCursor, "Calendrier indisponible.");
+          void loadAvailabilityAndRender(nextMonthCursor, t("Calendrier indisponible."));
         }
       }
       renderCard();
@@ -962,7 +964,7 @@
 
     const navigatePopover = async (direction) => {
       const nextMonthCursor = addMonths(currentMonthCursor, direction);
-      await loadAvailabilityAndRender(nextMonthCursor, "Navigation impossible.");
+      await loadAvailabilityAndRender(nextMonthCursor, t("Navigation impossible."));
     };
 
     const buildDateButton = (className, label, value, showClearIcon = false) => {
@@ -970,7 +972,7 @@
       button.type = "button";
       button.addEventListener("click", openPopover);
       button.appendChild(createElement("span", "booked-booking-card__field-label", label));
-      button.appendChild(createElement("span", "booked-booking-card__field-value", value ? formatDisplayDate(value) : "Ajouter une date"));
+      button.appendChild(createElement("span", "booked-booking-card__field-value", value ? formatDisplayDate(value) : t("Ajouter une date")));
       if (showClearIcon && value) {
         button.appendChild(createElement("span", "booked-booking-card__field-clear", "×"));
       }
@@ -980,23 +982,23 @@
     const renderPopover = (card) => {
       const popover = createElement("div", "booked-booking-card__popover");
       popover.setAttribute("role", "dialog");
-      popover.setAttribute("aria-label", "Sélection des dates");
+      popover.setAttribute("aria-label", t("Sélection des dates"));
 
       const header = createElement("div", "booked-booking-card__popover-header");
       const intro = createElement("div", "booked-booking-card__popover-intro");
       const nights = getNightCount(selectedStart, selectedEnd);
-      intro.appendChild(createElement("h3", "", nights > 0 ? `${nights} nuit${nights > 1 ? "s" : ""}` : "Sélectionnez les dates"));
+      intro.appendChild(createElement("h3", "", nights > 0 ? count(nights, "{count} nuit", "{count} nuits") : t("Sélectionnez les dates")));
       intro.appendChild(createElement(
         "p",
         "",
         selectedStart && selectedEnd
           ? `${formatShortDisplayDate(selectedStart)} - ${formatShortDisplayDate(selectedEnd)}`
-          : "Ajoutez vos dates de voyage pour connaître le prix exact"
+          : t("Ajoutez vos dates de voyage pour connaître le prix exact")
       ));
 
       const fields = createElement("div", "booked-booking-card__popover-fields");
-      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Arrivée", selectedStart, true));
-      fields.appendChild(buildDateButton("booked-booking-card__popover-field", "Départ", selectedEnd, true));
+      fields.appendChild(buildDateButton("booked-booking-card__popover-field", t("Arrivée"), selectedStart, true));
+      fields.appendChild(buildDateButton("booked-booking-card__popover-field", t("Départ"), selectedEnd, true));
       header.append(intro, fields);
       popover.appendChild(header);
 
@@ -1025,10 +1027,10 @@
       }
 
       const actions = createElement("div", "booked-booking-card__popover-actions");
-      const clearButton = createElement("button", "booked-booking-card__text-button", "Effacer les dates");
+      const clearButton = createElement("button", "booked-booking-card__text-button", t("Effacer les dates"));
       clearButton.type = "button";
       clearButton.addEventListener("click", clearDates);
-      const closeButton = createElement("button", "booked-booking-card__close-button", "Fermer");
+      const closeButton = createElement("button", "booked-booking-card__close-button", t("Fermer"));
       closeButton.type = "button";
       closeButton.addEventListener("click", () => {
         isPopoverOpen = false;
@@ -1046,27 +1048,27 @@
       const dialog = createElement("div", "booked-booking-card__modal");
       dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
-      dialog.setAttribute("aria-label", "Demande de réservation");
+      dialog.setAttribute("aria-label", t("Demande de réservation"));
 
       const closeButton = createElement("button", "booked-booking-card__modal-close", "×");
       closeButton.type = "button";
-      closeButton.setAttribute("aria-label", "Fermer");
+      closeButton.setAttribute("aria-label", t("Fermer"));
       closeButton.addEventListener("click", () => {
         isModalOpen = false;
         returnToModalAfterDateSelection = false;
         renderCard();
       });
 
-      const title = createElement("h3", "booked-booking-card__modal-title", "Demande de réservation");
+      const title = createElement("h3", "booked-booking-card__modal-title", t("Demande de réservation"));
       const nights = getNightCount(selectedStart, selectedEnd);
       const summary = createElement("button", "booked-booking-card__modal-summary");
       summary.type = "button";
-      summary.setAttribute("aria-label", `Modifier les dates du séjour, ${nights} nuit${nights > 1 ? "s" : ""}`);
+      summary.setAttribute("aria-label", t("Modifier les dates du séjour, {nights}", {nights: count(nights, "{count} nuit", "{count} nuits")}));
       const backArrow = createElement("span", "booked-booking-card__modal-back", "←");
       backArrow.setAttribute("aria-hidden", "true");
       summary.append(
         backArrow,
-        createElement("span", "", `${nights} nuit${nights > 1 ? "s" : ""} · ${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`)
+        createElement("span", "", `${count(nights, "{count} nuit", "{count} nuits")} · ${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`)
       );
       summary.addEventListener("click", () => {
         isModalOpen = false;
@@ -1077,13 +1079,18 @@
 
       const form = createElement("form", "booked-booking-card__modal-form");
       form.innerHTML = `
-        <label>Prénom<input type="text" name="prenom" autocomplete="given-name" required></label>
-        <label>Nom<input type="text" name="nom" autocomplete="family-name" required></label>
-        <label>Téléphone<input type="tel" name="telephone" autocomplete="tel" required></label>
-        <label>Email<input type="email" name="email" autocomplete="email" required></label>
+        <label>${t("Prénom")}<input type="text" name="prenom" autocomplete="given-name" required></label>
+        <label>${t("Nom")}<input type="text" name="nom" autocomplete="family-name" required></label>
+        <label>${t("Téléphone")}<input type="tel" name="telephone" autocomplete="tel" required></label>
+        <label>${t("Email")}<input type="email" name="email" autocomplete="email" required></label>
         <div class="booked-booking-card__modal-feedback" aria-live="polite">${feedback ? escapeHtml(feedback) : ""}</div>
-        <button type="submit" class="booked-booking-card__primary"${isSubmitting ? " disabled" : ""}>${isSubmitting ? "Envoi..." : "Envoyer la demande"}</button>
+        <button type="submit" class="booked-booking-card__primary"${isSubmitting ? " disabled" : ""}>${isSubmitting ? t("Envoi...") : t("Envoyer la demande")}</button>
       `;
+      form.addEventListener("invalid", (event) => {
+        const field = event.target;
+        field.setCustomValidity(field.validity.typeMismatch ? t("Veuillez saisir une adresse email valide.") : t("Veuillez renseigner ce champ."));
+      }, true);
+      form.addEventListener("input", (event) => event.target.setCustomValidity?.(""));
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const formData = new FormData(form);
@@ -1104,13 +1111,13 @@
             }),
           });
           feedback = created && created.hold_expires_at
-            ? `Demande enregistrée. Les dates sont bloquées jusqu'au ${new Date(created.hold_expires_at).toLocaleString("fr-FR")}.`
-            : "Demande enregistrée.";
+            ? t("Demande enregistrée. Les dates sont bloquées jusqu'au {date}.", {date: new Date(created.hold_expires_at).toLocaleString(locale)})
+            : t("Demande enregistrée.");
           isSubmitting = false;
           isModalOpen = false;
           renderCard();
         } catch (error) {
-          feedback = error.message || "Envoi impossible.";
+          feedback = error.message || t("Envoi impossible.");
           isSubmitting = false;
           isModalOpen = true;
           renderCard();
@@ -1143,23 +1150,23 @@
       }
 
       const title = createElement("h2", hasQuote ? "booked-booking-card__total" : "booked-booking-card__title");
-      title.textContent = hasQuote ? `${formatTotalPrice(getQuoteTotal(quote))} au total` : "Indiquez vos dates pour afficher les prix";
+      title.textContent = hasQuote ? t("{price} au total", {price: formatTotalPrice(getQuoteTotal(quote))}) : t("Indiquez vos dates pour afficher les prix");
       card.appendChild(title);
 
       const fields = createElement("div", "booked-booking-card__fields");
-      fields.appendChild(buildDateButton("booked-booking-card__field booked-booking-card__field--arrival", "Arrivée", selectedStart));
-      fields.appendChild(buildDateButton("booked-booking-card__field booked-booking-card__field--departure", "Départ", selectedEnd));
+      fields.appendChild(buildDateButton("booked-booking-card__field booked-booking-card__field--arrival", t("Arrivée"), selectedStart));
+      fields.appendChild(buildDateButton("booked-booking-card__field booked-booking-card__field--departure", t("Départ"), selectedEnd));
 
       if (showTravelers) {
         const travelersField = createElement("div", "booked-booking-card__travelers");
-        travelersField.appendChild(createElement("span", "booked-booking-card__field-label", "Voyageurs"));
+        travelersField.appendChild(createElement("span", "booked-booking-card__field-label", t("Voyageurs")));
         const row = createElement("div", "booked-booking-card__travelers-row");
         const input = createElement("input", "booked-booking-card__travelers-input");
         input.type = "number";
         input.min = "1";
         input.max = String(giteConfig && giteConfig.capacite_max ? giteConfig.capacite_max : 99);
         input.value = String(travelers);
-        input.setAttribute("aria-label", "Nombre de voyageurs");
+        input.setAttribute("aria-label", t("Nombre de voyageurs"));
         input.addEventListener("change", () => {
           travelers = Math.max(1, Math.min(Number(input.max || 99), Number(input.value || 1)));
           quote = null;
@@ -1171,7 +1178,7 @@
             void requestQuote();
           }
         });
-        row.appendChild(createElement("span", "booked-booking-card__field-value", `${travelers} voyageur${travelers > 1 ? "s" : ""}`));
+        row.appendChild(createElement("span", "booked-booking-card__field-value", count(travelers, "{count} voyageur", "{count} voyageurs")));
         row.appendChild(input);
         travelersField.appendChild(row);
         fields.appendChild(travelersField);
@@ -1181,7 +1188,7 @@
       const primary = createElement(
         "button",
         "booked-booking-card__primary",
-        hasQuote ? "Demande de réservation" : isQuoting ? "Vérification..." : "Vérifier la disponibilité"
+        hasQuote ? t("Demande de réservation") : isQuoting ? t("Vérification...") : t("Vérifier la disponibilité")
       );
       primary.type = "button";
       primary.disabled = isQuoting || hasSelectionError;
@@ -1206,7 +1213,7 @@
       }
 
       if (hasQuote) {
-        card.appendChild(createElement("p", "booked-booking-card__small-note", "Aucun montant ne vous sera débité pour le moment"));
+        card.appendChild(createElement("p", "booked-booking-card__small-note", t("Aucun montant ne vous sera débité pour le moment")));
       }
 
       if (isPopoverOpen) {
@@ -1264,7 +1271,7 @@
       bindEvents();
     } else {
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-widget__loading", "Chargement..."));
+      root.appendChild(createElement("div", "booked-widget__loading", t("Chargement...")));
     }
 
     try {
@@ -1279,13 +1286,13 @@
       log("booking card error", error);
       if (cachedConfig && cachedAvailability) {
         isRefreshing = false;
-        feedback = error.message || "Mise à jour impossible.";
+        feedback = error.message || t("Mise à jour impossible.");
         renderCard();
         bindEvents();
         return;
       }
       root.innerHTML = "";
-      root.appendChild(createElement("div", "booked-widget--error", error.message || "Carte de réservation indisponible."));
+      root.appendChild(createElement("div", "booked-widget--error", error.message || t("Carte de réservation indisponible.")));
     }
   };
 

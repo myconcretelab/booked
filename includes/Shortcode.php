@@ -22,12 +22,13 @@ class Booked_Shortcode
     {
         wp_register_style('booked-decorative', BOOKED_PLUGIN_URL . 'assets/decorative.css', [], BOOKED_VERSION);
         wp_register_style('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.css', ['booked-decorative'], BOOKED_VERSION);
-        wp_register_script('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.js', [], BOOKED_VERSION, true);
+        wp_register_script('booked-i18n', BOOKED_PLUGIN_URL . 'assets/i18n.js', [], BOOKED_VERSION, true);
+        wp_register_script('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.js', ['booked-i18n'], BOOKED_VERSION, true);
         wp_register_script('booked-accordion', BOOKED_PLUGIN_URL . 'assets/accordion.js', [], BOOKED_VERSION, true);
         wp_register_script('booked-gite-info', BOOKED_PLUGIN_URL . 'assets/gite-info.js', ['booked-widget', 'booked-accordion'], BOOKED_VERSION, true);
         wp_register_script('booked-gallery', BOOKED_PLUGIN_URL . 'assets/gallery.js', ['booked-widget'], BOOKED_VERSION, true);
         wp_register_script('booked-gite-cards', BOOKED_PLUGIN_URL . 'assets/gite-cards.js', ['booked-widget'], BOOKED_VERSION, true);
-        wp_register_script('booked-image-carousel', BOOKED_PLUGIN_URL . 'assets/image-carousel.js', [], BOOKED_VERSION, true);
+        wp_register_script('booked-image-carousel', BOOKED_PLUGIN_URL . 'assets/image-carousel.js', ['booked-i18n'], BOOKED_VERSION, true);
     }
 
     public function localize_assets(): void

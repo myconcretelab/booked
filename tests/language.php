@@ -39,4 +39,6 @@ foreach (['fr', 'en', 'es', 'en'] as $language) {
     check($variables->get_gite_content('g1')['path'], '/booked/gites/g1/content?lang=' . $language);
 }
 check(count($api->requests), 3);
+$polylang = 'fr';
+check($variables->get_gite_content('g1', false, 'es')['path'], '/booked/gites/g1/content?lang=es');
 echo "Language selection and cache isolation: OK\n";
