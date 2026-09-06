@@ -397,6 +397,22 @@
   "Veuillez saisir une adresse email valide.": {
     "en": "Please enter a valid email address.",
     "es": "Introduce una dirección de correo electrónico válida."
+  },
+  "Image défilante": {
+    "en": "Image slideshow",
+    "es": "Presentación de imágenes"
+  },
+  "Photo précédente": {
+    "en": "Previous photo",
+    "es": "Foto anterior"
+  },
+  "Photo suivante": {
+    "en": "Next photo",
+    "es": "Foto siguiente"
+  },
+  "Afficher la photo {count}": {
+    "en": "Show photo {count}",
+    "es": "Mostrar foto {count}"
   }
 };
   const t = (message, values = {}) => {

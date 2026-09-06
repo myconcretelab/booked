@@ -31,6 +31,10 @@
     const previousButton = root.querySelector(".booked-image-carousel__arrow--previous");
     const nextButton = root.querySelector(".booked-image-carousel__arrow--next");
     const dots = Array.from(root.querySelectorAll(".booked-image-carousel__dot"));
+    root.setAttribute("aria-label", t("Image défilante"));
+    previousButton?.setAttribute("aria-label", t("Photo précédente"));
+    nextButton?.setAttribute("aria-label", t("Photo suivante"));
+    dots.forEach((dot, index) => dot.setAttribute("aria-label", t("Afficher la photo {count}", {count: index + 1})));
     const total = slides.length;
     let currentIndex = getInitialIndex(slides);
     let autoplayTimer = null;
