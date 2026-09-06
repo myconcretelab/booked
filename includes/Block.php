@@ -747,6 +747,9 @@ class Booked_Block
     public function render_heading_block(array $attributes): string
     {
         $content = (string) ($attributes['content'] ?? '');
+        if ($content === 'Rez de chaussée') {
+            $content = ['fr' => 'Rez de chaussée', 'en' => 'Ground floor', 'es' => 'Planta baja'][Booked_Language::resolve()];
+        }
         if (trim(wp_strip_all_tags($content)) === '') {
             return '';
         }
