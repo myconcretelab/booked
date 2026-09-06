@@ -51,7 +51,7 @@
       queryParams.forEach((value, key) => url.searchParams.append(key, value));
     }
 
-    url.searchParams.set("lang", config.language || document.documentElement.lang || "fr");
+    url.searchParams.set("lang", document.documentElement.lang || config.language || "fr");
     return url.toString();
   };
 

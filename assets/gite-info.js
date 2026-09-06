@@ -1,6 +1,6 @@
 (function () {
   const config = window.BookedWidgetConfig || {};
-  const language = String(config.language || document.documentElement.lang || "fr").toLowerCase().split(/[-_]/)[0];
+  const language = String(document.documentElement.lang || config.language || "fr").toLowerCase().split(/[-_]/)[0];
   const labels = {"Lit 90": ["90 cm bed", "Cama de 90 cm"], "Lit 140": ["140 cm bed", "Cama de 140 cm"], "Lit 160": ["160 cm bed", "Cama de 160 cm"], "Lit 180": ["180 cm bed", "Cama de 180 cm"], "Lits superposés": ["Bunk beds", "Literas"], "Canapé-lit": ["Sofa bed", "Sofá cama"], "Lit bébé": ["Cot", "Cuna"], "Prix basse saison": ["Low-season rate", "Tarifa de temporada baja"], "Prix haute saison": ["High-season rate", "Tarifa de temporada alta"], "Adresse": ["Address", "Dirección"], "Arrivée": ["Check-in", "Llegada"], "Départ": ["Check-out", "Salida"], "Gestionnaire": ["Property manager", "Responsable"], "Ménage": ["Cleaning", "Limpieza"], "Draps": ["Bed linen", "Sábanas"], "Linge de toilette": ["Towels", "Toallas"], "Chiens": ["Dogs", "Perros"], "Départ tardif": ["Late check-out", "Salida tardía"], "Options": ["Extras", "Extras"], "Informations générales": ["General information", "Información general"], "Coordonnées et tarifs": ["Contact details and rates", "Datos de contacto y tarifas"]};
   const translate = (text) => labels[text]?.[language === "en" ? 0 : language === "es" ? 1 : -1] || text;
   const contentRequests = new Map();
@@ -276,7 +276,7 @@
       queryParams.forEach((value, key) => url.searchParams.append(key, value));
     }
 
-    url.searchParams.set("lang", config.language || document.documentElement.lang || "fr");
+    url.searchParams.set("lang", document.documentElement.lang || config.language || "fr");
     return url.toString();
   };
 

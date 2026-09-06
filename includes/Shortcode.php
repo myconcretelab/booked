@@ -14,6 +14,8 @@ class Booked_Shortcode
     {
         add_shortcode('booked_widget', [$this, 'render_shortcode']);
         add_action('init', [$this, 'register_assets']);
+        add_action('wp_enqueue_scripts', [$this, 'localize_assets']);
+        add_action('enqueue_block_editor_assets', [$this, 'localize_assets']);
     }
 
     public function register_assets(): void
@@ -26,6 +28,10 @@ class Booked_Shortcode
         wp_register_script('booked-gallery', BOOKED_PLUGIN_URL . 'assets/gallery.js', ['booked-widget'], BOOKED_VERSION, true);
         wp_register_script('booked-gite-cards', BOOKED_PLUGIN_URL . 'assets/gite-cards.js', ['booked-widget'], BOOKED_VERSION, true);
         wp_register_script('booked-image-carousel', BOOKED_PLUGIN_URL . 'assets/image-carousel.js', [], BOOKED_VERSION, true);
+    }
+
+    public function localize_assets(): void
+    {
         wp_localize_script('booked-widget', 'BookedWidgetConfig', [
             'language' => Booked_Language::resolve(),
             'restUrl' => esc_url_raw(rest_url('booked/v1')),
