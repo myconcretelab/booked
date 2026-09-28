@@ -2,6 +2,14 @@
   const language = String(document.documentElement.lang || window.BookedWidgetConfig?.language || 'fr').toLowerCase().split(/[-_]/)[0];
   const locale = {fr: 'fr-FR', en: 'en-GB', es: 'es-ES'}[language] || 'fr-FR';
   const messages = {
+  "Options": {"en": "Extras", "es": "Extras"},
+  "Ménage": {"en": "Cleaning", "es": "Limpieza"},
+  "Draps": {"en": "Bed linen", "es": "Sábanas"},
+  "Nombre de lits": {"en": "Number of beds", "es": "Número de camas"},
+  "{count} lit": {"en": "{count} bed", "es": "{count} cama"},
+  "{count} lits": {"en": "{count} beds", "es": "{count} camas"},
+  "{price} / lit": {"en": "{price} / bed", "es": "{price} / cama"},
+
   "Mise à jour...": {
     "en": "Updating…",
     "es": "Actualizando…"

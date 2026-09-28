@@ -774,7 +774,10 @@
     let isRefreshing = false;
     let isPopoverOpen = false;
     let isModalOpen = false;
-    let returnToModalAfterDateSelection = false;
+    let quoteSequence = 0;
+    let giteContent = null;
+    const selectedOptions = getDefaultOptionsPayload();
+    const contact = { prenom: "", nom: "", telephone: "", email: "" };
     let giteConfig = null;
     let areEventsBound = false;
 
@@ -833,11 +836,14 @@
       date_sortie: selectedEnd,
       nb_adultes: travelers,
       nb_enfants_2_17: 0,
-      options: getDefaultOptionsPayload(travelers),
+      options: { ...selectedOptions, linge_toilette: { enabled: false, nb_personnes: travelers } },
     });
 
-    const requestQuote = async (options = {}) => {
+    const requestQuote = async () => {
+      const sequence = ++quoteSequence;
+      quote = null;
       if (!selectedStart || !selectedEnd) {
+        isQuoting = false;
         quote = null;
         feedback = "";
         hasSelectionError = false;
@@ -850,28 +856,21 @@
       hasSelectionError = false;
       renderCard();
       try {
-        quote = await apiFetch(`/gites/${encodeURIComponent(giteId)}/quote`, {
+        const result = await apiFetch(`/gites/${encodeURIComponent(giteId)}/quote`, {
           method: "POST",
           body: quotePayload(),
         });
+        if (sequence !== quoteSequence) return;
         feedback = "";
         hasSelectionError = false;
-        if (options.closePopoverOnSuccess) {
-          isPopoverOpen = false;
-        }
-        if (options.openModalOnSuccess) {
-          isModalOpen = true;
-          returnToModalAfterDateSelection = false;
-        }
+        quote = result;
       } catch (error) {
+        if (sequence !== quoteSequence) return;
         quote = null;
         feedback = error.message || t("Prix indisponible.");
         hasSelectionError = true;
-        if (options.keepPopoverOpenOnError) {
-          isPopoverOpen = true;
-          isModalOpen = false;
-        }
       } finally {
+        if (sequence !== quoteSequence) return;
         isQuoting = false;
         renderCard();
       }
@@ -881,7 +880,6 @@
       if (!isPopoverOpen && !isModalOpen) return;
       isPopoverOpen = false;
       isModalOpen = false;
-      returnToModalAfterDateSelection = false;
       renderCard();
     };
 
@@ -889,7 +887,6 @@
       const path = typeof event.composedPath === "function" ? event.composedPath() : [];
       if (!isPopoverOpen || path.includes(root) || root.contains(event.target)) return;
       isPopoverOpen = false;
-      returnToModalAfterDateSelection = false;
       renderCard();
     };
 
@@ -907,7 +904,6 @@
     const openPopover = () => {
       isPopoverOpen = true;
       isModalOpen = false;
-      returnToModalAfterDateSelection = false;
       const startDate = parseDate(selectedStart);
       if (startDate) {
         const nextMonthCursor = startOfMonth(startDate);
@@ -919,17 +915,20 @@
     };
 
     const clearDates = () => {
+      ++quoteSequence;
+      isQuoting = false;
       selectedStart = "";
       selectedEnd = "";
       quote = null;
       feedback = "";
       hasSelectionError = false;
-      returnToModalAfterDateSelection = false;
       storeSelection();
       renderCard();
     };
 
     const handleDayClick = (date) => {
+      ++quoteSequence;
+      isQuoting = false;
       if (date === selectedEnd) {
         selectedEnd = "";
         quote = null;
@@ -954,11 +953,7 @@
       storeSelection();
       renderCard();
       if (selectedStart && selectedEnd) {
-        void requestQuote({
-          closePopoverOnSuccess: true,
-          keepPopoverOpenOnError: true,
-          openModalOnSuccess: returnToModalAfterDateSelection,
-        });
+        void requestQuote();
       }
     };
 
@@ -1001,6 +996,11 @@
       fields.appendChild(buildDateButton("booked-booking-card__popover-field", t("Départ"), selectedEnd, true));
       header.append(intro, fields);
       popover.appendChild(header);
+      const closeButton = createElement("button", "booked-booking-card__modal-close", "×");
+      closeButton.type = "button";
+      closeButton.setAttribute("aria-label", t("Fermer"));
+      closeButton.addEventListener("click", closeFloatingUi);
+      popover.appendChild(closeButton);
 
       const calendar = createElement("div", "booked-booking-card__calendar");
       if (currentAvailability) {
@@ -1030,14 +1030,18 @@
       const clearButton = createElement("button", "booked-booking-card__text-button", t("Effacer les dates"));
       clearButton.type = "button";
       clearButton.addEventListener("click", clearDates);
-      const closeButton = createElement("button", "booked-booking-card__close-button", t("Fermer"));
-      closeButton.type = "button";
-      closeButton.addEventListener("click", () => {
-        isPopoverOpen = false;
-        returnToModalAfterDateSelection = false;
-        renderCard();
-      });
-      actions.append(clearButton, closeButton);
+      actions.appendChild(clearButton);
+      if (selectedStart && selectedEnd) {
+        const bookButton = createElement("button", "booked-booking-card__primary", isQuoting ? t("Vérification...") : t("Demande de réservation"));
+        bookButton.type = "button";
+        bookButton.disabled = isQuoting || !quote || hasSelectionError;
+        bookButton.addEventListener("click", () => {
+          isPopoverOpen = false;
+          isModalOpen = true;
+          renderCard();
+        });
+        actions.appendChild(bookButton);
+      }
       popover.appendChild(actions);
 
       card.appendChild(popover);
@@ -1055,7 +1059,6 @@
       closeButton.setAttribute("aria-label", t("Fermer"));
       closeButton.addEventListener("click", () => {
         isModalOpen = false;
-        returnToModalAfterDateSelection = false;
         renderCard();
       });
 
@@ -1073,19 +1076,73 @@
       summary.addEventListener("click", () => {
         isModalOpen = false;
         isPopoverOpen = true;
-        returnToModalAfterDateSelection = true;
         renderCard();
       });
 
       const form = createElement("form", "booked-booking-card__modal-form");
       form.innerHTML = `
-        <label>${t("Prénom")}<input type="text" name="prenom" autocomplete="given-name" required></label>
-        <label>${t("Nom")}<input type="text" name="nom" autocomplete="family-name" required></label>
-        <label>${t("Téléphone")}<input type="tel" name="telephone" autocomplete="tel" required></label>
-        <label>${t("Email")}<input type="email" name="email" autocomplete="email" required></label>
+        <div class="booked-booking-card__contact-row"><label>${t("Prénom")}<input type="text" name="prenom" autocomplete="given-name" required></label>
+        <label>${t("Nom")}<input type="text" name="nom" autocomplete="family-name" required></label></div>
+        <div class="booked-booking-card__contact-row"><label>${t("Téléphone")}<input type="tel" name="telephone" autocomplete="tel" required></label>
+        <label>${t("Email")}<input type="email" name="email" autocomplete="email" required></label></div>
         <div class="booked-booking-card__modal-feedback" aria-live="polite">${feedback ? escapeHtml(feedback) : ""}</div>
-        <button type="submit" class="booked-booking-card__primary"${isSubmitting ? " disabled" : ""}>${isSubmitting ? t("Envoi...") : t("Envoyer la demande")}</button>
+        <button type="submit" class="booked-booking-card__primary"${isSubmitting || isQuoting || !quote ? " disabled" : ""}>${isSubmitting ? t("Envoi...") : t("Envoyer la demande")}</button>
       `;
+      Object.entries(contact).forEach(([name, value]) => {
+        const input = form.elements.namedItem(name);
+        input.value = value;
+        input.disabled = isSubmitting;
+        input.addEventListener("input", () => { contact[name] = input.value; });
+      });
+      const extras = createElement("fieldset", "booked-booking-card__options");
+      extras.disabled = isSubmitting || isQuoting;
+      extras.appendChild(createElement("legend", "", t("Options")));
+      const beds = (giteContent?.sections || []).flatMap(section => section.groupes || [])
+        .flatMap(group => group.items || []).filter(item => item?.kind === "bed" && item.type !== "baby");
+      const bedCount = beds.reduce((total, bed) => total + Number(bed.count || 0) * (bed.type === "bunk" ? 2 : 1), 0);
+      const maxBeds = Math.max(1, Math.min(bedCount || Number(giteConfig.capacite_max || 1), Number(giteConfig.capacite_max || 1)));
+      for (const [key, label] of [["menage", "Ménage"], ["draps", "Draps"]]) {
+        const option = giteConfig.options?.[key];
+        if (!option?.enabled) continue;
+        const row = createElement("label", "booked-booking-card__option");
+        const checkbox = createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.name = key;
+        checkbox.checked = selectedOptions[key].enabled;
+        const price = key === "draps" ? t("{price} / lit", {price: formatTotalPrice(option.prix_unitaire)}) : formatTotalPrice(option.prix_forfait);
+        row.append(checkbox, createElement("span", "", `${t(label)} · ${price}`));
+        checkbox.addEventListener("change", () => {
+          selectedOptions[key].enabled = checkbox.checked;
+          if (key === "draps") selectedOptions.draps.nb_lits = checkbox.checked ? Math.min(maxBeds, selectedOptions.draps.nb_lits || 1) : 0;
+          void requestQuote();
+        });
+        extras.appendChild(row);
+        if (key === "draps" && checkbox.checked) {
+          const bedLabel = createElement("label", "", t("Nombre de lits"));
+          const quantity = createElement("select");
+          quantity.name = "nb_lits";
+          for (let value = 1; value <= maxBeds; value++) {
+            const item = createElement("option", "", count(value, "{count} lit", "{count} lits"));
+            item.value = String(value);
+            quantity.appendChild(item);
+          }
+          quantity.value = String(selectedOptions.draps.nb_lits);
+          quantity.addEventListener("change", () => {
+            selectedOptions.draps.nb_lits = Number(quantity.value);
+            void requestQuote();
+          });
+          bedLabel.appendChild(quantity);
+          extras.appendChild(bedLabel);
+        }
+      }
+      if (extras.children.length > 1) form.insertBefore(extras, form.querySelector(".booked-booking-card__modal-feedback"));
+      if (isQuoting) form.querySelector(".booked-booking-card__modal-feedback").textContent = t("Vérification...");
+      if (!quote && !isQuoting) {
+        const retry = createElement("button", "booked-booking-card__text-button", t("Vérifier la disponibilité"));
+        retry.type = "button";
+        retry.addEventListener("click", () => void requestQuote());
+        form.insertBefore(retry, form.querySelector("button[type=submit]"));
+      }
       form.addEventListener("invalid", (event) => {
         const field = event.target;
         field.setCustomValidity(field.validity.typeMismatch ? t("Veuillez saisir une adresse email valide.") : t("Veuillez renseigner ce champ."));
@@ -1093,6 +1150,7 @@
       form.addEventListener("input", (event) => event.target.setCustomValidity?.(""));
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (isSubmitting || isQuoting || !quote) return;
         const formData = new FormData(form);
         isSubmitting = true;
         feedback = "";
@@ -1135,7 +1193,7 @@
 
       window.setTimeout(() => {
         const firstInput = dialog.querySelector("input");
-        if (firstInput) firstInput.focus();
+        if (firstInput && !isQuoting && !isSubmitting && !Object.values(contact).some(Boolean)) firstInput.focus();
       }, 0);
     };
 
@@ -1233,6 +1291,8 @@
       const externalSelectionHandler = (event) => {
         const detail = event.detail || {};
         if (detail.source === root || String(detail.giteId || "") !== String(giteId || "")) return;
+        ++quoteSequence;
+        isQuoting = false;
         selectedStart = detail.selectedStart || "";
         selectedEnd = detail.selectedEnd || "";
         travelers = Math.max(1, Number(detail.travelers || travelers || 1));
@@ -1275,9 +1335,10 @@
     }
 
     try {
-      [giteConfig, currentAvailability] = await Promise.all([
+      [giteConfig, currentAvailability, giteContent] = await Promise.all([
         apiFetch(configPath),
         apiFetch(initialAvailabilityPath),
+        apiFetch(`/gites/${encodeURIComponent(giteId)}/content`).catch(() => null),
       ]);
       isRefreshing = false;
       renderCard();
