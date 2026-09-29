@@ -841,7 +841,9 @@
 
     const requestQuote = async () => {
       const sequence = ++quoteSequence;
-      quote = null;
+      // Keep the last valid total visible while an option is being recalculated in
+      // the modal. It remains unusable until the fresh quote has been received.
+      if (!isModalOpen) quote = null;
       if (!selectedStart || !selectedEnd) {
         isQuoting = false;
         quote = null;
@@ -1047,12 +1049,13 @@
       card.appendChild(popover);
     };
 
-    const renderModal = (card) => {
+    const renderModal = (card, previousState = null) => {
       const overlay = createElement("div", "booked-booking-card__modal-overlay");
       const dialog = createElement("div", "booked-booking-card__modal");
       dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
       dialog.setAttribute("aria-label", t("Demande de réservation"));
+      if (isQuoting) dialog.setAttribute("aria-busy", "true");
 
       const closeButton = createElement("button", "booked-booking-card__modal-close", "×");
       closeButton.type = "button";
@@ -1196,13 +1199,20 @@
       });
       card.appendChild(overlay);
 
-      window.setTimeout(() => {
+      if (!previousState) window.setTimeout(() => {
+        if (!dialog.isConnected) return;
         const firstInput = dialog.querySelector("input");
         if (firstInput && !isQuoting && !isSubmitting && !Object.values(contact).some(Boolean)) firstInput.focus();
       }, 0);
     };
 
     function renderCard() {
+      const currentDialog = root.querySelector(".booked-booking-card__modal");
+      const activeElement = document.activeElement;
+      const modalState = currentDialog ? {
+        scrollTop: currentDialog.scrollTop,
+        activeName: currentDialog.contains(activeElement) ? activeElement.name || "" : "",
+      } : null;
       root.innerHTML = "";
       root.classList.toggle("booked-booking-card--floating", isPopoverOpen || isModalOpen);
       const card = createElement("div", "booked-booking-card__panel");
@@ -1283,10 +1293,26 @@
         renderPopover(card);
       }
       if (isModalOpen) {
-        renderModal(card);
+        renderModal(card, modalState);
       }
 
       root.appendChild(card);
+      if (modalState) {
+        const nextDialog = root.querySelector(".booked-booking-card__modal");
+        if (!nextDialog) return;
+        const restoreModalState = () => {
+          if (!nextDialog.isConnected) return;
+          nextDialog.scrollTop = modalState.scrollTop;
+          const nextForm = nextDialog.querySelector("form");
+          const previousField = modalState.activeName ? nextForm.elements.namedItem(modalState.activeName) : null;
+          if (previousField && typeof previousField.focus === "function") {
+            previousField.focus({ preventScroll: true });
+            nextDialog.scrollTop = modalState.scrollTop;
+          }
+        };
+        restoreModalState();
+        window.setTimeout(restoreModalState, 0);
+      }
     }
 
     const bindEvents = () => {

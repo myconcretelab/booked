@@ -10,6 +10,7 @@ export async function runBookingFlowChecks(chromium) {
       const errors = [];
       let submitted;
       let failQuote = false;
+      let quoteDelay = 0;
       page.on('pageerror', error => errors.push(error.message));
       await page.route('http://booked.test/**', async route => {
         const url = new URL(route.request().url());
@@ -23,6 +24,11 @@ export async function runBookingFlowChecks(chromium) {
         if (url.pathname.endsWith('/content')) data = {sections: [{groupes: [{items: [{kind: 'bed', type: 'double', count: beds}]}]}]};
         if (url.pathname.endsWith('/availability')) data = {blocked_ranges: [], calendar_periods: []};
         if (url.pathname.endsWith('/quote')) {
+          if (quoteDelay) {
+            const delay = quoteDelay;
+            quoteDelay = 0;
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
           if (failQuote) { failQuote = false; return route.fulfill({status: 503, contentType: 'application/json', body: JSON.stringify({message: 'Prix temporairement indisponible'})}); }
           const {options} = route.request().postDataJSON();
           data = {total_global: 150 + (options.menage.enabled ? 60 : 0) + options.draps.nb_lits * 12};
@@ -51,7 +57,14 @@ export async function runBookingFlowChecks(chromium) {
       const phone = await page.locator('[name=telephone]').boundingBox();
       const email = await page.locator('[name=email]').boundingBox();
       assert.equal(phone.y, email.y);
+      const modal = page.locator('.booked-booking-card__modal');
+      await modal.evaluate(element => { element.scrollTop = element.scrollHeight; });
+      const scrollTop = await modal.evaluate(element => element.scrollTop);
+      quoteDelay = 400;
       await page.locator('[name=menage]').check();
+      await modal.getByText('150 € au total', {exact: true}).waitFor();
+      assert.equal(await page.locator('button[type=submit]').isDisabled(), true);
+      assert.ok(Math.abs(await modal.evaluate(element => element.scrollTop) - scrollTop) <= 1);
       await page.locator('[name=draps]').check();
       await page.locator('[name=nb_lits]').selectOption(String(beds));
       assert.equal(await page.locator('[name=nb_lits] option').count(), beds);
