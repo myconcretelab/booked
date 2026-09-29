@@ -3362,3 +3362,105 @@ button.booked-gallery__media:hover .booked-gallery__image {
   font: inherit;
   padding: 8px;
 }
+.booked-facts {
+  box-sizing: border-box;
+  color: #334932;
+}
+
+.booked-facts__items.gbseo-facts {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  list-style: none;
+  margin: 0 !important;
+  max-width: none !important;
+  padding: 1rem 1.2rem;
+  width: 100%;
+}
+
+.booked-facts:not(.booked-facts--no-background) .booked-facts__items {
+  background: #ecefe5;
+}
+
+.booked-facts--no-background .booked-facts__items {
+  background: transparent;
+}
+
+.booked-facts:not(.booked-facts--no-accent) .booked-facts__items {
+  border-left: 3px solid #8b9a78;
+}
+
+.booked-facts--no-accent .booked-facts__items {
+  border-left: 0;
+}
+
+.booked-facts__item {
+  margin: 0;
+}
+
+.booked-facts--layout-inline .booked-facts__item:not(:last-child)::after {
+  margin-inline: 0.65em;
+}
+
+.booked-facts--separator-dot .booked-facts__item:not(:last-child)::after {
+  content: "·";
+}
+
+.booked-facts--separator-dash .booked-facts__item:not(:last-child)::after {
+  content: "—";
+}
+
+.booked-facts--separator-pipe .booked-facts__item:not(:last-child)::after {
+  content: "|";
+}
+
+.booked-facts--layout-badges .booked-facts__items {
+  gap: 0.65rem;
+}
+
+.booked-facts--layout-badges .booked-facts__item {
+  background: #fcfaf4;
+  border: 1px solid #daddd1;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+}
+
+.booked-facts--layout-stacked .booked-facts__items {
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.booked-facts--align-center .booked-facts__items {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.booked-facts--align-right .booked-facts__items {
+  align-items: flex-end;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.booked-facts--density-compact .booked-facts__items {
+  font-size: 0.9em;
+  padding: 0.65rem 0.85rem;
+}
+
+.booked-facts--density-compact.booked-facts--layout-badges .booked-facts__items,
+.booked-facts--density-compact.booked-facts--layout-stacked .booked-facts__items {
+  gap: 0.35rem;
+}
+
+@media (max-width: 600px) {
+  .booked-facts--layout-inline .booked-facts__items {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .booked-facts--layout-inline .booked-facts__item::after {
+    content: none !important;
+  }
+}

@@ -5,6 +5,7 @@
   const { createElement: el, Fragment, useEffect, useRef, useState } = wp.element;
   const { __, sprintf } = wp.i18n;
   const apiFetch = wp.apiFetch;
+  const ServerSideRender = wp.serverSideRender;
   const EDITOR_CACHE_PREFIX = "booked:block-api:v1:";
   const NO_SELECTION_ID = "__booked_no_selection__";
   const GENERAL_INFO_SECTION_ID = "__booked_general_info";
@@ -1999,6 +2000,201 @@
           )
         ),
         el("div", blockProps, el(WidgetPreview, { attributes }))
+      );
+    },
+
+    save() {
+      return null;
+    },
+  });
+
+  registerBlockType("booked/facts", {
+    attributes: {
+      giteId: {
+        type: "string",
+        default: "",
+      },
+      layout: {
+        type: "string",
+        default: "inline",
+      },
+      alignment: {
+        type: "string",
+        default: "left",
+      },
+      separator: {
+        type: "string",
+        default: "dot",
+      },
+      density: {
+        type: "string",
+        default: "comfortable",
+      },
+      showBackground: {
+        type: "boolean",
+        default: true,
+      },
+      showAccent: {
+        type: "boolean",
+        default: true,
+      },
+      showCapacity: {
+        type: "boolean",
+        default: true,
+      },
+      showSurface: {
+        type: "boolean",
+        default: true,
+      },
+      showAddress: {
+        type: "boolean",
+        default: true,
+      },
+    },
+    supports: {
+      align: true,
+      anchor: true,
+      className: true,
+      spacing: {
+        margin: true,
+        padding: true,
+      },
+    },
+    transforms: {
+      from: [
+        {
+          type: "shortcode",
+          tag: "gbseo_facts",
+          transform: () => createBlock("booked/facts"),
+        },
+      ],
+      to: [
+        {
+          type: "block",
+          blocks: ["core/shortcode"],
+          transform: () => createBlock("core/shortcode", { text: "[gbseo_facts]" }),
+        },
+      ],
+    },
+    edit({ attributes, setAttributes }) {
+      const blockProps = useBlockProps({ className: "booked-block booked-block--facts" });
+      const postId = wp.data.select("core/editor").getCurrentPostId();
+      const { gites, isLoading, error, loadGites } = useGites();
+      const defaultGiteId = useDefaultGiteId();
+
+      return el(
+        Fragment,
+        null,
+        el(
+          InspectorControls,
+          null,
+          el(
+            PanelBody,
+            { title: __("Contenu", "booked"), initialOpen: true },
+            isLoading ? el(Spinner) : null,
+            error ? el(Notice, { status: "error", isDismissible: false }, error) : null,
+            el(SelectControl, {
+              label: __("Gîte", "booked"),
+              value: attributes.giteId || "",
+              options: getGiteOptions(gites, defaultGiteId),
+              onChange: (giteId) => setAttributes({ giteId }),
+              help: defaultGiteId && !attributes.giteId
+                ? __("Ce bloc utilise le gîte sélectionné dans les réglages de la page.", "booked")
+                : undefined,
+            }),
+            error
+              ? el(TextControl, {
+                  label: __("ID du gîte", "booked"),
+                  value: attributes.giteId || "",
+                  help: __("Saisie manuelle disponible si la liste API est indisponible.", "booked"),
+                  onChange: (giteId) => setAttributes({ giteId }),
+                })
+              : null,
+            el(ToggleControl, {
+              label: __("Afficher la capacité", "booked"),
+              checked: attributes.showCapacity !== false,
+              onChange: (showCapacity) => setAttributes({ showCapacity }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher la surface", "booked"),
+              checked: attributes.showSurface !== false,
+              onChange: (showSurface) => setAttributes({ showSurface }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher l’adresse", "booked"),
+              checked: attributes.showAddress !== false,
+              onChange: (showAddress) => setAttributes({ showAddress }),
+            }),
+            el(Button, { variant: "secondary", onClick: loadGites, disabled: isLoading }, __("Recharger les gîtes", "booked"))
+          ),
+          el(
+            PanelBody,
+            { title: __("Affichage", "booked"), initialOpen: true },
+            el(SelectControl, {
+              label: __("Disposition", "booked"),
+              value: attributes.layout || "inline",
+              options: [
+                { label: __("Sur une ligne", "booked"), value: "inline" },
+                { label: __("Pastilles", "booked"), value: "badges" },
+                { label: __("Liste verticale", "booked"), value: "stacked" },
+              ],
+              onChange: (layout) => setAttributes({ layout }),
+            }),
+            el(SelectControl, {
+              label: __("Alignement", "booked"),
+              value: attributes.alignment || "left",
+              options: [
+                { label: __("Gauche", "booked"), value: "left" },
+                { label: __("Centre", "booked"), value: "center" },
+                { label: __("Droite", "booked"), value: "right" },
+              ],
+              onChange: (alignment) => setAttributes({ alignment }),
+            }),
+            attributes.layout === "inline" || !attributes.layout
+              ? el(SelectControl, {
+                  label: __("Séparateur", "booked"),
+                  value: attributes.separator || "dot",
+                  options: [
+                    { label: __("Point médian", "booked"), value: "dot" },
+                    { label: __("Tiret", "booked"), value: "dash" },
+                    { label: __("Trait vertical", "booked"), value: "pipe" },
+                    { label: __("Aucun", "booked"), value: "none" },
+                  ],
+                  onChange: (separator) => setAttributes({ separator }),
+                })
+              : null,
+            el(SelectControl, {
+              label: __("Espacement", "booked"),
+              value: attributes.density || "comfortable",
+              options: [
+                { label: __("Confortable", "booked"), value: "comfortable" },
+                { label: __("Compact", "booked"), value: "compact" },
+              ],
+              onChange: (density) => setAttributes({ density }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher le fond", "booked"),
+              checked: attributes.showBackground !== false,
+              onChange: (showBackground) => setAttributes({ showBackground }),
+            }),
+            el(ToggleControl, {
+              label: __("Afficher le trait d’accent", "booked"),
+              checked: attributes.showAccent !== false,
+              onChange: (showAccent) => setAttributes({ showAccent }),
+            })
+          )
+        ),
+        el(
+          "div",
+          blockProps,
+          ServerSideRender
+            ? el(ServerSideRender, {
+                block: "booked/facts",
+                attributes,
+                urlQueryArgs: postId ? { post_id: postId } : {},
+              })
+            : el("div", { className: "booked-block-placeholder" }, __("Aperçu des chiffres clés", "booked"))
+        )
       );
     },
 

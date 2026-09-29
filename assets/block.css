@@ -40,6 +40,14 @@
   min-height: 180px;
 }
 
+.booked-block--facts {
+  min-height: 72px;
+}
+
+.booked-block--facts .components-placeholder {
+  min-height: 72px;
+}
+
 .booked-block--image-carousel {
   min-height: 180px;
 }

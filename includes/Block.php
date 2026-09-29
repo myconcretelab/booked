@@ -722,6 +722,67 @@ class Booked_Block
             ],
             'render_callback' => [$this, 'render_text_block'],
         ]);
+
+        register_block_type('booked/facts', [
+            'api_version' => 2,
+            'title' => 'Booked Chiffres clés',
+            'category' => 'widgets',
+            'icon' => 'info-outline',
+            'description' => 'Affiche les chiffres clés publics d’un gîte.',
+            'attributes' => [
+                'giteId' => [
+                    'type' => 'string',
+                    'default' => '',
+                ],
+                'layout' => [
+                    'type' => 'string',
+                    'default' => 'inline',
+                ],
+                'alignment' => [
+                    'type' => 'string',
+                    'default' => 'left',
+                ],
+                'separator' => [
+                    'type' => 'string',
+                    'default' => 'dot',
+                ],
+                'density' => [
+                    'type' => 'string',
+                    'default' => 'comfortable',
+                ],
+                'showBackground' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
+                'showAccent' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
+                'showCapacity' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
+                'showSurface' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
+                'showAddress' => [
+                    'type' => 'boolean',
+                    'default' => true,
+                ],
+            ],
+            'supports' => [
+                'align' => true,
+                'anchor' => true,
+                'className' => true,
+                'spacing' => [
+                    'margin' => true,
+                    'padding' => true,
+                ],
+            ],
+            'style' => 'booked-widget',
+            'render_callback' => [$this, 'render_facts_block'],
+        ]);
     }
 
     public function enqueue_editor_assets(): void
@@ -737,7 +798,7 @@ class Booked_Block
         wp_enqueue_script(
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
-            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards', 'booked-image-carousel'],
+            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'wp-server-side-render', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards', 'booked-image-carousel'],
             BOOKED_VERSION,
             true
         );
@@ -1066,6 +1127,86 @@ class Booked_Block
             '<div %s>%s</div>',
             get_block_wrapper_attributes(['class' => 'booked-text']),
             $rendered
+        );
+    }
+
+    public function render_facts_block(array $attributes): string
+    {
+        $gite_id = $this->resolve_gite_id($attributes, true);
+        if ($gite_id === '') {
+            return '<div class="booked-widget--error">Sélectionnez un gîte dans le bloc Booked Chiffres clés ou dans les réglages de la page.</div>';
+        }
+
+        $data = $this->variables->get_gite_content($gite_id);
+        if (is_wp_error($data)) {
+            return current_user_can('edit_posts')
+                ? '<div class="booked-widget--error">Impossible de charger les chiffres clés du gîte.</div>'
+                : '';
+        }
+
+        $web_info = is_array($data['public_web_info'] ?? null) ? $data['public_web_info'] : [];
+        $show_capacity = !array_key_exists('showCapacity', $attributes) || !empty($attributes['showCapacity']);
+        $show_surface = !array_key_exists('showSurface', $attributes) || !empty($attributes['showSurface']);
+        $show_address = !array_key_exists('showAddress', $attributes) || !empty($attributes['showAddress']);
+        $language = Booked_Language::resolve();
+        $capacity_labels = [
+            'fr' => 'Jusqu’à %d personnes',
+            'en' => 'Up to %d guests',
+            'es' => 'Hasta %d personas',
+        ];
+        $facts = [];
+        $capacity = absint($web_info['max_people'] ?? 0);
+        $surface = absint($web_info['surface_m2'] ?? 0);
+        $address = sanitize_text_field((string) ($data['adresse_complete'] ?? ''));
+
+        if ($show_capacity && $capacity > 0) {
+            $facts[] = sprintf($capacity_labels[$language], $capacity);
+        }
+        if ($show_surface && $surface > 0) {
+            $facts[] = $surface . ' m²';
+        }
+        if ($show_address && $address !== '') {
+            $facts[] = $address;
+        }
+        if (empty($facts)) {
+            return '';
+        }
+
+        $layout = in_array((string) ($attributes['layout'] ?? 'inline'), ['inline', 'badges', 'stacked'], true)
+            ? (string) $attributes['layout']
+            : 'inline';
+        $alignment = in_array((string) ($attributes['alignment'] ?? 'left'), ['left', 'center', 'right'], true)
+            ? (string) $attributes['alignment']
+            : 'left';
+        $separator = in_array((string) ($attributes['separator'] ?? 'dot'), ['dot', 'dash', 'pipe', 'none'], true)
+            ? (string) $attributes['separator']
+            : 'dot';
+        $density = ($attributes['density'] ?? 'comfortable') === 'compact' ? 'compact' : 'comfortable';
+        $show_background = !array_key_exists('showBackground', $attributes) || !empty($attributes['showBackground']);
+        $show_accent = !array_key_exists('showAccent', $attributes) || !empty($attributes['showAccent']);
+
+        $classes = [
+            'booked-facts',
+            'booked-facts--layout-' . $layout,
+            'booked-facts--align-' . $alignment,
+            'booked-facts--separator-' . $separator,
+            'booked-facts--density-' . $density,
+        ];
+        if (!$show_background) {
+            $classes[] = 'booked-facts--no-background';
+        }
+        if (!$show_accent) {
+            $classes[] = 'booked-facts--no-accent';
+        }
+
+        $items = implode('', array_map(static function ($fact): string {
+            return '<li class="booked-facts__item">' . esc_html(trim((string) $fact)) . '</li>';
+        }, $facts));
+
+        return sprintf(
+            '<div %s><ul class="gbseo-facts booked-facts__items">%s</ul></div>',
+            get_block_wrapper_attributes(['class' => implode(' ', $classes)]),
+            $items
         );
     }
 }
