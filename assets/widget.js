@@ -1071,7 +1071,7 @@
       backArrow.setAttribute("aria-hidden", "true");
       summary.append(
         backArrow,
-        createElement("span", "", `${count(nights, "{count} nuit", "{count} nuits")} · ${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}${quote ? ` · ${formatTotalPrice(getQuoteTotal(quote))}` : ""}`)
+        createElement("span", "", `${count(nights, "{count} nuit", "{count} nuits")} · ${formatDisplayDate(selectedStart)} - ${formatDisplayDate(selectedEnd)}`)
       );
       summary.addEventListener("click", () => {
         isModalOpen = false;
@@ -1182,7 +1182,11 @@
         }
       });
 
-      dialog.append(closeButton, title, summary, form);
+      dialog.append(closeButton, title, summary);
+      if (quote) {
+        dialog.appendChild(createElement("p", "booked-booking-card__modal-total", t("{price} au total", {price: formatTotalPrice(getQuoteTotal(quote))})));
+      }
+      dialog.appendChild(form);
       overlay.appendChild(dialog);
       overlay.addEventListener("click", (event) => {
         if (event.target !== overlay) return;

@@ -2780,6 +2780,10 @@ button.booked-gallery__media:hover .booked-gallery__image {
 }
 
 .booked-booking-card__primary {
+  background: var(--wp--preset--color--contrast, CanvasText);
+  border: 1px solid var(--wp--preset--color--contrast, CanvasText);
+  border-radius: var(--booked-booking-card-radius);
+  color: var(--wp--preset--color--base, Canvas);
   cursor: pointer;
   font: inherit;
   font-size: 1em;
@@ -2820,7 +2824,7 @@ button.booked-gallery__media:hover .booked-gallery__image {
 }
 
 .booked-booking-card__popover {
-  background: var(--booked-booking-card-light-color);
+  background: var(--wp--preset--color--base, Canvas);
   border: 1px solid var(--booked-booking-card-border-color);
   border-radius: var(--booked-booking-card-radius);
   box-shadow: var(--booked-booking-card-dialog-shadow, none);
@@ -2949,7 +2953,7 @@ button.booked-gallery__media:hover .booked-gallery__image {
 }
 
 .booked-booking-card__modal {
-  background: var(--booked-booking-card-light-color);
+  background: var(--wp--preset--color--base, Canvas);
   border: 1px solid var(--booked-booking-card-border-color);
   border-radius: var(--booked-booking-card-radius);
   box-shadow: var(--booked-booking-card-dialog-shadow, none);
@@ -3010,6 +3014,14 @@ button.booked-gallery__media:hover .booked-gallery__image {
 .booked-booking-card__modal-back {
   font-size: 1.35em;
   line-height: 1;
+}
+
+.booked-booking-card__modal-total {
+  color: var(--wp--preset--color--contrast, CanvasText);
+  font-size: 1.75em;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
 }
 
 .booked-booking-card__modal-form {
