@@ -777,7 +777,7 @@
     let quoteSequence = 0;
     let giteContent = null;
     const selectedOptions = getDefaultOptionsPayload();
-    const contact = { prenom: "", nom: "", telephone: "", email: "" };
+    const contact = { prenom: "", nom: "", telephone: "", email: "", message_client: "" };
     let giteConfig = null;
     let areEventsBound = false;
 
@@ -1085,6 +1085,7 @@
         <label>${t("Nom")}<input type="text" name="nom" autocomplete="family-name" required></label></div>
         <div class="booked-booking-card__contact-row"><label>${t("Téléphone")}<input type="tel" name="telephone" autocomplete="tel" required></label>
         <label>${t("Email")}<input type="email" name="email" autocomplete="email" required></label></div>
+        <label>${t("Demandes ou commentaires (facultatif)")}<textarea name="message_client" rows="4"></textarea></label>
         <div class="booked-booking-card__modal-feedback" aria-live="polite">${feedback ? escapeHtml(feedback) : ""}</div>
         <button type="submit" class="booked-booking-card__primary"${isSubmitting || isQuoting || !quote ? " disabled" : ""}>${isSubmitting ? t("Envoi...") : t("Envoyer la demande")}</button>
       `;
@@ -1165,7 +1166,7 @@
               hote_nom: `${prenom} ${nom}`.trim(),
               telephone: String(formData.get("telephone") || "").trim(),
               email: String(formData.get("email") || "").trim(),
-              message_client: "",
+              message_client: String(formData.get("message_client") || "").trim(),
             }),
           });
           feedback = created && created.hold_expires_at

@@ -118,6 +118,10 @@
     "en": "Email",
     "es": "Correo electrónico"
   },
+  "Demandes ou commentaires (facultatif)": {
+    "en": "Requests or comments (optional)",
+    "es": "Peticiones o comentarios (opcional)"
+  },
   "Envoi...": {
     "en": "Sending…",
     "es": "Enviando…"

@@ -3035,11 +3035,21 @@ button.booked-gallery__media:hover .booked-gallery__image {
   font-weight: inherit;
 }
 
-.booked-booking-card__modal-form input {
+.booked-booking-card__modal-form input,
+.booked-booking-card__modal-form textarea {
   border: 1px solid var(--booked-booking-card-border-color);
   border-radius: var(--booked-booking-card-radius);
   font: inherit;
   padding: 12px 14px;
+}
+
+.booked-booking-card__modal-form textarea {
+  box-sizing: border-box;
+  background: var(--wp--preset--color--base, Canvas);
+  color: inherit;
+  min-width: 0;
+  resize: vertical;
+  width: 100%;
 }
 
 @media (max-width: 720px) {

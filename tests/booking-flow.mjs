@@ -42,6 +42,8 @@ export async function runBookingFlowChecks(chromium) {
       assert.equal(await popover.count(), 0);
       await page.getByRole('button', {name: 'Arrivée', exact: false}).click();
       await request.click();
+      const comment = 'Arrivée vers 20 h.\nUn lit bébé est-il disponible ?';
+      await page.getByLabel('Demandes ou commentaires (facultatif)').fill(comment);
       for (const [name, value] of Object.entries({prenom: 'Test', nom: 'Guest', telephone: '0600000000', email: 'test@example.invalid'})) await page.locator(`[name="${name}"]`).fill(value);
       const first = await page.locator('[name=prenom]').boundingBox();
       const last = await page.locator('[name=nom]').boundingBox();
@@ -55,6 +57,7 @@ export async function runBookingFlowChecks(chromium) {
       assert.equal(await page.locator('[name=nb_lits] option').count(), beds);
       await page.waitForFunction(() => !document.querySelector('button[type=submit]').disabled);
       assert.equal(await page.locator('[name=email]').inputValue(), 'test@example.invalid');
+      assert.equal(await page.locator('[name=message_client]').inputValue(), comment);
       failQuote = true;
       await page.locator('[name=menage]').uncheck();
       await page.getByRole('button', {name: 'Vérifier la disponibilité', exact: true}).last().waitFor();
@@ -66,6 +69,7 @@ export async function runBookingFlowChecks(chromium) {
       await page.locator('[data-date="2027-02-17"]').click();
       await request.click();
       assert.equal(await page.locator('[name=nom]').inputValue(), 'Guest');
+      assert.equal(await page.locator('[name=message_client]').inputValue(), comment);
       assert.equal(await page.locator('[name=nb_lits]').inputValue(), String(beds));
       const dialog = await page.locator('.booked-booking-card__modal').boundingBox();
       assert.ok(dialog.x >= 0 && dialog.x + dialog.width <= width);
@@ -76,6 +80,7 @@ export async function runBookingFlowChecks(chromium) {
       assert.deepEqual(submitted.options.draps, {enabled: true, nb_lits: beds});
       assert.equal(submitted.date_entree, '2027-02-15');
       assert.equal(submitted.hote_nom, 'Test Guest');
+      assert.equal(submitted.message_client, comment);
       assert.deepEqual(errors, []);
       console.log(`${width}px: dates, close, contact rows, options, quote recovery and submission OK`);
       await page.close();
