@@ -32,6 +32,8 @@ class Booked_ApiClient
             'headers' => [
                 'Authorization' => 'Bearer ' . $settings['integration_token'],
                 'Accept' => 'application/json',
+                'X-Booked-Client' => 'wordpress',
+                'X-Booked-Version' => BOOKED_VERSION,
             ],
         ];
 
