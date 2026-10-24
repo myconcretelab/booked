@@ -780,6 +780,8 @@
     const contact = { prenom: "", nom: "", telephone: "", email: "", message_client: "" };
     let giteConfig = null;
     let areEventsBound = false;
+    let previousBodyOverflow = null;
+    let previousFocus = null;
 
     const configuredMonths = Math.max(1, Math.min(2, Number(root.dataset.months || 2)));
     const getVisibleMonths = () => window.matchMedia("(max-width: 720px)").matches ? 1 : configuredMonths;
@@ -831,13 +833,40 @@
       }
     };
 
-    const quotePayload = () => ({
-      date_entree: selectedStart,
-      date_sortie: selectedEnd,
-      nb_adultes: travelers,
-      nb_enfants_2_17: 0,
-      options: { ...selectedOptions, linge_toilette: { enabled: false, nb_personnes: travelers } },
-    });
+    const getOptionDefinitions = () => {
+      const beds = (giteContent?.sections || []).flatMap(section => section.groupes || [])
+        .flatMap(group => group.items || []).filter(item => item?.kind === "bed" && item.type !== "baby");
+      const bedCount = beds.reduce((total, bed) => total + Number(bed.count || 0) * (bed.type === "bunk" ? 2 : 1), 0);
+      const maxBeds = Math.max(1, Math.min(bedCount || Number(giteConfig?.capacite_max || 1), Number(giteConfig?.capacite_max || 1), 50));
+      return [
+        { key: "draps", label: "Draps", description: "Un jeu de draps par lit choisi.", quantity: "nb_lits", name: "nb_lits", quantityLabel: "Nombre de lits", max: maxBeds, unit: "{price} / lit / séjour", detail: "draps" },
+        { key: "linge_toilette", label: "Linge de toilette", description: "Du linge de toilette pour les personnes de votre choix.", quantity: "nb_personnes", name: "nb_personnes", quantityLabel: "Nombre de personnes", max: travelers, unit: "{price} / personne / séjour", detail: "linge" },
+        { key: "chiens", label: "Chiens", description: "Votre compagnon vous accompagne pendant le séjour.", quantity: "nb", name: "nb_chiens", quantityLabel: "Nombre de chiens", max: 10, unit: "{price} / chien / nuit", detail: "chiens" },
+        { key: "menage", label: "Ménage de fin de séjour", description: "Profitez du départ, nous nous occupons du ménage.", unit: "{price} / séjour", detail: "menage" },
+        { key: "depart_tardif", label: "Départ tardif", description: "Prolongez votre dernière matinée, selon disponibilité.", unit: "{price} / séjour", detail: "depart_tardif" },
+      ];
+    };
+
+    const isOptionAvailable = (key) => Boolean(giteConfig?.options?.[key]?.enabled)
+      && (key !== "chiens" || giteConfig?.rules?.regle_animaux_acceptes !== false);
+
+    const quotePayload = () => {
+      for (const definition of getOptionDefinitions()) {
+        const option = selectedOptions[definition.key];
+        option.enabled = option.enabled && isOptionAvailable(definition.key);
+        if (definition.quantity) {
+          option[definition.quantity] = option.enabled
+            ? Math.max(1, Math.min(definition.max, Math.trunc(Number(option[definition.quantity])) || 1)) : 0;
+        }
+      }
+      return {
+        date_entree: selectedStart,
+        date_sortie: selectedEnd,
+        nb_adultes: travelers,
+        nb_enfants_2_17: 0,
+        options: Object.fromEntries(Object.entries(selectedOptions).map(([key, value]) => [key, { ...value }])),
+      };
+    };
 
     const requestQuote = async () => {
       const sequence = ++quoteSequence;
@@ -879,6 +908,7 @@
     };
 
     const closeFloatingUi = () => {
+      if (isSubmitting) return;
       if (!isPopoverOpen && !isModalOpen) return;
       isPopoverOpen = false;
       isModalOpen = false;
@@ -1054,12 +1084,14 @@
       const dialog = createElement("div", "booked-booking-card__modal");
       dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
+      dialog.tabIndex = -1;
       dialog.setAttribute("aria-label", t("Demande de réservation"));
       if (isQuoting) dialog.setAttribute("aria-busy", "true");
 
       const closeButton = createElement("button", "booked-booking-card__modal-close", "×");
       closeButton.type = "button";
       closeButton.setAttribute("aria-label", t("Fermer"));
+      closeButton.disabled = isSubmitting;
       closeButton.addEventListener("click", () => {
         isModalOpen = false;
         renderCard();
@@ -1069,6 +1101,7 @@
       const nights = getNightCount(selectedStart, selectedEnd);
       const summary = createElement("button", "booked-booking-card__modal-summary");
       summary.type = "button";
+      summary.disabled = isSubmitting;
       summary.setAttribute("aria-label", t("Modifier les dates du séjour, {nights}", {nights: count(nights, "{count} nuit", "{count} nuits")}));
       const backArrow = createElement("span", "booked-booking-card__modal-back", "←");
       backArrow.setAttribute("aria-hidden", "true");
@@ -1084,6 +1117,7 @@
 
       const form = createElement("form", "booked-booking-card__modal-form");
       form.innerHTML = `
+        <h4 class="booked-booking-card__section-title">${t("Vos coordonnées")}</h4>
         <div class="booked-booking-card__contact-row"><label>${t("Prénom")}<input type="text" name="prenom" autocomplete="given-name" required></label>
         <label>${t("Nom")}<input type="text" name="nom" autocomplete="family-name" required></label></div>
         <div class="booked-booking-card__contact-row"><label>${t("Téléphone")}<input type="tel" name="telephone" autocomplete="tel" required></label>
@@ -1099,47 +1133,73 @@
         input.addEventListener("input", () => { contact[name] = input.value; });
       });
       const extras = createElement("fieldset", "booked-booking-card__options");
-      extras.disabled = isSubmitting || isQuoting;
-      extras.appendChild(createElement("legend", "", t("Options")));
-      const beds = (giteContent?.sections || []).flatMap(section => section.groupes || [])
-        .flatMap(group => group.items || []).filter(item => item?.kind === "bed" && item.type !== "baby");
-      const bedCount = beds.reduce((total, bed) => total + Number(bed.count || 0) * (bed.type === "bunk" ? 2 : 1), 0);
-      const maxBeds = Math.max(1, Math.min(bedCount || Number(giteConfig.capacite_max || 1), Number(giteConfig.capacite_max || 1)));
-      for (const [key, label] of [["menage", "Ménage"], ["draps", "Draps"]]) {
-        const option = giteConfig.options?.[key];
-        if (!option?.enabled) continue;
-        const row = createElement("label", "booked-booking-card__option");
+      extras.disabled = isSubmitting;
+      extras.appendChild(createElement("legend", "", t("Personnalisez votre séjour")));
+      extras.appendChild(createElement("p", "booked-booking-card__options-intro", t("Ajoutez les petits plus qui vous font plaisir. Tout est facultatif.")));
+      const optionsGrid = createElement("div", "booked-booking-card__options-grid");
+      for (const definition of getOptionDefinitions().filter(item => isOptionAvailable(item.key))) {
+        const { key, quantity: quantityKey } = definition;
+        const chosen = selectedOptions[key];
+        const option = giteConfig.options[key];
+        const row = createElement("div", "booked-booking-card__option-card");
+        row.classList.toggle("is-selected", chosen.enabled);
+        const label = createElement("label", "booked-booking-card__option-heading");
         const checkbox = createElement("input");
         checkbox.type = "checkbox";
         checkbox.name = key;
-        checkbox.checked = selectedOptions[key].enabled;
-        const price = key === "draps" ? t("{price} / lit", {price: formatTotalPrice(option.prix_unitaire)}) : formatTotalPrice(option.prix_forfait);
-        row.append(checkbox, createElement("span", "", `${t(label)} · ${price}`));
+        checkbox.setAttribute("aria-label", t(definition.label));
+        checkbox.checked = chosen.enabled;
+        const text = createElement("span", "booked-booking-card__option-text");
+        text.appendChild(createElement("strong", "", t(definition.label)));
+        text.appendChild(createElement("span", "booked-booking-card__option-description", t(definition.description)));
+        label.append(checkbox, text);
+        row.appendChild(label);
+        const footer = createElement("div", "booked-booking-card__option-footer");
+        const price = option.prix_unitaire ?? option.prix_forfait ?? 0;
+        footer.appendChild(createElement("span", "booked-booking-card__option-unit", t(definition.unit, { price: formatTotalPrice(price) })));
+        const updateQuantity = (value) => {
+          chosen[quantityKey] = Math.max(0, Math.min(definition.max, Math.trunc(Number(value)) || 0));
+          chosen.enabled = chosen[quantityKey] > 0;
+          void requestQuote();
+        };
         checkbox.addEventListener("change", () => {
-          selectedOptions[key].enabled = checkbox.checked;
-          if (key === "draps") selectedOptions.draps.nb_lits = checkbox.checked ? Math.min(maxBeds, selectedOptions.draps.nb_lits || 1) : 0;
+          chosen.enabled = checkbox.checked;
+          if (quantityKey) chosen[quantityKey] = checkbox.checked ? Math.min(definition.max, chosen[quantityKey] || (key === "linge_toilette" ? travelers : 1)) : 0;
           void requestQuote();
         });
-        extras.appendChild(row);
-        if (key === "draps" && checkbox.checked) {
-          const bedLabel = createElement("label", "", t("Nombre de lits"));
-          const quantity = createElement("select");
-          quantity.name = "nb_lits";
-          for (let value = 1; value <= maxBeds; value++) {
-            const item = createElement("option", "", count(value, "{count} lit", "{count} lits"));
-            item.value = String(value);
-            quantity.appendChild(item);
+        if (quantityKey) {
+          const stepper = createElement("div", "booked-booking-card__stepper");
+          stepper.setAttribute("role", "group");
+          stepper.setAttribute("aria-label", t(definition.quantityLabel));
+          const quantity = createElement("input");
+          quantity.type = "number";
+          quantity.name = definition.name;
+          quantity.min = "0";
+          quantity.max = String(definition.max);
+          quantity.step = "1";
+          quantity.inputMode = "numeric";
+          quantity.value = String(chosen[quantityKey] || 0);
+          quantity.setAttribute("aria-label", t(definition.quantityLabel));
+          quantity.addEventListener("change", () => updateQuantity(quantity.value));
+          for (const [direction, symbol, action] of [[-1, "−", "Diminuer : {option}"], [1, "+", "Augmenter : {option}"]]) {
+            const button = createElement("button", "", symbol);
+            button.type = "button";
+            button.name = `${key}_${direction > 0 ? "increase" : "decrease"}`;
+            button.setAttribute("aria-label", t(action, { option: t(definition.label) }));
+            button.disabled = direction < 0 ? !chosen[quantityKey] : chosen[quantityKey] >= definition.max;
+            button.addEventListener("click", () => updateQuantity((chosen[quantityKey] || 0) + direction));
+            if (direction < 0) stepper.append(button, quantity);
+            else stepper.appendChild(button);
           }
-          quantity.value = String(selectedOptions.draps.nb_lits);
-          quantity.addEventListener("change", () => {
-            selectedOptions.draps.nb_lits = Number(quantity.value);
-            void requestQuote();
-          });
-          bedLabel.appendChild(quantity);
-          extras.appendChild(bedLabel);
+          footer.appendChild(stepper);
         }
+        row.appendChild(footer);
+        const amount = quote?.options_detail?.[definition.detail];
+        if (chosen.enabled) row.appendChild(createElement("span", "booked-booking-card__option-amount", isQuoting ? t("Calcul en cours…") : typeof amount === "number" ? t("{price} pour le séjour", { price: formatTotalPrice(amount) }) : ""));
+        optionsGrid.appendChild(row);
       }
-      if (extras.children.length > 1) form.insertBefore(extras, form.querySelector(".booked-booking-card__modal-feedback"));
+      extras.appendChild(optionsGrid);
+      if (optionsGrid.children.length) form.prepend(extras);
       if (isQuoting) form.querySelector(".booked-booking-card__modal-feedback").textContent = t("Vérification...");
       if (!quote && !isQuoting) {
         const retry = createElement("button", "booked-booking-card__text-button", t("Vérifier la disponibilité"));
@@ -1186,14 +1246,39 @@
         }
       });
 
-      dialog.append(closeButton, title, summary);
+      const priceSummary = createElement("div", "booked-booking-card__price-summary");
       if (quote) {
-        dialog.appendChild(createElement("p", "booked-booking-card__modal-total", t("{price} au total", {price: formatTotalPrice(getQuoteTotal(quote))})));
+        const addPriceLine = (label, amount) => {
+          if (typeof amount !== "number") return;
+          const line = createElement("div", "");
+          line.append(createElement("span", "", t(label)), createElement("strong", "", formatTotalPrice(amount)));
+          priceSummary.appendChild(line);
+        };
+        addPriceLine("Hébergement", quote.tourist_tax_result?.accommodation_amount ?? quote.montant_hebergement);
+        addPriceLine("Options choisies", quote.total_options);
+        if (quote.tourist_tax_result?.host_amount > 0) addPriceLine("Taxe de séjour", quote.tourist_tax_result.host_amount);
       }
+      form.insertBefore(priceSummary, form.querySelector(".booked-booking-card__modal-feedback"));
+      const checkout = createElement("div", "booked-booking-card__checkout");
+      const total = createElement("div", "");
+      total.appendChild(createElement("span", "booked-booking-card__total-label", isQuoting ? t("Mise à jour du total…") : t("Total du séjour")));
+      if (quote) total.appendChild(createElement("p", "booked-booking-card__modal-total", t("{price} au total", { price: formatTotalPrice(getQuoteTotal(quote)) })));
+      checkout.append(total, form.querySelector("button[type=submit]"));
+      form.appendChild(checkout);
+      form.appendChild(createElement("small", "booked-booking-card__payment-note", t("Aucun montant ne vous sera débité pour le moment")));
+      dialog.addEventListener("keydown", event => {
+        if (event.key !== "Tab") return;
+        const fields = Array.from(dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex="0"]')).filter(field => field.getClientRects().length);
+        const first = fields[0], last = fields[fields.length - 1];
+        if (!first) { event.preventDefault(); dialog.focus(); return; }
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      });
+      dialog.append(closeButton, title, summary);
       dialog.appendChild(form);
       overlay.appendChild(dialog);
       overlay.addEventListener("click", (event) => {
-        if (event.target !== overlay) return;
+        if (event.target !== overlay || isSubmitting) return;
         isModalOpen = false;
         renderCard();
       });
@@ -1201,17 +1286,28 @@
 
       if (!previousState) window.setTimeout(() => {
         if (!dialog.isConnected) return;
-        const firstInput = dialog.querySelector("input");
-        if (firstInput && !isQuoting && !isSubmitting && !Object.values(contact).some(Boolean)) firstInput.focus();
+        dialog.focus({ preventScroll: true });
       }, 0);
     };
 
     function renderCard() {
+      let restoreFocus = false;
+      if (isModalOpen && previousBodyOverflow === null) {
+        previousBodyOverflow = document.body.style.overflow;
+        previousFocus = document.activeElement;
+        document.body.style.overflow = "hidden";
+      } else if (!isModalOpen && previousBodyOverflow !== null) {
+        document.body.style.overflow = previousBodyOverflow;
+        previousBodyOverflow = null;
+        restoreFocus = true;
+      }
       const currentDialog = root.querySelector(".booked-booking-card__modal");
       const activeElement = document.activeElement;
       const modalState = currentDialog ? {
         scrollTop: currentDialog.scrollTop,
         activeName: currentDialog.contains(activeElement) ? activeElement.name || "" : "",
+        selectionStart: currentDialog.contains(activeElement) ? activeElement.selectionStart : null,
+        selectionEnd: currentDialog.contains(activeElement) ? activeElement.selectionEnd : null,
       } : null;
       root.innerHTML = "";
       root.classList.toggle("booked-booking-card--floating", isPopoverOpen || isModalOpen);
@@ -1297,6 +1393,7 @@
       }
 
       root.appendChild(card);
+      if (restoreFocus) (previousFocus?.isConnected ? previousFocus : card.querySelector(".booked-booking-card__primary"))?.focus({ preventScroll: true });
       if (modalState) {
         const nextDialog = root.querySelector(".booked-booking-card__modal");
         if (!nextDialog) return;
@@ -1304,9 +1401,11 @@
           if (!nextDialog.isConnected) return;
           nextDialog.scrollTop = modalState.scrollTop;
           const nextForm = nextDialog.querySelector("form");
-          const previousField = modalState.activeName ? nextForm.elements.namedItem(modalState.activeName) : null;
+          const field = modalState.activeName ? nextForm.elements.namedItem(modalState.activeName) : null;
+          const previousField = field?.disabled ? field.closest(".booked-booking-card__stepper")?.querySelector("input") : field;
           if (previousField && typeof previousField.focus === "function") {
             previousField.focus({ preventScroll: true });
+            if (typeof modalState.selectionStart === "number" && typeof previousField.setSelectionRange === "function") previousField.setSelectionRange(modalState.selectionStart, modalState.selectionEnd);
             nextDialog.scrollTop = modalState.scrollTop;
           }
         };
@@ -1343,6 +1442,7 @@
       window.addEventListener("resize", handleResize);
       root._bookedBookingCardCleanup = () => {
         root.classList.remove("booked-booking-card--floating");
+        if (previousBodyOverflow !== null) document.body.style.overflow = previousBodyOverflow;
         document.removeEventListener(SELECTION_EVENT, externalSelectionHandler);
         document.removeEventListener("click", handleOutsideClick);
         document.removeEventListener("keydown", handleEscape);

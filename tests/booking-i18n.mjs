@@ -18,7 +18,7 @@ export async function runBookingI18nChecks(chromium) {
         if(url.pathname==='/')return route.fulfill({contentType:'text/html; charset=utf-8',body:`<!doctype html><html lang="${language}"><body><div class="booked-booking-card" data-gite-id="g1" data-selected-start="2027-02-10" data-selected-end="2027-02-12"></div><script>window.BookedWidgetConfig={restUrl:'http://booked.test/api'};</script><script src="/i18n.js"></script><script src="/widget.js"></script></body></html>`});
         assert.equal(url.searchParams.get('lang'),language);
         let data={};
-        if(url.pathname.endsWith('/config'))data={id:'g1',nom:'Test',capacite_max:4,min_nuits_toute_annee:1};
+        if(url.pathname.endsWith('/config'))data={id:'g1',nom:'Test',capacite_max:4,min_nuits_toute_annee:1,options:{linge_toilette:{enabled:true,prix_unitaire:6},chiens:{enabled:true,prix_unitaire:5},depart_tardif:{enabled:true,prix_forfait:20}}};
         if(url.pathname.endsWith('/availability'))data={blocked_ranges:[],calendar_periods:[]};
         if(url.pathname.endsWith('/quote'))data={total_global:150};
         if(url.pathname.endsWith('/requests')){submitted=route.request().postDataJSON();data={id:'test',hold_expires_at:'2027-02-09T12:00:00Z'};}
@@ -27,6 +27,9 @@ export async function runBookingI18nChecks(chromium) {
       await page.goto('http://booked.test/');
       await page.getByRole('button',{name:check,exact:true}).click();
       await page.getByRole('button',{name:request,exact:true}).click();
+      const labels={fr:['Linge de toilette','Chiens','Départ tardif'],en:['Towels','Dogs','Late check-out'],es:['Toallas','Perros','Salida tardía']}[language];
+      for(const label of labels) await page.getByRole('checkbox',{name:label,exact:true}).check();
+      await page.waitForFunction(()=>!document.querySelector('button[type=submit]').disabled);
       await page.locator('input[name=prenom]').fill('Test');
       await page.locator('input[name=nom]').fill('Guest');
       await page.locator('input[name=telephone]').fill('0600000000');
@@ -35,6 +38,9 @@ export async function runBookingI18nChecks(chromium) {
       await page.waitForFunction(text=>document.body.textContent.includes(text),success);
       assert.equal(submitted.hote_nom,'Test Guest');
       assert.equal(submitted.date_entree,'2027-02-10');
+      assert.deepEqual(submitted.options.chiens,{enabled:true,nb:1});
+      assert.deepEqual(submitted.options.linge_toilette,{enabled:true,nb_personnes:1});
+      assert.equal(submitted.options.depart_tardif.enabled,true);
       assert.deepEqual(failures,[]);
       console.log(`${language}: quote, form and confirmation OK (mock API, no request sent)`);
       await page.close();
