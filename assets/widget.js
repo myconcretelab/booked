@@ -1360,16 +1360,6 @@
         if (isQuoting) {
           breakdown.appendChild(createElement("p", "", t("Calcul en cours…")));
         } else {
-          if (paymentChoice === "deposit") {
-            const rate = giteConfig?.arrhes_taux_defaut;
-            const accommodation = quote.montant_hebergement;
-            if (typeof rate === "number" && Number.isFinite(rate) && rate > 0 && typeof accommodation === "number") {
-              const percentage = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 6 }).format(rate);
-              breakdown.appendChild(createElement("p", "booked-booking-card__deposit-calculation", t("Calcul des arrhes : {base} × {rate} = {amount}", {
-                base: formatTotalPrice(accommodation), rate: percentage, amount: formatTotalPrice(amount),
-              })));
-            }
-          }
           const due = createElement("div", "booked-booking-card__due-now");
           due.append(createElement("span", "", t(paymentChoice === "deposit" ? "Arrhes à régler maintenant" : "À régler maintenant")), createElement("strong", "", formatTotalPrice(amount)));
           breakdown.appendChild(due);
@@ -1377,7 +1367,14 @@
             const balance = createElement("div", "booked-booking-card__remaining");
             balance.append(createElement("span", "", t("Solde à régler sur place")), createElement("strong", "", formatTotalPrice(Math.max(0, getQuoteTotal(quote) - amount))));
             breakdown.appendChild(balance);
-            breakdown.appendChild(createElement("p", "booked-booking-card__deposit-note", t("Les arrhes sont calculées sur l’hébergement, hors options.")));
+            const rate = giteConfig?.arrhes_taux_defaut;
+            const accommodation = quote.montant_hebergement;
+            if (typeof rate === "number" && Number.isFinite(rate) && rate > 0 && typeof accommodation === "number") {
+              const percentage = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 6 }).format(rate);
+              breakdown.appendChild(createElement("p", "booked-booking-card__deposit-calculation", t("Arrhes sur l’hébergement : {base} × {rate} = {amount}", {
+                base: formatTotalPrice(accommodation), rate: percentage, amount: formatTotalPrice(amount),
+              })));
+            }
           }
         }
         total.appendChild(breakdown);
