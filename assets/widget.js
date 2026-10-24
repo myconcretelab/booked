@@ -1347,12 +1347,40 @@
       }
       form.insertBefore(priceSummary, form.querySelector(".booked-booking-card__modal-feedback"));
       const checkout = createElement("div", "booked-booking-card__checkout");
-      const total = createElement("div", "");
+      const total = createElement("div", "booked-booking-card__checkout-summary");
       total.appendChild(createElement("span", "booked-booking-card__total-label", isQuoting ? t("Mise à jour du total…") : t("Total du séjour")));
       if (quote) total.appendChild(createElement("p", "booked-booking-card__modal-total", t("{price} au total", { price: formatTotalPrice(getQuoteTotal(quote)) })));
       if (paymentChoice !== "manual" && quote) {
-        const amount = paymentChoice === "deposit" ? quote.arrhes_theoriques : getQuoteTotal(quote);
-        total.appendChild(createElement("small", "", t("À régler maintenant : {price}", { price: formatTotalPrice(amount) })));
+        checkout.classList.add("booked-booking-card__checkout--online");
+        const amount = Number(paymentChoice === "deposit" ? quote.arrhes_theoriques : getQuoteTotal(quote));
+        const breakdown = createElement("div", "booked-booking-card__payment-breakdown");
+        breakdown.setAttribute("role", "status");
+        breakdown.setAttribute("aria-live", "polite");
+        breakdown.setAttribute("aria-atomic", "true");
+        if (isQuoting) {
+          breakdown.appendChild(createElement("p", "", t("Calcul en cours…")));
+        } else {
+          if (paymentChoice === "deposit") {
+            const rate = giteConfig?.arrhes_taux_defaut;
+            const accommodation = quote.montant_hebergement;
+            if (typeof rate === "number" && Number.isFinite(rate) && rate > 0 && typeof accommodation === "number") {
+              const percentage = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 6 }).format(rate);
+              breakdown.appendChild(createElement("p", "booked-booking-card__deposit-calculation", t("Calcul des arrhes : {base} × {rate} = {amount}", {
+                base: formatTotalPrice(accommodation), rate: percentage, amount: formatTotalPrice(amount),
+              })));
+            }
+          }
+          const due = createElement("div", "booked-booking-card__due-now");
+          due.append(createElement("span", "", t(paymentChoice === "deposit" ? "Arrhes à régler maintenant" : "À régler maintenant")), createElement("strong", "", formatTotalPrice(amount)));
+          breakdown.appendChild(due);
+          if (paymentChoice === "deposit") {
+            const balance = createElement("div", "booked-booking-card__remaining");
+            balance.append(createElement("span", "", t("Solde à régler sur place")), createElement("strong", "", formatTotalPrice(Math.max(0, getQuoteTotal(quote) - amount))));
+            breakdown.appendChild(balance);
+            breakdown.appendChild(createElement("p", "booked-booking-card__deposit-note", t("Les arrhes sont calculées sur l’hébergement, hors options.")));
+          }
+        }
+        total.appendChild(breakdown);
       }
       const submit = form.querySelector("button[type=submit]");
       submit.textContent = isSubmitting ? t(paymentChoice === "manual" ? "Envoi..." : "Redirection vers Stripe…") : t(paymentChoice === "manual" ? "Envoyer la demande" : "Payer et confirmer ma réservation");

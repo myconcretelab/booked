@@ -3474,6 +3474,26 @@ button.booked-gallery__media:hover .booked-gallery__image {
 .booked-booking-card__total-label { color: var(--booked-booking-card-muted-color); font-size: .8em; }
 .booked-booking-card__checkout .booked-booking-card__modal-total { font-size: 1.3em; }
 .booked-booking-card__checkout .booked-booking-card__primary { font-size: .95em; width: auto; }
+.booked-booking-card__checkout--online { align-items: stretch; }
+.booked-booking-card__checkout--online > .booked-booking-card__checkout-summary { display: block; width: 100%; }
+.booked-booking-card__checkout--online .booked-booking-card__primary { width: 100%; }
+.booked-booking-card__payment-breakdown {
+  background: var(--booked-booking-card-background-color, #f5f7f2);
+  border: 1px solid var(--booked-booking-card-border-color);
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 16px;
+}
+.booked-booking-card__payment-breakdown p { margin: 0; }
+.booked-booking-card__deposit-calculation { font-size: .95em; line-height: 1.5; }
+.booked-booking-card__due-now,
+.booked-booking-card__remaining { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.booked-booking-card__due-now { font-weight: 700; }
+.booked-booking-card__due-now strong { font-size: 1.5em; white-space: nowrap; }
+.booked-booking-card__remaining strong { white-space: nowrap; }
+.booked-booking-card__deposit-note { color: var(--booked-booking-card-muted-color); font-size: .85em; line-height: 1.5; }
 .booked-booking-card__payment-note { color: var(--booked-booking-card-muted-color); font-size: .75em; text-align: center; }
 @media (max-width: 600px) {
   .booked-booking-card__modal { max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); }
