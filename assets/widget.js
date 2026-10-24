@@ -736,6 +736,57 @@
     }
   };
 
+  const showPaymentReturn = async () => {
+    let values = new URLSearchParams(window.location.hash.slice(1));
+    const returnStorage = "booked-payment-return-v1";
+    try {
+      if (values.has("booked_payment") && values.has("token")) {
+        sessionStorage.setItem(returnStorage, JSON.stringify({ value: values.toString(), at: Date.now() }));
+      } else {
+        const saved = JSON.parse(sessionStorage.getItem(returnStorage) || "null");
+        if (saved && Date.now() - saved.at < 60 * 60 * 1000) values = new URLSearchParams(saved.value);
+      }
+    } catch { /* The confirmation still works when browser storage is unavailable. */ }
+    const id = values.get("booked_payment"), token = values.get("token");
+    if (!id || !token) return;
+    // Keep the capability out of server access logs, referrers and the visible URL.
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    const panel = createElement("section", "booked-payment-return");
+    panel.setAttribute("role", "status"); panel.setAttribute("aria-live", "polite"); panel.tabIndex = -1;
+    const title = createElement("h2", "", t("Vérification de votre paiement…"));
+    const text = createElement("p", "", t("Nous vérifions le paiement auprès de Stripe. Patientez quelques instants."));
+    panel.append(title, text);
+    const card = document.querySelector(".booked-booking-card");
+    if (card) card.parentNode.insertBefore(panel, card);
+    else (document.querySelector("main") || document.body).prepend(panel);
+    panel.focus();
+    const verify = async (cancel = false, attempt = 0) => {
+      try {
+        const result = await apiFetch("/payments/status", { method: "POST", body: { payment_id: id, token, cancel } });
+        if (result.confirmed) {
+          title.textContent = t("Votre réservation est confirmée !");
+          text.textContent = t("Paiement reçu : {paid}. Solde à régler sur place : {remaining}. Un email de confirmation vous sera envoyé.", { paid: formatTotalPrice(result.amount_paid), remaining: formatTotalPrice(result.remaining) });
+        } else if (result.status === "expired") {
+          title.textContent = t("Paiement annulé ou expiré");
+          text.textContent = t("Votre réservation n’est pas confirmée. Vous pouvez faire une nouvelle demande.");
+        } else if (["requires_review", "refunded", "partially_refunded"].includes(result.status)) {
+          title.textContent = t("Votre paiement nécessite un suivi");
+          text.textContent = t("Contactez-nous avec la référence {reference}. Aucun nouveau paiement n’est nécessaire.", { reference: result.reference });
+        } else if (attempt < 10) {
+          window.setTimeout(() => void verify(false, attempt + 1), 3000);
+        } else throw new Error(t("La vérification prend plus de temps que prévu. Réessayez ici dans un instant, sans effectuer un nouveau paiement."));
+      } catch (error) {
+        text.textContent = error.message || t("Envoi impossible.");
+        const retry = createElement("button", "booked-booking-card__primary", t("Vérifier à nouveau"));
+        retry.type = "button"; retry.addEventListener("click", () => { retry.remove(); void verify(); });
+        panel.appendChild(retry);
+      }
+    };
+    await verify(values.get("result") === "cancel");
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => void showPaymentReturn(), { once: true });
+  else void showPaymentReturn();
+
   const renderBookingCard = async (root) => {
     if (root._bookedBookingCardCleanup) {
       root._bookedBookingCardCleanup();
@@ -771,6 +822,7 @@
     let hasSelectionError = false;
     let isQuoting = false;
     let isSubmitting = false;
+    let paymentChoice = "manual";
     let isRefreshing = false;
     let isPopoverOpen = false;
     let isModalOpen = false;
@@ -1200,6 +1252,34 @@
       }
       extras.appendChild(optionsGrid);
       if (optionsGrid.children.length) form.insertBefore(extras, form.elements.namedItem("message_client").closest("label"));
+      if (giteConfig?.payments?.online && quote) {
+        const payments = createElement("fieldset", "booked-booking-card__payments");
+        payments.disabled = isSubmitting || isQuoting;
+        payments.appendChild(createElement("legend", "", t("Comment souhaitez-vous régler ?")));
+        if (giteConfig.payments.mode === "test") payments.appendChild(createElement("p", "booked-booking-card__test-note", t("Mode test : aucun paiement réel.")));
+        const totalAmount = getQuoteTotal(quote);
+        const depositAmount = Number(quote.arrhes_theoriques || 0);
+        const choices = [
+          ["manual", "Paiement sur place", "Votre demande sera soumise à notre approbation. Aucun paiement maintenant.", null],
+          ["deposit", "Payer les arrhes par carte", "Réservation confirmée après paiement. Solde sur place : {price}.", depositAmount],
+          ["full", "Payer la totalité par carte", "Réservation confirmée après paiement. Tout est réglé.", totalAmount],
+        ];
+        for (const [value, label, description, amount] of choices) {
+          if (value !== "manual" && (amount < 0.5 || amount > totalAmount)) continue;
+          const row = createElement("label", "booked-booking-card__payment-choice");
+          row.classList.toggle("is-selected", paymentChoice === value);
+          const radio = createElement("input");
+          radio.type = "radio"; radio.name = "payment_choice"; radio.value = value; radio.checked = paymentChoice === value;
+          radio.addEventListener("change", () => { paymentChoice = value; renderCard(); });
+          const text = createElement("span");
+          text.appendChild(createElement("strong", "", t(label)));
+          text.appendChild(createElement("small", "", t(description, { price: formatTotalPrice(Math.max(0, totalAmount - depositAmount)) })));
+          row.append(radio, text);
+          if (amount !== null) row.appendChild(createElement("strong", "booked-booking-card__payment-amount", formatTotalPrice(amount)));
+          payments.appendChild(row);
+        }
+        form.insertBefore(payments, form.querySelector(".booked-booking-card__modal-feedback"));
+      }
       if (isQuoting) form.querySelector(".booked-booking-card__modal-feedback").textContent = t("Vérification...");
       if (!quote && !isQuoting) {
         const retry = createElement("button", "booked-booking-card__text-button", t("Vérifier la disponibilité"));
@@ -1226,12 +1306,19 @@
           const created = await apiFetch("/requests", {
             method: "POST",
             body: Object.assign({ gite_id: giteId }, quotePayload(), {
+              payment_choice: paymentChoice,
               hote_nom: `${prenom} ${nom}`.trim(),
               telephone: String(formData.get("telephone") || "").trim(),
               email: String(formData.get("email") || "").trim(),
               message_client: String(formData.get("message_client") || "").trim(),
             }),
           });
+          if (created?.checkout_url) {
+            const destination = new URL(created.checkout_url);
+            if (destination.protocol !== "https:" || destination.hostname !== "checkout.stripe.com") throw new Error(t("Envoi impossible."));
+            window.location.assign(destination.href);
+            return;
+          }
           feedback = created && created.hold_expires_at
             ? t("Demande enregistrée. Les dates sont bloquées jusqu'au {date}.", {date: new Date(created.hold_expires_at).toLocaleString(locale)})
             : t("Demande enregistrée.");
@@ -1263,9 +1350,15 @@
       const total = createElement("div", "");
       total.appendChild(createElement("span", "booked-booking-card__total-label", isQuoting ? t("Mise à jour du total…") : t("Total du séjour")));
       if (quote) total.appendChild(createElement("p", "booked-booking-card__modal-total", t("{price} au total", { price: formatTotalPrice(getQuoteTotal(quote)) })));
+      if (paymentChoice !== "manual" && quote) {
+        const amount = paymentChoice === "deposit" ? quote.arrhes_theoriques : getQuoteTotal(quote);
+        total.appendChild(createElement("small", "", t("À régler maintenant : {price}", { price: formatTotalPrice(amount) })));
+      }
+      const submit = form.querySelector("button[type=submit]");
+      submit.textContent = isSubmitting ? t(paymentChoice === "manual" ? "Envoi..." : "Redirection vers Stripe…") : t(paymentChoice === "manual" ? "Envoyer la demande" : "Payer et confirmer ma réservation");
       checkout.append(total, form.querySelector("button[type=submit]"));
       form.appendChild(checkout);
-      form.appendChild(createElement("small", "booked-booking-card__payment-note", t("Aucun montant ne vous sera débité pour le moment")));
+      form.appendChild(createElement("small", "booked-booking-card__payment-note", t(paymentChoice === "manual" ? "Aucun montant ne vous sera débité pour le moment" : "Paiement sécurisé par Stripe. Confirmation automatique après paiement.")));
       dialog.addEventListener("keydown", event => {
         if (event.key !== "Tab") return;
         const fields = Array.from(dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex="0"]')).filter(field => field.getClientRects().length);
@@ -1382,7 +1475,7 @@
       }
 
       if (hasQuote) {
-        card.appendChild(createElement("p", "booked-booking-card__small-note", t("Aucun montant ne vous sera débité pour le moment")));
+        card.appendChild(createElement("p", "booked-booking-card__small-note", t(paymentChoice === "manual" ? "Aucun montant ne vous sera débité pour le moment" : "Paiement sécurisé par Stripe. Confirmation automatique après paiement.")));
       }
 
       if (isPopoverOpen) {
@@ -1401,7 +1494,7 @@
           if (!nextDialog.isConnected) return;
           nextDialog.scrollTop = modalState.scrollTop;
           const nextForm = nextDialog.querySelector("form");
-          const field = modalState.activeName ? nextForm.elements.namedItem(modalState.activeName) : null;
+          const field = modalState.activeName === "payment_choice" ? nextForm.querySelector('input[name="payment_choice"]:checked') : modalState.activeName ? nextForm.elements.namedItem(modalState.activeName) : null;
           const previousField = field?.disabled ? field.closest(".booked-booking-card__stepper")?.querySelector("input") : field;
           if (previousField && typeof previousField.focus === "function") {
             previousField.focus({ preventScroll: true });

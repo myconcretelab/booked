@@ -108,6 +108,7 @@ export async function runBookingFlowChecks(chromium) {
       assert.ok(dialog.x >= 0 && dialog.x + dialog.width <= width);
       assert.ok(dialog.y >= 0 && dialog.y + dialog.height <= 900);
       assert.equal(await modal.evaluate(element => element.scrollWidth > element.clientWidth), false);
+      await page.waitForFunction(() => !document.querySelector('button[type=submit]').disabled);
       // Keyboard focus stays in the dialog and the close action restores the trigger.
       await modal.getByRole('button', {name:'Fermer',exact:true}).focus();
       await page.keyboard.press('Shift+Tab');

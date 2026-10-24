@@ -3586,3 +3586,20 @@ button.booked-gallery__media:hover .booked-gallery__image {
     content: none !important;
   }
 }
+
+.booked-booking-card__payments { margin: 22px 0 0; padding: 0; border: 0; min-width: 0; }
+.booked-booking-card__payments legend { font-size: 18px; font-weight: 650; margin-bottom: 12px; }
+.booked-booking-card__modal-form .booked-booking-card__payment-choice { display: flex; align-items: flex-start; flex-direction: row; gap: 12px; padding: 16px; margin-bottom: 10px; border: 1px solid #ddd9d2; border-radius: 12px; cursor: pointer; }
+.booked-booking-card__payment-choice.is-selected { border-color: var(--booked-accent, #52634b); background: #f5f7f2; box-shadow: inset 0 0 0 1px var(--booked-accent, #52634b); }
+.booked-booking-card__modal-form .booked-booking-card__payment-choice input { width: 18px; min-width: 18px; height: 18px; margin-top: 3px; }
+.booked-booking-card__payment-choice > span { flex: 1; min-width: 0; }
+.booked-booking-card__payment-choice strong, .booked-booking-card__payment-choice small { display: block; }
+.booked-booking-card__payment-choice small { margin-top: 6px; line-height: 1.5; font-weight: 400; color: #666; }
+.booked-booking-card__payment-amount { white-space: nowrap; }
+.booked-booking-card__test-note { background: #fff4dc; padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+.booked-payment-return { border: 1px solid #b5c5ad; background: #f5f8f2; padding: 24px; border-radius: 14px; margin-bottom: 24px; text-align: left; }
+.booked-payment-return h2 { font-size: 24px; }
+@media (max-width: 480px) {
+  .booked-booking-card__modal-form .booked-booking-card__payment-choice { gap: 9px; padding: 12px; flex-wrap: wrap; }
+  .booked-booking-card__payment-amount { margin-left: 27px; }
+}

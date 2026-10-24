@@ -90,6 +90,11 @@ class Booked_RestController
             'permission_callback' => '__return_true',
         ]);
 
+        register_rest_route('booked/v1', '/payments/status', [
+            'methods' => 'POST',
+            'callback' => [$this, 'post_payment_status'],
+            'permission_callback' => '__return_true',
+        ]);
         register_rest_route('booked/v1', '/requests', [
             'methods' => WP_REST_Server::CREATABLE,
             'callback' => [$this, 'post_request'],
@@ -362,6 +367,7 @@ class Booked_RestController
         }
 
         return array_merge($quote, [
+            'payment_choice' => in_array($payload['payment_choice'] ?? 'manual', ['manual', 'deposit', 'full'], true) ? ($payload['payment_choice'] ?? 'manual') : 'manual',
             'gite_id' => $gite_id,
             'hote_nom' => $name,
             'telephone' => $phone,
@@ -642,6 +648,25 @@ class Booked_RestController
             return $error;
         }
         return new WP_REST_Response($this->sanitize_public_response($result), 201);
+    }
+
+    public function post_payment_status(WP_REST_Request $request)
+    {
+        if ($error = $this->validate_body_size($request)) return $error;
+        if ($error = $this->check_rate_limit('payment-status', 60, 60)) return $error;
+        $body = $request->get_json_params();
+        $id = (string) ($body['payment_id'] ?? '');
+        $token = (string) ($body['token'] ?? '');
+        if (!preg_match('/^[a-zA-Z0-9_-]{1,100}$/', $id) || !preg_match('/^[a-zA-Z0-9_-]{40,100}$/', $token)) {
+            return new WP_Error('invalid_payment', 'Paiement introuvable.', ['status' => 400]);
+        }
+        $result = $this->api_client->request('POST', '/booked/payments/status', [
+            'payment_id' => $id, 'token' => $token, 'cancel' => !empty($body['cancel']),
+        ]);
+        if ($error = $this->maybe_error($result)) return $error;
+        $response = new WP_REST_Response($this->sanitize_public_response($result), 200);
+        $response->header('Cache-Control', 'no-store');
+        return $response;
     }
 
     public function post_gite_photos_webhook(WP_REST_Request $request)
