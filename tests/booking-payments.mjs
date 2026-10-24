@@ -75,6 +75,7 @@ export async function runBookingPaymentChecks(chromium) {
    await page.goto(`http://booked.test/#booked_payment=test&token=${'x'.repeat(43)}&result=${result}`);
    await page.getByRole('heading',{name:expected,exact:true}).waitFor();
    assert.equal(await page.locator('.booked-payment-return').evaluate(el=>el.closest('.booked-booking-card')===null),true);
+   assert.equal(await page.locator('.booked-booking-card').isVisible(),status==='expired');
    assert.equal(sent.cancel,result==='cancel');assert.equal(new URL(page.url()).hash,'');await page.close();
   }
   console.log('Retours Stripe : confirmation vérifiée, annulation, suivi et suppression du jeton de l’URL OK');

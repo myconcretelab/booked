@@ -736,15 +736,123 @@
     }
   };
 
+  const confirmationUrl = (value) => {
+    try {
+      const url = new URL(value);
+      return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password ? url.href : "";
+    } catch { return ""; }
+  };
+
+  const appendConfirmationMessage = (parent, text) => {
+    String(text || "").split(/\n\s*\n/).filter(Boolean).forEach(block => {
+      const paragraph = createElement("p");
+      const parts = block.split(/(https?:\/\/[^\s<>"']+)/g);
+      parts.forEach(part => {
+        const url = confirmationUrl(part);
+        if (!url) { paragraph.appendChild(document.createTextNode(part)); return; }
+        const link = createElement("a", "", part);
+        link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
+        paragraph.appendChild(link);
+      });
+      parent.appendChild(paragraph);
+    });
+  };
+
+  const confirmationHomeLink = (returnStorage) => {
+    const home = createElement("a", "booked-confirmation__home", t("Retour au site")); home.href = "/";
+    home.addEventListener("click", () => { try { sessionStorage.removeItem(returnStorage); } catch { /* Storage is optional. */ } });
+    return home;
+  };
+
+  const renderBookingConfirmation = (panel, result, returnStorage) => {
+    const data = result.confirmation;
+    panel.replaceChildren();
+    panel.classList.add("booked-payment-return--confirmed");
+    const heading = createElement("header", "booked-confirmation__heading");
+    if (data?.brand) {
+      const brand = createElement("div", "booked-confirmation__brand");
+      const logo = confirmationUrl(data.brand.logo_url);
+      if (logo) {
+        const img = createElement("img"); img.src = logo; img.alt = "";
+        img.width = 56; img.height = 56;
+        brand.appendChild(img);
+      }
+      brand.appendChild(createElement("span", "", data.brand.name));
+      heading.appendChild(brand);
+    }
+    heading.appendChild(createElement("span", "booked-confirmation__badge", t("Réservation confirmée")));
+    panel.appendChild(heading);
+    const hero = createElement("div", "booked-confirmation__hero");
+    const photo = confirmationUrl(data?.gite?.photo_url);
+    if (photo) {
+      const img = createElement("img", "booked-confirmation__photo");
+      img.src = photo; img.alt = data.gite.photo_alt || data.gite.name || "";
+      hero.appendChild(img);
+    }
+    const introduction = createElement("div", "booked-confirmation__intro");
+    introduction.appendChild(createElement("span", "booked-confirmation__eyebrow", t("Au plaisir de vous accueillir")));
+    const title = createElement("h2", "", t("Votre réservation est confirmée !")); title.id = "booked-confirmation-title";
+    introduction.appendChild(title);
+    if (data?.gite?.name) introduction.appendChild(createElement("p", "booked-confirmation__gite", data.gite.name));
+    introduction.appendChild(createElement("p", "booked-confirmation__notice", t("Un email de confirmation vous est envoyé avec le détail de votre séjour.")));
+    hero.appendChild(introduction); panel.appendChild(hero);
+    const content = createElement("div", "booked-confirmation__content");
+    if (data?.stay) {
+      const stay = createElement("dl", "booked-confirmation__stay");
+      const travelers = [count(data.stay.adults, "{count} adulte", "{count} adultes")];
+      if (data.stay.children) travelers.push(count(data.stay.children, "{count} enfant", "{count} enfants"));
+      for (const [label, value] of [[t("Arrivée"), formatShortDisplayDate(data.stay.arrival)], [t("Départ"), formatShortDisplayDate(data.stay.departure)], [t("Votre séjour"), count(data.stay.nights, "{count} nuit", "{count} nuits") + " · " + travelers.join(", ")]]) {
+        const fact = createElement("div");
+        fact.append(createElement("dt", "", label), createElement("dd", "", value)); stay.appendChild(fact);
+      }
+      content.appendChild(stay);
+    }
+    const payment = createElement("section", "booked-confirmation__payment");
+    payment.appendChild(createElement("h3", "", t("Votre règlement")));
+    const amounts = createElement("dl");
+    const lines = [[t("Total du séjour"), result.total], [t(result.purpose === "deposit" ? "Arrhes déjà réglées" : "Déjà réglé par carte"), result.amount_paid], [t("Solde à régler sur place"), result.remaining]];
+    lines.forEach(([label, amount]) => {
+      if (typeof amount !== "number" || !Number.isFinite(amount)) return;
+      const line = createElement("div");
+      line.append(createElement("dt", "", label), createElement("dd", "", formatTotalPrice(amount))); amounts.appendChild(line);
+    });
+    payment.appendChild(amounts);
+    if (result.remaining === 0) payment.appendChild(createElement("p", "booked-confirmation__paid", t("Votre séjour est réglé en totalité.")));
+    content.appendChild(payment);
+    if (data?.options?.length) {
+      const options = createElement("section", "booked-confirmation__options");
+      options.appendChild(createElement("h3", "", t("Options choisies")));
+      const list = createElement("ul"); data.options.forEach(line => list.appendChild(createElement("li", "", line)));
+      options.appendChild(list); content.appendChild(options);
+    }
+    if (data?.gite?.address) {
+      const address = createElement("section", "booked-confirmation__address");
+      address.append(createElement("h3", "", t("Adresse du gîte")), createElement("p", "", data.gite.address)); content.appendChild(address);
+    }
+    if (data?.message?.text) {
+      const details = createElement("details", "booked-confirmation__message");
+      details.appendChild(createElement("summary", "", t("Votre message de confirmation et nos conseils pour le séjour")));
+      const body = createElement("div"); appendConfirmationMessage(body, data.message.text);
+      details.appendChild(body); content.appendChild(details);
+    }
+    const footer = createElement("footer", "booked-confirmation__footer");
+    if (result.reference) footer.appendChild(createElement("small", "", t("Référence : {reference}", {reference: result.reference})));
+    footer.appendChild(confirmationHomeLink(returnStorage)); content.appendChild(footer); panel.appendChild(content);
+    panel.setAttribute("aria-labelledby", title.id);
+  };
+
   const showPaymentReturn = async () => {
+    const confirmationRoot = document.querySelector(".booked-confirmation-root");
+    const placeholder = confirmationRoot?.querySelector(".booked-confirmation-placeholder");
+    if (placeholder) placeholder.textContent = t("Votre confirmation s’affichera ici après le paiement.");
     let values = new URLSearchParams(window.location.hash.slice(1));
-    const returnStorage = "booked-payment-return-v1";
+    const returnStorage = "booked-payment-return-v2";
     try {
       if (values.has("booked_payment") && values.has("token")) {
-        sessionStorage.setItem(returnStorage, JSON.stringify({ value: values.toString(), at: Date.now() }));
+        sessionStorage.setItem(returnStorage, JSON.stringify({ value: values.toString(), at: Date.now(), path: window.location.pathname }));
       } else {
         const saved = JSON.parse(sessionStorage.getItem(returnStorage) || "null");
-        if (saved && Date.now() - saved.at < 60 * 60 * 1000) values = new URLSearchParams(saved.value);
+        if (saved && saved.path === window.location.pathname && Date.now() - saved.at < 60 * 60 * 1000) values = new URLSearchParams(saved.value);
       }
     } catch { /* The confirmation still works when browser storage is unavailable. */ }
     const id = values.get("booked_payment"), token = values.get("token");
@@ -752,30 +860,44 @@
     // Keep the capability out of server access logs, referrers and the visible URL.
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
     const panel = createElement("section", "booked-payment-return");
-    panel.setAttribute("role", "status"); panel.setAttribute("aria-live", "polite"); panel.tabIndex = -1;
+    panel.setAttribute("role", "region"); panel.tabIndex = -1;
     const title = createElement("h2", "", t("Vérification de votre paiement…"));
+    title.id = "booked-confirmation-title"; panel.setAttribute("aria-labelledby", title.id);
     const text = createElement("p", "", t("Nous vérifions le paiement auprès de Stripe. Patientez quelques instants."));
     panel.append(title, text);
+    const bookingForms = Array.from(document.querySelectorAll(".booked-booking-card, .booked-widget[data-gite-id]"));
+    bookingForms.forEach(form => { form.hidden = true; });
     const card = document.querySelector(".booked-booking-card");
-    if (card) card.parentNode.insertBefore(panel, card);
+    if (confirmationRoot) confirmationRoot.replaceChildren(panel);
+    else if (card) card.parentNode.insertBefore(panel, card);
     else (document.querySelector("main") || document.body).prepend(panel);
-    panel.focus();
+    panel.focus({ preventScroll: true });
+    panel.setAttribute("aria-busy", "true");
+    title.setAttribute("aria-live", "polite");
     const verify = async (cancel = false, attempt = 0) => {
+      panel.setAttribute("aria-busy", "true");
       try {
         const result = await apiFetch("/payments/status", { method: "POST", body: { payment_id: id, token, cancel } });
         if (result.confirmed) {
-          title.textContent = t("Votre réservation est confirmée !");
-          text.textContent = t("Paiement reçu : {paid}. Solde à régler sur place : {remaining}. Un email de confirmation vous sera envoyé.", { paid: formatTotalPrice(result.amount_paid), remaining: formatTotalPrice(result.remaining) });
+          renderBookingConfirmation(panel, result, returnStorage);
+          panel.setAttribute("aria-busy", "false");
         } else if (result.status === "expired") {
+          panel.setAttribute("aria-busy", "false");
+          bookingForms.forEach(form => { form.hidden = false; });
+          try { sessionStorage.removeItem(returnStorage); } catch { /* Storage is optional. */ }
           title.textContent = t("Paiement annulé ou expiré");
           text.textContent = t("Votre réservation n’est pas confirmée. Vous pouvez faire une nouvelle demande.");
+          panel.appendChild(confirmationHomeLink(returnStorage));
         } else if (["requires_review", "refunded", "partially_refunded"].includes(result.status)) {
+          panel.setAttribute("aria-busy", "false");
           title.textContent = t("Votre paiement nécessite un suivi");
           text.textContent = t("Contactez-nous avec la référence {reference}. Aucun nouveau paiement n’est nécessaire.", { reference: result.reference });
+          panel.appendChild(confirmationHomeLink(returnStorage));
         } else if (attempt < 10) {
           window.setTimeout(() => void verify(false, attempt + 1), 3000);
         } else throw new Error(t("La vérification prend plus de temps que prévu. Réessayez ici dans un instant, sans effectuer un nouveau paiement."));
       } catch (error) {
+        panel.setAttribute("aria-busy", "false");
         text.textContent = error.message || t("Envoi impossible.");
         const retry = createElement("button", "booked-booking-card__primary", t("Vérifier à nouveau"));
         retry.type = "button"; retry.addEventListener("click", () => { retry.remove(); void verify(); });

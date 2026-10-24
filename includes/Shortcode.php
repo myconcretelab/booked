@@ -13,6 +13,7 @@ class Booked_Shortcode
     public function register(): void
     {
         add_shortcode('booked_widget', [$this, 'render_shortcode']);
+        add_shortcode('booked_confirmation', [$this, 'render_confirmation']);
         add_action('init', [$this, 'register_assets']);
         add_action('wp_enqueue_scripts', [$this, 'localize_assets']);
         add_action('enqueue_block_editor_assets', [$this, 'localize_assets']);
@@ -78,5 +79,13 @@ class Booked_Shortcode
             esc_attr(sanitize_hex_color((string) $atts['bridge_color']) ?: self::DEFAULT_BRIDGE_COLOR),
             esc_attr(sanitize_hex_color((string) $atts['summer_color']) ?: self::DEFAULT_SUMMER_COLOR)
         );
+    }
+
+    public function render_confirmation(): string
+    {
+        wp_enqueue_style('booked-widget');
+        wp_enqueue_script('booked-widget');
+
+        return '<div class="booked-confirmation-root"><p class="booked-confirmation-placeholder" role="status">Votre confirmation s’affichera ici après le paiement.</p></div>';
     }
 }
