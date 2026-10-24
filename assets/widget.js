@@ -1199,7 +1199,7 @@
         optionsGrid.appendChild(row);
       }
       extras.appendChild(optionsGrid);
-      if (optionsGrid.children.length) form.prepend(extras);
+      if (optionsGrid.children.length) form.insertBefore(extras, form.elements.namedItem("message_client").closest("label"));
       if (isQuoting) form.querySelector(".booked-booking-card__modal-feedback").textContent = t("Vérification...");
       if (!quote && !isQuoting) {
         const retry = createElement("button", "booked-booking-card__text-button", t("Vérifier la disponibilité"));
