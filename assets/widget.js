@@ -1021,8 +1021,12 @@
       ];
     };
 
-    const isOptionAvailable = (key) => Boolean(giteConfig?.options?.[key]?.enabled)
-      && (key !== "chiens" || giteConfig?.rules?.regle_animaux_acceptes !== false);
+    const isOptionAvailable = (key) => {
+      const option = giteConfig?.options?.[key];
+      const price = Number(option?.prix_unitaire ?? option?.prix_forfait);
+      return Boolean(option?.enabled) && Number.isFinite(price) && price > 0
+        && (key !== "chiens" || giteConfig?.rules?.regle_animaux_acceptes !== false);
+    };
 
     const quotePayload = () => {
       for (const definition of getOptionDefinitions()) {
