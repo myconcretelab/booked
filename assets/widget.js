@@ -1386,7 +1386,7 @@
         const totalAmount = getQuoteTotal(quote);
         const depositAmount = Number(quote.arrhes_theoriques || 0);
         const choices = [
-          ["manual", "Paiement sur place", "Votre demande sera soumise à notre approbation. Aucun paiement maintenant.", null],
+          ["manual", "Paiement sur place", "Par chèque, en espèces ou via Wero. Votre demande sera soumise à notre approbation. Aucun paiement maintenant.", null],
           ["deposit", "Payer les arrhes par carte", "Réservation confirmée après paiement. Solde sur place : {price}.", depositAmount],
           ["full", "Payer la totalité par carte", "Réservation confirmée après paiement. Tout est réglé.", totalAmount],
         ];

@@ -5,7 +5,7 @@
   "Comment souhaitez-vous régler ?": {"en": "How would you like to pay?", "es": "¿Cómo quieres pagar?"},
   "Mode test : aucun paiement réel.": {"en": "Test mode: no real payment.", "es": "Modo de prueba: ningún pago real."},
   "Paiement sur place": {"en": "Pay on arrival", "es": "Pago en el alojamiento"},
-  "Votre demande sera soumise à notre approbation. Aucun paiement maintenant.": {"en": "Your request will require our approval. No payment now.", "es": "Tu solicitud requiere nuestra aprobación. No pagas ahora."},
+  "Par chèque, en espèces ou via Wero. Votre demande sera soumise à notre approbation. Aucun paiement maintenant.": {"en": "By cheque, in cash or via Wero. Your request will require our approval. No payment now.", "es": "Con cheque, en efectivo o mediante Wero. Tu solicitud requiere nuestra aprobación. No pagas ahora."},
   "Payer les arrhes par carte": {"en": "Pay the deposit by card", "es": "Pagar la señal con tarjeta"},
   "Réservation confirmée après paiement. Solde sur place : {price}.": {"en": "Booking confirmed after payment. Balance on arrival: {price}.", "es": "Reserva confirmada tras el pago. Saldo en el alojamiento: {price}."},
   "Payer la totalité par carte": {"en": "Pay in full by card", "es": "Pagar la totalidad con tarjeta"},
