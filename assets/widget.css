@@ -355,6 +355,10 @@
   position: relative;
 }
 
+.booked-heading--level-1:not([class*="has-"][class*="-font-size"]) {
+  font-size: clamp(2.25rem, 4vw, 3rem);
+}
+
 .booked-heading--level-2:not([class*="has-"][class*="-font-size"]) {
   font-size: clamp(2rem, 3vw, 2.375rem);
 }

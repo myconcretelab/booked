@@ -382,6 +382,23 @@ class Booked_Block
 
     public function register_block(): void
     {
+        register_block_style('core/heading', [
+            'name' => 'postcard',
+            'label' => __('Carte postale', 'booked'),
+            'style_handle' => 'booked-typography',
+        ]);
+        register_block_style('core/paragraph', [
+            'name' => 'postcard-eyebrow',
+            'label' => __('Surtitre carte postale', 'booked'),
+            'style_handle' => 'booked-typography',
+        ]);
+        register_block_pattern('booked/postcard-heading', [
+            'title' => __('Titre de carte postale', 'booked'),
+            'description' => __('Un grand titre en Italiana et un surtitre au-dessus.', 'booked'),
+            'categories' => ['text'],
+            'content' => '<!-- wp:booked/heading {"headingStyle":"postcard","textAlign":"left","eyebrow":"Brocéliande · Bretagne","content":"Quatre maisons,<br>quatre souvenirs."} /-->',
+        ]);
+
         foreach ([
             'booked-frame-rustic-dark' => 'Cadre bois rustique sombre',
             'booked-frame-antique-gold' => 'Cadre doré ancien',
@@ -652,6 +669,10 @@ class Booked_Block
                 'headingStyle' => [
                     'type' => 'string',
                 ],
+                'eyebrow' => [
+                    'type' => 'string',
+                    'default' => '',
+                ],
                 // Gutenberg owns `style` for color, spacing and typography;
                 // strings remain accepted temporarily for legacy blocks.
                 'style' => [
@@ -802,6 +823,7 @@ class Booked_Block
         wp_enqueue_script('booked-gite-cards');
         wp_enqueue_script('booked-image-carousel');
         wp_enqueue_style('booked-postcards');
+        wp_enqueue_style('booked-typography');
 
         wp_enqueue_script(
             'booked-block',
@@ -825,13 +847,17 @@ class Booked_Block
         $rendered_content = wp_kses($content, [
             'strong' => [],
             'b' => [],
+            'br' => [],
             'mark' => [
                 'class' => true,
                 'style' => true,
             ],
         ]);
 
-        $level = max(2, min(4, (int) ($attributes['level'] ?? 2)));
+        $level = (int) ($attributes['level'] ?? 2);
+        if (!in_array($level, [1, 2, 3, 4], true)) {
+            $level = 2;
+        }
         $allowed_styles = [
             'line-ticks',
             'long-lines',
@@ -846,6 +872,7 @@ class Booked_Block
             'ribbon',
             'boxed',
             'plain',
+            'postcard',
         ];
         $legacy_style = is_string($attributes['style'] ?? null) ? $attributes['style'] : '';
         $heading_style = (string) ($attributes['headingStyle'] ?? $legacy_style);
@@ -860,11 +887,21 @@ class Booked_Block
 
         wp_enqueue_style('booked-widget');
 
+        $eyebrow = '';
+        if ($style === 'postcard') {
+            wp_enqueue_style('booked-typography');
+            $eyebrow_text = trim(wp_strip_all_tags((string) ($attributes['eyebrow'] ?? '')));
+            if ($eyebrow_text !== '') {
+                $eyebrow = '<p class="booked-heading__eyebrow">' . esc_html($eyebrow_text) . '</p>';
+            }
+        }
+
         return sprintf(
-            '<div %s><span class="booked-heading__line booked-heading__line--before" aria-hidden="true"></span><h%d class="booked-heading__text">%s</h%d><span class="booked-heading__line booked-heading__line--after" aria-hidden="true"></span></div>',
+            '<div %s>%s<span class="booked-heading__line booked-heading__line--before" aria-hidden="true"></span><h%d class="booked-heading__text">%s</h%d><span class="booked-heading__line booked-heading__line--after" aria-hidden="true"></span></div>',
             get_block_wrapper_attributes([
                 'class' => sprintf('booked-heading booked-heading--%s booked-heading--level-%d booked-heading--align-%s%s', $style, $level, $align, $ribbon_width_class),
             ]),
+            $eyebrow,
             $level,
             $rendered_content,
             $level

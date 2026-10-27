@@ -23,7 +23,8 @@ class Booked_Shortcode
     {
         wp_register_style('booked-decorative', BOOKED_PLUGIN_URL . 'assets/decorative.css', [], BOOKED_VERSION);
         wp_register_style('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.css', ['booked-decorative'], BOOKED_VERSION);
-        wp_register_style('booked-postcards', BOOKED_PLUGIN_URL . 'assets/postcards.css', ['booked-widget'], BOOKED_VERSION);
+        wp_register_style('booked-typography', BOOKED_PLUGIN_URL . 'assets/typography.css', [], BOOKED_VERSION);
+        wp_register_style('booked-postcards', BOOKED_PLUGIN_URL . 'assets/postcards.css', ['booked-widget', 'booked-typography'], BOOKED_VERSION);
         wp_register_script('booked-i18n', BOOKED_PLUGIN_URL . 'assets/i18n.js', [], BOOKED_VERSION, true);
         wp_register_script('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.js', ['booked-i18n'], BOOKED_VERSION, true);
         wp_register_script('booked-accordion', BOOKED_PLUGIN_URL . 'assets/accordion.js', [], BOOKED_VERSION, true);

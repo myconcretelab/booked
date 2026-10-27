@@ -39,6 +39,7 @@
     "ribbon",
     "boxed",
     "plain",
+    "postcard",
   ];
 
   if (registerBlockStyle) {
@@ -64,9 +65,10 @@
     { label: __("Ruban", "booked"), value: "ribbon" },
     { label: __("Encadré", "booked"), value: "boxed" },
     { label: __("Simple", "booked"), value: "plain" },
+    { label: __("Carte postale", "booked"), value: "postcard" },
   ];
 
-  const getHeadingLevel = (level) => ([2, 3, 4].includes(Number(level)) ? Number(level) : 2);
+  const getHeadingLevel = (level) => ([1, 2, 3, 4].includes(Number(level)) ? Number(level) : 2);
   const getHeadingTagName = (level) => `h${getHeadingLevel(level)}`;
   const getHeadingStyle = (style) => (HEADING_STYLES.includes(style) ? style : "line-ticks");
   const getHeadingStyleAttribute = (attributes) =>
@@ -1624,6 +1626,10 @@
       headingStyle: {
         type: "string",
       },
+      eyebrow: {
+        type: "string",
+        default: "",
+      },
       // Accept legacy decorative strings during migration alongside Gutenberg's
       // native color, spacing and typography style object.
       style: {
@@ -1662,14 +1668,29 @@
         {
           type: "block",
           blocks: ["core/heading"],
-          transform: ({ content, level }) => createBlock("booked/heading", { content, level }),
+          transform: ({ content, level, className, textAlign }) => createBlock("booked/heading", {
+            content,
+            level,
+            ...(String(className || "").split(/\s+/).includes("is-style-postcard")
+              ? { headingStyle: "postcard", textAlign: textAlign || "left" }
+              : {}),
+          }),
         },
       ],
       to: [
         {
           type: "block",
           blocks: ["core/heading"],
-          transform: ({ content, level }) => createBlock("core/heading", { content, level }),
+          transform: ({ content, level, headingStyle, eyebrow, textAlign }) => {
+            const heading = createBlock("core/heading", {
+              content,
+              level,
+              ...(headingStyle === "postcard" ? { className: "is-style-postcard", textAlign: getHeadingTextAlign(textAlign) } : {}),
+            });
+            return headingStyle === "postcard" && eyebrow
+              ? [createBlock("core/paragraph", { content: escapeHtml(eyebrow), className: "is-style-postcard-eyebrow" }), heading]
+              : heading;
+          },
         },
       ],
     },
@@ -1697,8 +1718,16 @@
               label: __("Style", "booked"),
               value: getHeadingStyleAttribute(attributes),
               options: getHeadingStyleOptions(),
-              onChange: (headingStyle) => setAttributes({ headingStyle }),
+              onChange: (headingStyle) => setAttributes({ headingStyle, ...(headingStyle === "postcard" ? { textAlign: "left" } : {}) }),
             }),
+            getHeadingStyleAttribute(attributes) === "postcard"
+              ? el(TextControl, {
+                  label: __("Surtitre (facultatif)", "booked"),
+                  value: attributes.eyebrow || "",
+                  placeholder: __("Brocéliande · Bretagne", "booked"),
+                  onChange: (eyebrow) => setAttributes({ eyebrow }),
+                })
+              : null,
             getHeadingStyleAttribute(attributes) === "ribbon"
               ? el(SelectControl, {
                   label: __("Largeur du ruban", "booked"),
@@ -1714,6 +1743,7 @@
               label: __("Niveau", "booked"),
               value: String(attributes.level || 2),
               options: [
+                { label: "H1", value: "1" },
                 { label: "H2", value: "2" },
                 { label: "H3", value: "3" },
                 { label: "H4", value: "4" },
@@ -1735,6 +1765,9 @@
         el(
           "div",
           blockProps,
+          getHeadingStyleAttribute(attributes) === "postcard" && attributes.eyebrow
+            ? el("p", { className: "booked-heading__eyebrow" }, attributes.eyebrow)
+            : null,
           el("span", { className: "booked-heading__line booked-heading__line--before", "aria-hidden": "true" }),
           el(RichText, {
             tagName,

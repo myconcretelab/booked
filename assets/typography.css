@@ -1,0 +1,65 @@
+@font-face {
+  font-family: "Booked Italiana";
+  src: url("fonts/italiana-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+.wp-block-heading.is-style-postcard,
+.booked-heading.booked-heading--postcard {
+  --booked-postcard-heading-size: clamp(2.25rem, 5vw, 4.5rem);
+  font-family: "Booked Italiana", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -.018em;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.wp-block-heading.is-style-postcard:not(.has-text-color),
+.booked-heading.booked-heading--postcard:not(.has-text-color),
+p.is-style-postcard-eyebrow:not(.has-text-color) {
+  color: #384938;
+}
+
+.wp-block-heading.is-style-postcard:not([class*="has-"][class*="-font-size"]),
+.booked-heading.booked-heading--postcard:not([class*="has-"][class*="-font-size"]) {
+  font-size: var(--booked-postcard-heading-size);
+}
+
+h3.wp-block-heading.is-style-postcard,
+.booked-heading--postcard.booked-heading--level-3 {
+  --booked-postcard-heading-size: clamp(1.875rem, 4vw, 3.25rem);
+}
+
+h4.wp-block-heading.is-style-postcard,
+.booked-heading--postcard.booked-heading--level-4 {
+  --booked-postcard-heading-size: clamp(1.625rem, 3.2vw, 2.75rem);
+}
+
+.booked-heading.booked-heading--postcard {
+  gap: 16px;
+}
+
+.booked-heading--postcard > .booked-heading__text {
+  font-family: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
+}
+
+.booked-heading--postcard > .booked-heading__eyebrow,
+p.is-style-postcard-eyebrow {
+  font-family: Arial, sans-serif;
+  font-size: clamp(.6875rem, 1.3vw, .875rem);
+  font-weight: 400;
+  letter-spacing: .2em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.booked-heading--postcard > .booked-heading__eyebrow {
+  color: inherit;
+  margin: 0;
+}
