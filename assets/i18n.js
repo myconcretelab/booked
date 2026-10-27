@@ -2,6 +2,14 @@
   const language = String(document.documentElement.lang || window.BookedWidgetConfig?.language || 'fr').toLowerCase().split(/[-_]/)[0];
   const locale = {fr: 'fr-FR', en: 'en-GB', es: 'es-ES'}[language] || 'fr-FR';
   const messages = {
+  "Gîtes de Brocéliande": {"en": "Brocéliande holiday cottages", "es": "Casas de Brocéliande"},
+  "Souvenir du gîte": {"en": "A cottage keepsake", "es": "Recuerdo de la casa"},
+  "À bientôt ici…": {"en": "See you here soon…", "es": "Hasta pronto…"},
+  "Découvrir le gîte": {"en": "Explore the cottage", "es": "Descubrir la casa"},
+  "Voir le recto de {name}": {"en": "Show the front of {name}", "es": "Ver el anverso de {name}"},
+  "Voir le verso de {name}": {"en": "Show the back of {name}", "es": "Ver el reverso de {name}"},
+  "Voir la photo": {"en": "Show photo", "es": "Ver la foto"},
+  "Retourner": {"en": "Turn over", "es": "Dar la vuelta"},
   "Comment souhaitez-vous régler ?": {"en": "How would you like to pay?", "es": "¿Cómo quieres pagar?"},
   "Mode test : aucun paiement réel.": {"en": "Test mode: no real payment.", "es": "Modo de prueba: ningún pago real."},
   "Paiement sur place": {"en": "Pay on arrival", "es": "Pago en el alojamiento"},

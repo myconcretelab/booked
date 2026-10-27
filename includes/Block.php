@@ -254,6 +254,13 @@ class Booked_Block
                 'type' => 'object',
                 'default' => [],
             ],
+            'postcardAssignments' => [
+                'type' => 'object',
+                'default' => [],
+            ],
+            'postcardPhotoFilter' => ['type' => 'number', 'default' => 50],
+            'postcardPatina' => ['type' => 'number', 'default' => 23],
+            'postcardTilt' => ['type' => 'number', 'default' => 3],
             'columns' => [
                 'type' => 'number',
                 'default' => 3,
@@ -794,6 +801,7 @@ class Booked_Block
         wp_enqueue_script('booked-gallery');
         wp_enqueue_script('booked-gite-cards');
         wp_enqueue_script('booked-image-carousel');
+        wp_enqueue_style('booked-postcards');
 
         wp_enqueue_script(
             'booked-block',
@@ -951,7 +959,7 @@ class Booked_Block
     public function render_gite_cards_block(array $attributes): string
     {
         $selected_gite_ids = $this->sanitize_gite_id_list($attributes['selectedGiteIds'] ?? []);
-        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact', 'polaroid', 'wood-frames'], true)
+        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact', 'polaroid', 'wood-frames', 'postcards'], true)
             ? (string) $attributes['layout']
             : 'grid';
         $is_page_compact = $layout === 'page-compact';
@@ -972,7 +980,7 @@ class Booked_Block
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9'], true)
             ? (string) $attributes['imageRatio']
             : '4-3';
-        $is_composed_layout = in_array($layout, ['polaroid', 'wood-frames'], true);
+        $is_composed_layout = in_array($layout, ['polaroid', 'wood-frames', 'postcards'], true);
         $show_images = $is_composed_layout || (!$is_page_compact && (!array_key_exists('showImages', $attributes) || !empty($attributes['showImages'])));
         $show_description = $is_composed_layout || (!$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription'])));
         $show_stats = $is_page_compact || $is_composed_layout || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
@@ -986,6 +994,17 @@ class Booked_Block
                 $wood_frame_assignments[$gite_id] = $frame;
             }
         }
+        $postcard_assignments = [];
+        foreach ((array) ($attributes['postcardAssignments'] ?? []) as $gite_id => $style) {
+            $gite_id = sanitize_text_field((string) $gite_id);
+            $style = sanitize_key((string) $style);
+            if ($gite_id !== '' && in_array($style, ['escale', 'campagne', 'album', 'voyage'], true)) {
+                $postcard_assignments[$gite_id] = $style;
+            }
+        }
+        $postcard_filter = max(0, min(100, (float) ($attributes['postcardPhotoFilter'] ?? 50)));
+        $postcard_patina = max(0, min(100, (float) ($attributes['postcardPatina'] ?? 23)));
+        $postcard_tilt = max(0, min(6, (float) ($attributes['postcardTilt'] ?? 3)));
         $cta_label = sanitize_text_field((string) ($attributes['ctaLabel'] ?? 'Voir le gîte'));
         if ($cta_label === '') {
             $cta_label = 'Voir le gîte';
@@ -1017,13 +1036,17 @@ class Booked_Block
         wp_enqueue_style('booked-widget');
         wp_enqueue_script('booked-gite-cards');
 
+        if ($layout === 'postcards') {
+            wp_enqueue_style('booked-postcards');
+        }
+
         $wrapper_attributes = get_block_wrapper_attributes([
             'class' => sprintf('booked-gite-cards booked-gite-cards--%s', $layout),
             'style' => sprintf('--booked-gite-cards-columns:%d;--booked-gite-cards-ratio:%s;', $columns, $this->get_gallery_ratio_css($image_ratio)),
         ]);
 
         return sprintf(
-            '<div %s data-gite-ids="%s" data-gites="%s" data-layout="%s" data-columns="%d" data-image-ratio="%s" data-show-images="%s" data-show-description="%s" data-show-stats="%s" data-show-cta="%s" data-cta-label="%s" data-wood-frame-assignments="%s"></div>',
+            '<div %s data-gite-ids="%s" data-gites="%s" data-layout="%s" data-columns="%d" data-image-ratio="%s" data-show-images="%s" data-show-description="%s" data-show-stats="%s" data-show-cta="%s" data-cta-label="%s" data-wood-frame-assignments="%s" data-postcard-assignments="%s" data-postcard-photo-filter="%s" data-postcard-patina="%s" data-postcard-tilt="%s"></div>',
             $wrapper_attributes,
             esc_attr(wp_json_encode($gite_ids)),
             esc_attr(wp_json_encode($metadata)),
@@ -1035,7 +1058,11 @@ class Booked_Block
             $show_stats ? '1' : '0',
             $show_cta ? '1' : '0',
             esc_attr($cta_label),
-            esc_attr(wp_json_encode($wood_frame_assignments))
+            esc_attr(wp_json_encode($wood_frame_assignments)),
+            esc_attr(wp_json_encode($postcard_assignments)),
+            esc_attr((string) $postcard_filter),
+            esc_attr((string) $postcard_patina),
+            esc_attr((string) $postcard_tilt)
         );
     }
 

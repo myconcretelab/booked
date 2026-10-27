@@ -407,6 +407,9 @@
   };
 
   const renderCard = (gite, options, index) => {
+    if (options.layout === "postcards") {
+      return window.BookedPostcards.createCard(gite, options, index);
+    }
     const card = createElement("article", `booked-gite-cards__card${index === 0 ? " booked-gite-cards__card--first" : ""}`);
     if (options.layout === "wood-frames") {
       card.appendChild(renderWoodFrame(gite, options, index));
@@ -483,6 +486,7 @@
   };
 
   const renderContent = (root, gites, options) => {
+    const pinnedPostcards = new Set(Array.from(root.querySelectorAll('.booked-postcard[data-postcard-pinned="true"]'), (card) => card.dataset.postcardId));
     root.innerHTML = "";
     root.classList.toggle("booked-gite-cards--compact", options.layout === "compact");
     root.classList.toggle("booked-gite-cards--grid", options.layout === "grid");
@@ -490,6 +494,7 @@
     root.classList.toggle("booked-gite-cards--page-compact", options.layout === "page-compact");
     root.classList.toggle("booked-gite-cards--polaroid", options.layout === "polaroid");
     root.classList.toggle("booked-gite-cards--wood-frames", options.layout === "wood-frames");
+    root.classList.toggle("booked-gite-cards--postcards", options.layout === "postcards");
     root.classList.toggle("booked-gite-cards--no-images", !options.showImages);
     root.style.setProperty("--booked-gite-cards-columns", String(options.columns));
     root.style.setProperty("--booked-gite-cards-ratio", options.imageRatioCss);
@@ -500,7 +505,13 @@
     }
 
     const grid = createElement("div", "booked-gite-cards__grid");
-    gites.forEach((gite, index) => grid.appendChild(renderCard(gite, options, index)));
+    gites.forEach((gite, index) => {
+      const card = renderCard(gite, options, index);
+      grid.appendChild(card);
+      if (options.layout === "postcards" && pinnedPostcards.has(String(gite.id))) {
+        card.querySelector(".booked-postcard__return").click();
+      }
+    });
     root.appendChild(grid);
     scheduleStatsLineStateUpdate(root);
   };
@@ -514,8 +525,8 @@
     };
     const columns = Number.parseInt(root.dataset.columns || "3", 10);
     const imageRatio = root.dataset.imageRatio || "4-3";
-    const layout = ["grid", "compact", "spotlight", "page-compact", "polaroid", "wood-frames"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
-    const isComposedLayout = layout === "polaroid" || layout === "wood-frames";
+    const layout = ["grid", "compact", "spotlight", "page-compact", "polaroid", "wood-frames", "postcards"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
+    const isComposedLayout = ["polaroid", "wood-frames", "postcards"].includes(layout);
 
     return {
       layout,
@@ -527,6 +538,10 @@
       showCta: layout !== "page-compact" && !isComposedLayout && root.dataset.showCta !== "0",
       ctaLabel: t(root.dataset.ctaLabel || "Voir le gîte"),
       woodFrameAssignments: parseJsonObject(root.dataset.woodFrameAssignments),
+      postcardAssignments: parseJsonObject(root.dataset.postcardAssignments),
+      postcardPhotoFilter: root.dataset.postcardPhotoFilter,
+      postcardPatina: root.dataset.postcardPatina,
+      postcardTilt: root.dataset.postcardTilt,
     };
   };
 

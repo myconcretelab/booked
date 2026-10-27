@@ -1,0 +1,256 @@
+@font-face {
+  font-family: "Booked Italiana";
+  src: url("fonts/italiana-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Booked Bodoni";
+  src: url("fonts/bodoni-moda-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Booked Quill Paper";
+  src: url("fonts/QuillPaperScript.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+.booked-gite-cards--postcards {
+  container: booked-postcards / inline-size;
+  isolation: isolate;
+  overflow: visible;
+}
+.booked-gite-cards--postcards > .booked-gite-cards__grid {
+  display: grid;
+  grid-template-columns: repeat(var(--booked-gite-cards-columns, 3), minmax(0, 1fr));
+  align-items: start;
+  gap: 20px 0;
+  padding: 24px 20px 16px;
+}
+.booked-gite-cards--postcards .booked-postcard {
+  --postcard-ink: #384938;
+  --postcard-cream: #f2ead7;
+  --postcard-wash: #274c40;
+  --postcard-title: "Booked Italiana", Georgia, serif;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  container-type: inline-size;
+  display: block;
+  margin: 0 0 0 -5px;
+  min-width: 0;
+  overflow: visible;
+  padding: 0 0 36px;
+  position: relative;
+  transform: none;
+  width: calc(100% + 10px);
+  z-index: 1;
+}
+.booked-gite-cards--postcards .booked-postcard:nth-child(2n) { margin-top: 12px; }
+.booked-gite-cards--postcards .booked-postcard::before { display: none; }
+.booked-gite-cards--postcards .booked-postcard:hover,
+.booked-gite-cards--postcards .booked-postcard:focus-within { z-index: 5; transform: none; box-shadow: none; }
+.booked-postcard, .booked-postcard * { box-sizing: border-box; }
+.booked-gite-cards--postcards .booked-postcard--campagne { --postcard-ink: #665038; --postcard-cream: #f2e3c7; --postcard-wash: #805b36; }
+.booked-gite-cards--postcards .booked-postcard--album { --postcard-ink: #3f493a; --postcard-cream: #f5eedf; --postcard-wash: #736b49; --postcard-title: "Booked Bodoni", Georgia, serif; }
+.booked-gite-cards--postcards .booked-postcard--voyage { --postcard-ink: #354f57; --postcard-cream: #f2e9d5; --postcard-wash: #3b5b6c; }
+.booked-postcard__canvas { display: block; perspective: 1400px; position: relative; color: inherit; text-decoration: none; }
+.booked-postcard__canvas:hover { color: inherit; text-decoration: none; }
+.booked-postcard__canvas:focus-visible { outline: 2px solid var(--postcard-ink); outline-offset: 5px; }
+.booked-postcard__tilt {
+  position: relative;
+  width: 100%;
+  transform: rotate(var(--postcard-rotation, 0deg));
+  transition: transform 450ms cubic-bezier(.2, .65, .3, 1);
+}
+.booked-postcard:hover .booked-postcard__tilt,
+.booked-postcard:focus-within .booked-postcard__tilt { transform: translateY(-5px) rotate(0deg); }
+.booked-postcard__flipper {
+  aspect-ratio: 1.5;
+  width: 100%;
+  min-height: 240px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 750ms cubic-bezier(.22, .68, .2, 1);
+  box-shadow: 0 1px 1px #4e402930, 0 5px 8px -4px #4e402944, 0 17px 22px -15px #4e402966;
+}
+.booked-postcard.is-flipped .booked-postcard__flipper { transform: rotateY(180deg); }
+.booked-postcard__face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--postcard-cream);
+  border: 1px solid #99846850;
+  border-radius: 0;
+  color: var(--postcard-ink);
+  display: block;
+  inset: 0;
+  overflow: hidden;
+  position: absolute;
+  text-decoration: none;
+}
+.booked-postcard__front { padding: 10px; transform: translateZ(.1px); }
+.booked-postcard__front::after, .booked-postcard__back::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background: url("images/postcard-paper.jpg") center / 500px;
+  mix-blend-mode: multiply;
+  opacity: var(--postcard-patina, .23);
+  box-shadow: inset 0 0 15px #80673c44, inset 0 0 2px #69583b66;
+}
+.booked-postcard__photo { height: 100%; position: relative; overflow: hidden; background: var(--postcard-wash); }
+.booked-postcard__image {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  max-width: none;
+  object-fit: cover;
+  filter: sepia(var(--postcard-sepia, .5)) saturate(var(--postcard-saturation, .52)) contrast(var(--postcard-contrast, .91));
+}
+.booked-postcard__wash { position: absolute; inset: 0; background: var(--postcard-wash); mix-blend-mode: multiply; opacity: var(--postcard-tint, .6); }
+.booked-postcard__photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 45% 40%, transparent 10%, #182c1b35 100%), linear-gradient(0deg, #17251d99, transparent 65%, #192b2255);
+  pointer-events: none;
+}
+.booked-postcard__inset { position: absolute; inset: 12px; border: 1px solid #fff8e2c0; z-index: 1; pointer-events: none; }
+.booked-postcard__front-content {
+  position: absolute;
+  inset: 36px;
+  color: #fff6dc;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  z-index: 2;
+  text-shadow: 0 1px 4px #172b23aa;
+}
+.booked-postcard__corners {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font: 500 clamp(9px, 2.65cqw, 11px)/1.4 Arial, sans-serif;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+.booked-postcard__number, .booked-postcard__capacity { flex-shrink: 0; }
+.booked-postcard__name {
+  color: inherit;
+  font-family: var(--postcard-title);
+  font-size: clamp(28px, 11cqw, 60px);
+  font-weight: 400;
+  line-height: 1.03;
+  letter-spacing: .01em;
+  margin: 10px 0;
+  text-align: center;
+  text-transform: none;
+  overflow-wrap: break-word;
+}
+.booked-postcard__prefix {
+  display: block;
+  font: 400 clamp(12px, 3.65cqw, 17px)/1.3 "Booked Italiana", Georgia, serif;
+  letter-spacing: .1em;
+  text-transform: none;
+  margin-bottom: 10px;
+  -webkit-text-stroke: 0;
+  color: #fff6dc;
+}
+.booked-postcard--escale .booked-postcard__name-main { text-transform: uppercase; -webkit-text-stroke: .7px #fff6dc; color: #fff6dc0d; paint-order: stroke fill; }
+.booked-postcard--campagne .booked-postcard__name { text-align: left; font-size: clamp(29px, 11.5cqw, 60px); line-height: 1.04; margin: 0; }
+.booked-postcard--campagne .booked-postcard__front-content { justify-content: flex-end; gap: 17px; }
+.booked-postcard--campagne .booked-postcard__corners:first-child { position: absolute; top: 0; left: 0; right: 0; }
+.booked-postcard--album .booked-postcard__front { padding: 10px 10px 58px; }
+.booked-postcard--album .booked-postcard__front-content { inset: 36px 36px 80px; }
+.booked-postcard--album .booked-postcard__name {
+  position: absolute;
+  top: calc(100% + 35px);
+  left: -22px;
+  right: -22px;
+  margin: 0;
+  color: var(--postcard-ink);
+  font-size: clamp(19px, 7.5cqw, 37px);
+  line-height: 1.1;
+  text-align: left;
+  text-shadow: none;
+}
+.booked-postcard--album .booked-postcard__prefix { display: none; }
+.booked-postcard--voyage .booked-postcard__inset { border-style: double; border-width: 3px; }
+.booked-postcard--voyage .booked-postcard__name { font-size: clamp(29px, 11cqw, 58px); }
+.booked-postcard--voyage .booked-postcard__name-main { display: block; padding: 8px 0 12px; border-block: 1px solid #f9edceaa; }
+.booked-postcard--voyage .booked-postcard__prefix { font-size: clamp(11px, 3.2cqw, 16px); text-transform: uppercase; letter-spacing: .2em; }
+.booked-postcard--long-name .booked-postcard__name { font-size: clamp(24px, 8.4cqw, 48px); }
+.booked-postcard--album.booked-postcard--long-name .booked-postcard__front { padding-bottom: 72px; }
+.booked-postcard--album.booked-postcard--long-name .booked-postcard__front-content { bottom: 94px; }
+.booked-postcard--album.booked-postcard--long-name .booked-postcard__name { font-size: clamp(18px, 6cqw, 30px); }
+.booked-postcard__back {
+  transform: rotateY(180deg) translateZ(.1px);
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 12px;
+  background-image: radial-gradient(ellipse at 45% 42%, #fffdf350, transparent 75%);
+}
+.booked-postcard__back::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: url("images/postcard-postal.jpg") center / 100% 100%;
+  mix-blend-mode: multiply;
+  opacity: calc(var(--postcard-patina, .23) * .2);
+}
+.booked-postcard__message { border-right: 1px solid #86754e66; min-width: 0; padding-right: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+.booked-postcard__back-heading { font: 400 clamp(10px, 3.7cqw, 17px)/1.2 var(--postcard-title); text-transform: uppercase; letter-spacing: .07em; margin: 0 0 4px; color: inherit; overflow-wrap: break-word; }
+.booked-postcard__script { font: 400 clamp(18px, 6cqw, 30px)/1.08 "Booked Quill Paper", cursive; margin: auto 0; padding-block: 6px; transform: rotate(-2deg); color: inherit; overflow-wrap: break-word; }
+.booked-postcard__signature { font: 400 clamp(18px, 6.2cqw, 28px)/1 "Booked Quill Paper", cursive; margin: 6px 0 0; transform: rotate(-3deg); color: inherit; }
+.booked-postcard__address { min-width: 0; padding-top: 47px; display: flex; flex-direction: column; justify-content: flex-end; position: relative; }
+.booked-postcard__stamp { width: 36px; height: 42px; position: absolute; right: 0; top: 0; border: 2px dotted #7a825a99; background: #dedcba; outline: 1px solid #b8ac85; outline-offset: -5px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #596647; font: 20px/1 "Booked Italiana", Georgia, serif; }
+.booked-postcard__stamp small { font: 6px/1.4 Arial, sans-serif; letter-spacing: .05em; margin-top: 3px; }
+.booked-postcard__postmark { position: absolute; right: 28px; top: 8px; transform: rotate(-13deg); width: 58px; height: 58px; border: 1px solid #706f4c77; border-radius: 50%; display: grid; align-content: center; padding: 6px; text-align: center; font: 7px/1.6 Arial, sans-serif; letter-spacing: .05em; color: #666c4877; }
+.booked-postcard__facts { display: grid; margin: 0; gap: 1px; }
+.booked-postcard__fact { display: flex; justify-content: space-between; align-items: baseline; gap: 5px; border-bottom: 1px solid #9b8c6266; padding: 4px 0; }
+.booked-postcard__fact dt { font: 400 clamp(10px, 3.1cqw, 14px)/1.3 Arial, sans-serif; margin: 0; }
+.booked-postcard__fact dd { font: 400 clamp(13px, 4.2cqw, 19px)/1.2 Georgia, serif; margin: 0; white-space: nowrap; }
+.booked-postcard__visit { font: 400 clamp(9px, 2.9cqw, 12px)/1.4 Arial, sans-serif; letter-spacing: .05em; text-transform: uppercase; text-align: right; margin-top: 12px; }
+.booked-postcard__return { display: block; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); color: var(--postcard-ink); background: transparent; border: 0; border-bottom: 1px solid #85795666; border-radius: 0; padding: 5px 9px; min-height: 28px; font: 400 11px/1.4 Arial, sans-serif; letter-spacing: .04em; white-space: nowrap; cursor: pointer; }
+.booked-postcard__return:hover { color: var(--postcard-ink); background: #8679560d; }
+.booked-postcard__return:focus-visible { outline: 2px solid var(--postcard-ink); outline-offset: 3px; }
+
+@container booked-postcards (max-width: 1199px) {
+  .booked-gite-cards--postcards[data-columns="4"] > .booked-gite-cards__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container booked-postcards (max-width: 929px) {
+  .booked-gite-cards--postcards[data-columns="3"] > .booked-gite-cards__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container booked-postcards (max-width: 619px) {
+  .booked-gite-cards--postcards[data-columns] > .booked-gite-cards__grid { grid-template-columns: 1fr; padding: 18px 16px; gap: 22px; }
+  .booked-gite-cards--postcards .booked-postcard { width: 100%; margin-left: 0; padding-bottom: 48px; }
+  .booked-gite-cards--postcards .booked-postcard:nth-child(2n) { margin-top: 0; }
+  .booked-postcard__return { min-height: 44px; }
+}
+@container (max-width: 400px) {
+  .booked-postcard__signature { display: none; }
+}
+@container (max-width: 325px) {
+  .booked-postcard__script { font-size: 18px; }
+  .booked-postcard__front-content { inset: 34px; }
+  .booked-postcard--album .booked-postcard__front-content { inset: 34px 34px 80px; }
+  .booked-postcard__back { gap: 9px; padding: 13px; }
+  .booked-postcard__message { padding-right: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .booked-postcard__flipper, .booked-postcard__tilt { transition: none; }
+  .booked-postcard:hover .booked-postcard__tilt, .booked-postcard:focus-within .booked-postcard__tilt { transform: rotate(var(--postcard-rotation, 0deg)); }
+}

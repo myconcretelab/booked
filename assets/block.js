@@ -394,6 +394,10 @@
       type: "object",
       default: {},
     },
+    postcardAssignments: { type: "object", default: {} },
+    postcardPhotoFilter: { type: "number", default: 50 },
+    postcardPatina: { type: "number", default: 23 },
+    postcardTilt: { type: "number", default: 3 },
     columns: {
       type: "number",
       default: 3,
@@ -467,7 +471,15 @@
     { label: __("Mise en avant", "booked"), value: "spotlight" },
     { label: __("Polaroid", "booked"), value: "polaroid" },
     { label: __("Cadres en bois", "booked"), value: "wood-frames" },
+    { label: __("Cartes postales anciennes", "booked"), value: "postcards" },
     { label: __("Compact gîte de la page", "booked"), value: "page-compact" },
+  ];
+
+  const getPostcardOptions = () => [
+    { label: __("Escale en Brocéliande", "booked"), value: "escale" },
+    { label: __("Correspondance de campagne", "booked"), value: "campagne" },
+    { label: __("Album de famille", "booked"), value: "album" },
+    { label: __("Voyage en Bretagne", "booked"), value: "voyage" },
   ];
 
   const getWoodFrameOptions = () => [
@@ -1007,7 +1019,8 @@
     const isPageCompact = (attributes.layout || "grid") === "page-compact";
     const isPolaroid = (attributes.layout || "grid") === "polaroid";
     const isWoodFrames = (attributes.layout || "grid") === "wood-frames";
-    const isComposedLayout = isPolaroid || isWoodFrames;
+    const isPostcards = (attributes.layout || "grid") === "postcards";
+    const isComposedLayout = isPolaroid || isWoodFrames || isPostcards;
     const selectedGiteIds = isPageCompact
       ? [defaultGiteId || normalizeIdList(attributes.selectedGiteIds)[0]].filter(Boolean)
       : getSelectedGiteCardIds(attributes.selectedGiteIds, gites);
@@ -1036,6 +1049,10 @@
       attributes.showCta,
       attributes.ctaLabel,
       JSON.stringify(attributes.woodFrameAssignments || {}),
+      JSON.stringify(attributes.postcardAssignments || {}),
+      attributes.postcardPhotoFilter,
+      attributes.postcardPatina,
+      attributes.postcardTilt,
     ]);
 
     if (selectedGiteIds.length === 0) {
@@ -1056,6 +1073,10 @@
       "data-show-cta": !isPageCompact && !isComposedLayout && attributes.showCta !== false ? "1" : "0",
       "data-cta-label": attributes.ctaLabel || __("Voir le gîte", "booked"),
       "data-wood-frame-assignments": JSON.stringify(attributes.woodFrameAssignments || {}),
+      "data-postcard-assignments": JSON.stringify(attributes.postcardAssignments || {}),
+      "data-postcard-photo-filter": String(attributes.postcardPhotoFilter ?? 50),
+      "data-postcard-patina": String(attributes.postcardPatina ?? 23),
+      "data-postcard-tilt": String(attributes.postcardTilt ?? 3),
     });
   };
 
@@ -2313,7 +2334,8 @@
       const isPageCompact = (attributes.layout || "grid") === "page-compact";
       const isPolaroid = (attributes.layout || "grid") === "polaroid";
       const isWoodFrames = (attributes.layout || "grid") === "wood-frames";
-      const isComposedLayout = isPolaroid || isWoodFrames;
+      const isPostcards = (attributes.layout || "grid") === "postcards";
+      const isComposedLayout = isPolaroid || isWoodFrames || isPostcards;
       const selectedGiteIds = normalizeIdList(attributes.selectedGiteIds);
       const allGiteIds = gites.map((gite) => gite.id).filter(Boolean);
       const manualIds = selectedGiteIds.join(", ");
@@ -2387,6 +2409,49 @@
               options: getGiteCardsLayoutOptions(),
               onChange: (layout) => setAttributes({ layout }),
             }),
+            isPostcards
+              ? el(
+                  "div",
+                  { className: "booked-postcard-controls" },
+                  getSelectedGiteCardIds(attributes.selectedGiteIds, gites).map((giteId, index) =>
+                    el(SelectControl, {
+                      key: giteId,
+                      label: getGiteName(gites, giteId),
+                      value: (attributes.postcardAssignments || {})[giteId] || "auto",
+                      options: [
+                        { label: sprintf(__("Automatique — %s", "booked"), getPostcardOptions()[index % 4].label), value: "auto" },
+                        ...getPostcardOptions(),
+                      ],
+                      onChange: (style) => {
+                        const assignments = { ...(attributes.postcardAssignments || {}) };
+                        if (style === "auto") delete assignments[giteId];
+                        else assignments[giteId] = style;
+                        setAttributes({ postcardAssignments: assignments });
+                      },
+                    })
+                  ),
+                  el(RangeControl, {
+                    label: __("Filtre photographique", "booked"),
+                    value: attributes.postcardPhotoFilter ?? 50,
+                    min: 0, max: 100, step: 1,
+                    help: __("De la photo naturelle à une teinte ancienne plus prononcée. Chaque modèle conserve sa couleur.", "booked"),
+                    onChange: (value) => setAttributes({ postcardPhotoFilter: value ?? 50 }),
+                  }),
+                  el(RangeControl, {
+                    label: __("Patine du papier", "booked"),
+                    value: attributes.postcardPatina ?? 23,
+                    min: 0, max: 100, step: 1,
+                    onChange: (value) => setAttributes({ postcardPatina: value ?? 23 }),
+                  }),
+                  el(RangeControl, {
+                    label: __("Inclinaison des cartes (°)", "booked"),
+                    value: attributes.postcardTilt ?? 3,
+                    min: 0, max: 6, step: 0.5,
+                    help: __("L’angle varie d’une carte à l’autre et reste stable au rechargement. À zéro, toutes les cartes sont droites.", "booked"),
+                    onChange: (value) => setAttributes({ postcardTilt: value ?? 3 }),
+                  })
+                )
+              : null,
             isWoodFrames
               ? el(
                   "div",
