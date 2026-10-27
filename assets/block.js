@@ -474,6 +474,7 @@
     { label: __("Polaroid", "booked"), value: "polaroid" },
     { label: __("Cadres en bois", "booked"), value: "wood-frames" },
     { label: __("Cartes postales anciennes", "booked"), value: "postcards" },
+    { label: __("Tourniquet de cartes postales", "booked"), value: "postcard-rack" },
     { label: __("Compact gîte de la page", "booked"), value: "page-compact" },
   ];
 
@@ -1021,7 +1022,7 @@
     const isPageCompact = (attributes.layout || "grid") === "page-compact";
     const isPolaroid = (attributes.layout || "grid") === "polaroid";
     const isWoodFrames = (attributes.layout || "grid") === "wood-frames";
-    const isPostcards = (attributes.layout || "grid") === "postcards";
+    const isPostcards = ["postcards", "postcard-rack"].includes(attributes.layout || "grid");
     const isComposedLayout = isPolaroid || isWoodFrames || isPostcards;
     const selectedGiteIds = isPageCompact
       ? [defaultGiteId || normalizeIdList(attributes.selectedGiteIds)[0]].filter(Boolean)
@@ -1037,7 +1038,12 @@
 
     useEffect(() => {
       if (!ref.current || selectedGiteIds.length === 0 || !window.BookedGiteCards) return;
-      window.BookedGiteCards.render(ref.current);
+      const root = ref.current;
+      window.BookedGiteCards.render(root);
+      return () => {
+        root.bookedGiteCardsRender = null;
+        root.bookedPostcardRackDestroy?.();
+      };
     }, [
       JSON.stringify(selectedGiteIds),
       JSON.stringify(giteMetadata),
@@ -2367,7 +2373,8 @@
       const isPageCompact = (attributes.layout || "grid") === "page-compact";
       const isPolaroid = (attributes.layout || "grid") === "polaroid";
       const isWoodFrames = (attributes.layout || "grid") === "wood-frames";
-      const isPostcards = (attributes.layout || "grid") === "postcards";
+      const isRack = attributes.layout === "postcard-rack";
+      const isPostcards = ["postcards", "postcard-rack"].includes(attributes.layout || "grid");
       const isComposedLayout = isPolaroid || isWoodFrames || isPostcards;
       const selectedGiteIds = normalizeIdList(attributes.selectedGiteIds);
       const allGiteIds = gites.map((gite) => gite.id).filter(Boolean);
@@ -2446,6 +2453,7 @@
               ? el(
                   "div",
                   { className: "booked-postcard-controls" },
+                  isRack ? el("p", { className: "booked-block-help" }, __("Un seul étage de quatre cartes au maximum. Le tourniquet reprend les modèles ci-dessous et ne s’anime que pendant vos gestes. En mode mouvements réduits, les cartes s’affichent en grille.", "booked")) : null,
                   getSelectedGiteCardIds(attributes.selectedGiteIds, gites).map((giteId, index) =>
                     el(SelectControl, {
                       key: giteId,
@@ -2503,7 +2511,7 @@
                   )
                 )
               : null,
-            !["compact", "page-compact"].includes(attributes.layout || "grid")
+            !["compact", "page-compact", "postcard-rack"].includes(attributes.layout || "grid")
               ? el(RangeControl, {
                   label: __("Nombre de colonnes", "booked"),
                   value: attributes.columns || 3,

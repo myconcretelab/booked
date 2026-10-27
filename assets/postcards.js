@@ -137,6 +137,7 @@
       button.textContent = `${t(showBack ? "Voir la photo" : "Retourner")} ↻`;
     };
     canvas.addEventListener("pointerenter", (event) => {
+      if (options.postcardHover === false) return;
       if (event.pointerType !== "mouse" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
       hovering = true;
       suppressHover = false;

@@ -504,7 +504,17 @@
   "Afficher la photo {count}": {
     "en": "Show photo {count}",
     "es": "Mostrar foto {count}"
-  }
+  },
+  "Souvenirs de": {"en": "Memories of", "es": "Recuerdos de"},
+  "Choisissez une carte pour découvrir le gîte.": {"en": "Choose a postcard to discover the cottage.", "es": "Elige una postal para descubrir la casa."},
+  "Faites tourner vos souvenirs.": {"en": "Give your memories a spin.", "es": "Haz girar tus recuerdos."},
+  "Glissez pour tourner · Choisissez une carte pour la sortir": {"en": "Drag to spin · Choose a postcard to take it out", "es": "Arrastra para girar · Elige una postal para sacarla"},
+  "Commandes du présentoir": {"en": "Postcard rack controls", "es": "Controles del expositor"},
+  "Tourner vers la gauche": {"en": "Turn left", "es": "Girar a la izquierda"},
+  "Tourner vers la droite": {"en": "Turn right", "es": "Girar a la derecha"},
+  "Sortir la carte de {name}": {"en": "Take out the postcard for {name}", "es": "Sacar la postal de {name}"},
+  "Ranger la carte": {"en": "Put the postcard back", "es": "Guardar la postal"},
+  "Vos cartes postales se préparent…": {"en": "Your postcards are getting ready…", "es": "Tus postales se están preparando…"}
 };
   const t = (message, values = {}) => {
     const translated = messages[message]?.[language] || message;

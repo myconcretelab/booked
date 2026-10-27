@@ -25,12 +25,14 @@ class Booked_Shortcode
         wp_register_style('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.css', ['booked-decorative'], BOOKED_VERSION);
         wp_register_style('booked-typography', BOOKED_PLUGIN_URL . 'assets/typography.css', [], BOOKED_VERSION);
         wp_register_style('booked-postcards', BOOKED_PLUGIN_URL . 'assets/postcards.css', ['booked-widget', 'booked-typography'], BOOKED_VERSION);
+        wp_register_style('booked-postcard-rack', BOOKED_PLUGIN_URL . 'assets/postcard-rack.css', ['booked-postcards'], BOOKED_VERSION);
         wp_register_script('booked-i18n', BOOKED_PLUGIN_URL . 'assets/i18n.js', [], BOOKED_VERSION, true);
         wp_register_script('booked-widget', BOOKED_PLUGIN_URL . 'assets/widget.js', ['booked-i18n'], BOOKED_VERSION, true);
         wp_register_script('booked-accordion', BOOKED_PLUGIN_URL . 'assets/accordion.js', [], BOOKED_VERSION, true);
         wp_register_script('booked-gite-info', BOOKED_PLUGIN_URL . 'assets/gite-info.js', ['booked-widget', 'booked-accordion'], BOOKED_VERSION, true);
         wp_register_script('booked-gallery', BOOKED_PLUGIN_URL . 'assets/gallery.js', ['booked-widget'], BOOKED_VERSION, true);
         wp_register_script('booked-postcards', BOOKED_PLUGIN_URL . 'assets/postcards.js', ['booked-i18n'], BOOKED_VERSION, true);
+        wp_register_script('booked-postcard-rack', BOOKED_PLUGIN_URL . 'assets/postcard-rack.js', ['booked-postcards'], BOOKED_VERSION, true);
         wp_register_script('booked-gite-cards', BOOKED_PLUGIN_URL . 'assets/gite-cards.js', ['booked-widget', 'booked-postcards'], BOOKED_VERSION, true);
         wp_register_script('booked-image-carousel', BOOKED_PLUGIN_URL . 'assets/image-carousel.js', ['booked-i18n'], BOOKED_VERSION, true);
     }

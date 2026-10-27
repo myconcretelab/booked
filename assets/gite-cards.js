@@ -407,7 +407,7 @@
   };
 
   const renderCard = (gite, options, index) => {
-    if (options.layout === "postcards") {
+    if (["postcards", "postcard-rack"].includes(options.layout)) {
       return window.BookedPostcards.createCard(gite, options, index);
     }
     const card = createElement("article", `booked-gite-cards__card${index === 0 ? " booked-gite-cards__card--first" : ""}`);
@@ -486,6 +486,7 @@
   };
 
   const renderContent = (root, gites, options) => {
+    root.bookedPostcardRackDestroy?.();
     const pinnedPostcards = new Set(Array.from(root.querySelectorAll('.booked-postcard[data-postcard-pinned="true"]'), (card) => card.dataset.postcardId));
     root.innerHTML = "";
     root.classList.toggle("booked-gite-cards--compact", options.layout === "compact");
@@ -494,7 +495,8 @@
     root.classList.toggle("booked-gite-cards--page-compact", options.layout === "page-compact");
     root.classList.toggle("booked-gite-cards--polaroid", options.layout === "polaroid");
     root.classList.toggle("booked-gite-cards--wood-frames", options.layout === "wood-frames");
-    root.classList.toggle("booked-gite-cards--postcards", options.layout === "postcards");
+    root.classList.toggle("booked-gite-cards--postcards", ["postcards", "postcard-rack"].includes(options.layout));
+    root.classList.toggle("booked-gite-cards--postcard-rack", options.layout === "postcard-rack");
     root.classList.toggle("booked-gite-cards--no-images", !options.showImages);
     root.style.setProperty("--booked-gite-cards-columns", String(options.columns));
     root.style.setProperty("--booked-gite-cards-ratio", options.imageRatioCss);
@@ -503,6 +505,12 @@
       root.appendChild(createElement("div", "booked-gite-cards__empty", t("Aucun gîte disponible.")));
       return;
     }
+
+    if (options.layout === "postcard-rack" && window.BookedPostcardRack) {
+      window.BookedPostcardRack.mount(root, gites.slice(0, 4), options);
+      return;
+    }
+    root.classList.toggle("is-rack-static", options.layout === "postcard-rack");
 
     const grid = createElement("div", "booked-gite-cards__grid");
     gites.forEach((gite, index) => {
@@ -525,8 +533,8 @@
     };
     const columns = Number.parseInt(root.dataset.columns || "3", 10);
     const imageRatio = root.dataset.imageRatio || "4-3";
-    const layout = ["grid", "compact", "spotlight", "page-compact", "polaroid", "wood-frames", "postcards"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
-    const isComposedLayout = ["polaroid", "wood-frames", "postcards"].includes(layout);
+    const layout = ["grid", "compact", "spotlight", "page-compact", "polaroid", "wood-frames", "postcards", "postcard-rack"].includes(root.dataset.layout) ? root.dataset.layout : "grid";
+    const isComposedLayout = ["polaroid", "wood-frames", "postcards", "postcard-rack"].includes(layout);
 
     return {
       layout,
@@ -546,7 +554,10 @@
   };
 
   const renderGiteCards = async (root) => {
-    const giteIds = parseJsonList(root.dataset.giteIds).map(String).filter(Boolean);
+    const renderId = {};
+    root.bookedGiteCardsRender = renderId;
+    root.bookedPostcardRackDestroy?.();
+    const giteIds = parseJsonList(root.dataset.giteIds).map(String).filter(Boolean).slice(0, root.dataset.layout === "postcard-rack" ? 4 : undefined);
     const metadata = parseJsonList(root.dataset.gites).reduce((items, item) => {
       if (item && item.id) items[String(item.id)] = item;
       return items;
@@ -573,8 +584,11 @@
 
     try {
       const payloads = await Promise.all(giteIds.map((giteId) => fetchGiteContent(giteId).then((payload) => ({ giteId, payload }))));
-      renderContent(root, payloads.map(({ giteId, payload }) => normalizeGite(giteId, payload, metadata[giteId] || {})), options);
+      if (root.bookedGiteCardsRender !== renderId) return;
+      const gites = payloads.map(({ giteId, payload }) => normalizeGite(giteId, payload, metadata[giteId] || {}));
+      if (JSON.stringify(gites) !== JSON.stringify(cachedGites)) renderContent(root, gites, options);
     } catch (error) {
+      if (root.bookedGiteCardsRender !== renderId) return;
       if (cachedGites.length > 0) return;
       root.innerHTML = "";
       root.appendChild(createElement("div", "booked-widget--error", error.message || t("Contenu indisponible.")));

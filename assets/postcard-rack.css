@@ -1,0 +1,100 @@
+/* CSS 3D only: no autonomous rotation, canvas, or permanent rendering loop. */
+.booked-gite-cards--postcard-rack {
+  --rack-brass: #a18b60;
+  --rack-ink: #3c4939;
+  --rack-paper: #f5f0e3;
+  text-align: center;
+}
+.booked-postcard-rack__placeholder { display: grid; place-items: center; min-height: 560px; color: var(--rack-ink); }
+.booked-postcard-rack__stage {
+  position: relative;
+  height: 540px;
+  width: 100%;
+  overflow: hidden;
+  perspective: 1100px;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.booked-postcard-rack__stage.is-dragging { cursor: grabbing; }
+.booked-postcard-rack__world {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 820px;
+  height: 520px;
+  transform: translate(-50%, -50%) scale(var(--rack-scale, 1));
+  transform-style: preserve-3d;
+}
+.booked-postcard-rack__stand { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; }
+.booked-postcard-rack__base {
+  position: absolute;
+  top: 438px;
+  left: 50%;
+  width: 380px;
+  height: 50px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 30%, #ebe8dc, #d5cdbb);
+  border: 1px solid #a18b6033;
+  box-shadow: 0 14px 18px -16px #4e402955;
+}
+.booked-postcard-rack__pole { position: absolute; top: 102px; bottom: 62px; left: calc(50% - 6px); width: 12px; background: linear-gradient(90deg, #86734e, #bba37a 45%, #8e7c58); }
+.booked-postcard-rack__sign {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 290px;
+  padding: 19px 18px;
+  border-radius: 48px 48px 2px 2px;
+  background: var(--rack-paper);
+  color: var(--rack-ink);
+  border: 1px solid #a18b6038;
+  box-shadow: inset 0 0 24px #a18b6015;
+}
+.booked-postcard-rack__sign span { display: block; font: 23px/1.1 "Booked Quill Paper", cursive; }
+.booked-postcard-rack__sign strong { display: block; font: 400 31px/1.4 "Booked Italiana", Georgia, serif; letter-spacing: .06em; text-transform: uppercase; }
+.booked-postcard-rack__rotor { position: absolute; left: 50%; top: 57%; width: 0; height: 0; transform-style: preserve-3d; transform: rotateX(-8deg) rotateY(var(--rack-angle, -24deg)); transition: transform 650ms cubic-bezier(.2,.65,.3,1); }
+.booked-postcard-rack__slot { position: absolute; width: 300px; height: 200px; left: -150px; top: -100px; transform-style: preserve-3d; transform: rotateY(var(--slot-angle)) translateZ(180px) rotateX(10deg); cursor: pointer; }
+.booked-postcard-rack__slot::before { content: ""; position: absolute; inset: 0; background: #eee4cd url("images/postcard-postal.jpg") center / cover; border: 1px solid #b3a181; transform: rotateY(180deg) translateZ(.5px); backface-visibility: hidden; }
+.booked-postcard-rack__slot.is-empty::before { visibility: hidden; }
+.booked-gite-cards--postcard-rack .booked-postcard-rack__slot > .booked-postcard { width: 100%; margin: 0; padding: 0; backface-visibility: hidden; }
+.booked-gite-cards--postcard-rack .booked-postcard-rack__slot .booked-postcard__flipper { min-height: 0; box-shadow: 0 2px 5px #4e402926; }
+.booked-postcard-rack__slot .booked-postcard__canvas { pointer-events: none; }
+.booked-postcard-rack__slot .booked-postcard__return { display: none; }
+.booked-gite-cards--postcard-rack .booked-postcard-rack__slot .booked-postcard__tilt { transform: rotate(var(--postcard-rotation)); transition: none; }
+.booked-postcard-rack__wire { position: absolute; inset: 50% -8px -12px; border: 2px solid var(--rack-brass); border-top: 0; transform: translateZ(7px); pointer-events: none; }
+.booked-postcard-rack__wire::before, .booked-postcard-rack__wire::after { content: ""; position: absolute; top: -20px; bottom: 0; width: 12px; border: 2px solid var(--rack-brass); border-bottom: 0; border-radius: 3px 3px 0 0; }
+.booked-postcard-rack__wire::before { left: 22%; }
+.booked-postcard-rack__wire::after { right: 22%; }
+.booked-postcard-rack__caption { margin: 0 0 8px; font: 400 clamp(22px, 3cqw, 30px)/1.3 "Booked Italiana", Georgia, serif; color: var(--rack-ink); }
+.booked-postcard-rack__hint { margin: 0; font: 12px/1.5 Arial, sans-serif; color: #6f715f; }
+.booked-postcard-rack__controls { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 22px 12px 30px; }
+.booked-postcard-rack__choices { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.booked-postcard-rack__button, .booked-postcard-rack__visit { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 10px 16px; border: 1px solid #9c94785c; border-radius: 24px; background: var(--rack-paper); color: var(--rack-ink); font: 12px/1.35 Arial, sans-serif; cursor: pointer; text-decoration: none; }
+.booked-postcard-rack__controls > .booked-postcard-rack__button { font-size: 20px; padding: 4px; flex: 0 0 44px; }
+.booked-postcard-rack__button:hover, .booked-postcard-rack__visit:hover { background: #e5e3d2; color: var(--rack-ink); }
+.booked-postcard-rack__button:focus-visible, .booked-postcard-rack__visit:focus-visible { outline: 2px solid var(--rack-ink); outline-offset: 4px; }
+.booked-postcard-rack__dialog { box-sizing: border-box; position: fixed; inset: 0; width: min(620px, calc(100% - 24px)); max-width: none; max-height: calc(100svh - 24px); margin: auto; padding: 24px; border: 1px solid #a18b605c; border-radius: 8px; background: #f7f3e9; color: var(--rack-ink); text-align: center; overflow: auto; }
+.booked-postcard-rack__dialog::backdrop { background: #2430268c; backdrop-filter: blur(3px); }
+.booked-postcard-rack__dialog-title { margin: 0 0 20px; font: 400 28px/1.2 "Booked Italiana", Georgia, serif; color: inherit; }
+.booked-gite-cards--postcard-rack .booked-postcard-rack__dialog .booked-postcard { width: 100%; margin: 0; padding-bottom: 44px; }
+.booked-postcard-rack__dialog .booked-postcard__flipper { min-height: 0; }
+.booked-postcard-rack__dialog .booked-postcard__return { min-height: 44px; }
+.booked-postcard-rack__actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+.booked-postcard-rack__actions .booked-postcard-rack__visit { background: var(--rack-ink); color: #fff7e3; }
+.booked-postcard-rack__actions .booked-postcard-rack__visit[hidden] { display: none; }
+.booked-gite-cards--postcard-rack.is-rack-paused *, .booked-postcard-rack__stage.is-dragging .booked-postcard-rack__rotor { transition: none; }
+.booked-gite-cards--postcard-rack.is-rack-static > .booked-gite-cards__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container booked-postcards (max-width: 640px) {
+  .booked-postcard-rack__stage { height: 350px; }
+  .booked-postcard-rack__placeholder { min-height: 350px; }
+  .booked-postcard-rack__controls { gap: 8px; padding-inline: 0; }
+  .booked-postcard-rack__choice { font-size: 11px; padding-inline: 12px; }
+  .booked-postcard-rack__hint { font-size: 11px; padding-inline: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .booked-gite-cards--postcard-rack *, .booked-gite-cards--postcard-rack *::before, .booked-gite-cards--postcard-rack *::after { transition: none !important; }
+}

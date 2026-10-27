@@ -21,6 +21,7 @@ class Booked_Block
     public function register(): void
     {
         add_action('init', [$this, 'register_block']);
+        add_action('enqueue_block_assets', [$this, 'enqueue_editor_content_styles']);
         add_action('enqueue_block_editor_assets', [$this, 'enqueue_editor_assets']);
     }
 
@@ -813,6 +814,16 @@ class Booked_Block
         ]);
     }
 
+    public function enqueue_editor_content_styles(): void
+    {
+        if (!is_admin()) {
+            return;
+        }
+
+        // Gutenberg's content iframe needs these as block assets, not UI assets.
+        wp_enqueue_style('booked-postcard-rack');
+    }
+
     public function enqueue_editor_assets(): void
     {
         wp_enqueue_style('booked-widget');
@@ -823,12 +834,14 @@ class Booked_Block
         wp_enqueue_script('booked-gite-cards');
         wp_enqueue_script('booked-image-carousel');
         wp_enqueue_style('booked-postcards');
+        wp_enqueue_style('booked-postcard-rack');
+        wp_enqueue_script('booked-postcard-rack');
         wp_enqueue_style('booked-typography');
 
         wp_enqueue_script(
             'booked-block',
             BOOKED_PLUGIN_URL . 'assets/block.js',
-            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'wp-server-side-render', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards', 'booked-image-carousel'],
+            ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-edit-post', 'wp-element', 'wp-i18n', 'wp-plugins', 'wp-server-side-render', 'booked-widget', 'booked-accordion', 'booked-gite-info', 'booked-gallery', 'booked-gite-cards', 'booked-postcard-rack', 'booked-image-carousel'],
             BOOKED_VERSION,
             true
         );
@@ -996,7 +1009,7 @@ class Booked_Block
     public function render_gite_cards_block(array $attributes): string
     {
         $selected_gite_ids = $this->sanitize_gite_id_list($attributes['selectedGiteIds'] ?? []);
-        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact', 'polaroid', 'wood-frames', 'postcards'], true)
+        $layout = in_array((string) ($attributes['layout'] ?? 'grid'), ['grid', 'compact', 'spotlight', 'page-compact', 'polaroid', 'wood-frames', 'postcards', 'postcard-rack'], true)
             ? (string) $attributes['layout']
             : 'grid';
         $is_page_compact = $layout === 'page-compact';
@@ -1017,7 +1030,7 @@ class Booked_Block
         $image_ratio = in_array((string) ($attributes['imageRatio'] ?? '4-3'), ['1-1', '4-3', '3-2', '16-9'], true)
             ? (string) $attributes['imageRatio']
             : '4-3';
-        $is_composed_layout = in_array($layout, ['polaroid', 'wood-frames', 'postcards'], true);
+        $is_composed_layout = in_array($layout, ['polaroid', 'wood-frames', 'postcards', 'postcard-rack'], true);
         $show_images = $is_composed_layout || (!$is_page_compact && (!array_key_exists('showImages', $attributes) || !empty($attributes['showImages'])));
         $show_description = $is_composed_layout || (!$is_page_compact && (!array_key_exists('showDescription', $attributes) || !empty($attributes['showDescription'])));
         $show_stats = $is_page_compact || $is_composed_layout || !array_key_exists('showStats', $attributes) || !empty($attributes['showStats']);
@@ -1050,6 +1063,10 @@ class Booked_Block
             $columns = 1;
         }
 
+        if ($layout === 'postcard-rack') {
+            $gite_ids = array_slice($gite_ids, 0, 4);
+        }
+
         $gite_lookup = [];
         foreach ($gites as $gite) {
             $id = (string) ($gite['id'] ?? '');
@@ -1073,8 +1090,12 @@ class Booked_Block
         wp_enqueue_style('booked-widget');
         wp_enqueue_script('booked-gite-cards');
 
-        if ($layout === 'postcards') {
+        if (in_array($layout, ['postcards', 'postcard-rack'], true)) {
             wp_enqueue_style('booked-postcards');
+        }
+        if ($layout === 'postcard-rack') {
+            wp_enqueue_style('booked-postcard-rack');
+            wp_enqueue_script('booked-postcard-rack');
         }
 
         $wrapper_attributes = get_block_wrapper_attributes([
